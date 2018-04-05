@@ -26,7 +26,7 @@ setup(
     author_email='srtaylor@caltech.edu',
     license='MIT',
     packages=['enterprise_extensions'],
-    install_requires=['numpy','scipy','matplotlib','enterprise','hashlib','acor'],
+    install_requires=['numpy','scipy','enterprise'],
     include_package_data=True,
     zip_safe=False,
 )
