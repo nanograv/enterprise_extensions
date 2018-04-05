@@ -861,7 +861,7 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 #### PTA models from paper ####
 
-def model_singlepsr_noise(psr, psd='powerlaw', component=30, upper_limit=False,
+def model_singlepsr_noise(psr, psd='powerlaw', components=30, upper_limit=False,
                           wideband=False, gamma_val=None):
     """
     Reads in enterprise Pulsar instance and returns a PTA
