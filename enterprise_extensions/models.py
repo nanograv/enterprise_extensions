@@ -580,7 +580,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         elif psd == 'tprocess':
             df = 2
             alphas = InvGamma(df/2, df/2, size=30)
-            pl = tprocess(log10_A=log10_A, gamma=gamma, alphas=alphas)
+            pl = t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
 
     if psd == 'spectrum':
         if prior == 'uniform':
