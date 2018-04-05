@@ -13,7 +13,7 @@ from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
 
-from models import model_utils
+from enterprise_extensions import model_utils
 
 #### Extra model components not part of base enterprise ####
 
