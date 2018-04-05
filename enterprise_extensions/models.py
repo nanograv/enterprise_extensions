@@ -532,12 +532,15 @@ def white_noise_block(vary=False, wideband=False):
 
     return s
 
-def red_noise_block(prior='log-uniform', Tspan=None, components=30):
+def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
+                    components=30, gamma_val=None):
     """
     Returns red noise model:
 
         1. Red noise modeled as a power-law with 30 sampling frequencies
 
+    :param psd:
+        PSD function [e.g. powerlaw (default), spectrum, tprocess]
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
@@ -546,19 +549,45 @@ def red_noise_block(prior='log-uniform', Tspan=None, components=30):
         use overall time span for indivicual pulsar.
 
     """
+    # red noise parameters that are common
+    if psd in ['powerlaw', 'turnover', 'tprocess']:
+        # parameters shared by PSD functions
+        if prior == 'uniform':
+            log10_A = parameter.LinearExp(-20, -11)
+        elif prior == 'log-uniform' and gamma_val is not None:
+            if np.abs(gamma_val - 4.33) < 0.1:
+                log10_A = parameter.Uniform(-20, -11)
+            else:
+                log10_A = parameter.Uniform(-20, -11)
+        else:
+            log10_A = parameter.Uniform(-20, -11)
 
-    # red noise parameters
-    if prior == 'uniform':
-        log10_A = parameter.LinearExp(-20, -11)
-    elif prior == 'log-uniform':
-        log10_A = parameter.Uniform(-20, -11)
-    else:
-        raise ValueError('Unknown prior for red noise amplitude!')
+        if gamma_val is not None:
+            gamma = parameter.Constant(gamma_val)
+        else:
+            gamma = parameter.Uniform(0, 7)
 
-    gamma = parameter.Uniform(0, 7)
+        # different PSD function parameters
+        if psd == 'powerlaw':
+            pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+        elif psd == 'turnover':
+            kappa = parameter.Uniform(0, 7)
+            lf0 = parameter.Uniform(-9, -7)
+            pl = utils.turnover(log10_A=log10_A, gamma=gamma,
+                                 lf0=lf0, kappa=kappa)
+        elif psd == 'tprocess':
+            df = 2
+            alphas = InvGamma(df/2, df/2, size=30)
+            pl = tprocess(log10_A=log10_A, gamma=gamma, alphas=alphas)
 
-    # red noise signal
-    pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+    if psd == 'spectrum':
+        if prior == 'uniform':
+            log10_rho = parameter.LinearExp(-9, -4, size=components)
+        elif prior == 'log-uniform':
+            log10_rho = parameter.Uniform(-9, -4, size=components)
+
+        pl = free_spectrum(log10_rho=log10_rho)
+
     rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan)
 
     return rn
@@ -832,7 +861,8 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 #### PTA models from paper ####
 
-def model_singlepsr_noise(psr, wideband=False):
+def model_singlepsr_noise(psr, psd='powerlaw', component=30, wideband=False,
+                          gamma_val=None):
     """
     Reads in enterprise Pulsar instance and returns a PTA
     instantiated with the standard NANOGrav noise model:
@@ -843,12 +873,14 @@ def model_singlepsr_noise(psr, wideband=False):
         4. Red noise modeled as a power-law with 30 sampling frequencies
         5. Linear timing model.
     """
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # white noise
     s = white_noise_block(vary=True, wideband=wideband)
 
     # red noise
-    s += red_noise_block()
+    s += red_noise_block(psd=psd, prior=amp_prior, components=components,
+                         gamma_val=gamma_val)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -859,115 +891,11 @@ def model_singlepsr_noise(psr, wideband=False):
     return pta
 
 
-def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
-                    gamma_common=None, upper_limit=False, bayesephem=False,
-                    wideband=False,
-                    idx=4, chromatic_psd='powerlaw', c_psrs=['J1713+0747']):
+def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
+            upper_limit=False, bayesephem=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
-    instantiated with model 2A from the analysis paper + additional
-    chromatic noise for given pulsars
-
-    per pulsar:
-        1. fixed EFAC per backend/receiver system
-        2. fixed EQUAD per backend/receiver system
-        3. fixed ECORR per backend/receiver system
-        4. Red noise modeled as a power-law with 30 sampling frequencies
-        5. Linear timing model.
-        6. Chromatic noise for given pulsar list
-
-    global:
-        1.Common red noise modeled with user defined PSD with
-        30 sampling frequencies. Available PSDs are
-        ['powerlaw', 'turnover' 'spectrum']
-        2. Optional physical ephemeris modeling.
-
-    :param psd:
-        PSD to use for common red noise signal. Available options
-        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
-        value.
-    :param noisedict:
-        Dictionary of pulsar noise properties. Can provide manually,
-        or the code will attempt to find it.
-    :param gamma_common:
-        Fixed common red process spectral index value. By default we
-        vary the spectral index over the range [0, 7].
-    :param upper_limit:
-        Perform upper limit on common red noise amplitude. By default
-        this is set to False. Note that when perfoming upper limits it
-        is recommended that the spectral index also be fixed to a specific
-        value.
-    :param bayesephem:
-        Include BayesEphem model. Set to False by default
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
-    :param idx:
-        Index of chromatic process (i.e DM is 2, scattering would be 4). If
-        set to `vary` then will vary from 0 - 6 (This will be VERY slow!)
-    :param chromatic_psd:
-        PSD to use for chromatic noise. Available options
-        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
-        value.
-    :param c_psrs:
-        List of pulsars to use chromatic noise. 'all' will use all pulsars
-    """
-
-    amp_prior = 'uniform' if upper_limit else 'log-uniform'
-
-    # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
-
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
-    # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
-
-    # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw')
-
-    # ephemeris model
-    if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
-
-    # timing model
-    s += gp_signals.TimingModel()
-
-    # chromatic noise
-    sc = chromatic_noise_block(psd=chromatic_psd, idx=idx)
-    if c_psrs == 'all':
-        s += sc
-        models = [s(psr) for psr in psrs]
-    elif len(c_psrs) > 0:
-        models = []
-        for psr in psrs:
-            if psr.name in c_psrs:
-                print('Adding chromatic model to PSR {}'.format(psr.name))
-                snew = s + sc
-                models.append(snew(psr))
-            else:
-                models.append(s(psr))
-
-    # set up PTA
-    pta = signal_base.PTA(models)
-
-    # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
-
-    return pta
-
-
-def model_1(psrs, noisedict=None, components=30, upper_limit=False,
-            bayesephem=False, wideband=False):
-    """
-    Reads in list of enterprise Pulsar instance and returns a PTA
-    instantiated with model 2A from the analysis paper:
+    instantiated with only white and red noise:
 
     per pulsar:
         1. fixed EFAC per backend/receiver system
@@ -979,6 +907,9 @@ def model_1(psrs, noisedict=None, components=30, upper_limit=False,
     global:
         1. Optional physical ephemeris modeling.
 
+
+    :param psd:
+        Choice of PSD function [e.g. powerlaw (default), turnover, tprocess]
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
@@ -1002,7 +933,8 @@ def model_1(psrs, noisedict=None, components=30, upper_limit=False,
     s = white_noise_block(vary=False, wideband=wideband)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s += red_noise_block(psd=psd, prior=amp_prior,
+                         Tspan=Tspan, components=components)
 
     # ephemeris model
     if bayesephem:
@@ -1809,6 +1741,110 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # set up PTA
     pta = signal_base.PTA([s(psr) for psr in psrs])
+
+    # set white noise parameters
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
+
+    return pta
+
+
+def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
+                    gamma_common=None, upper_limit=False, bayesephem=False,
+                    wideband=False,
+                    idx=4, chromatic_psd='powerlaw', c_psrs=['J1713+0747']):
+    """
+    Reads in list of enterprise Pulsar instance and returns a PTA
+    instantiated with model 2A from the analysis paper + additional
+    chromatic noise for given pulsars
+
+    per pulsar:
+        1. fixed EFAC per backend/receiver system
+        2. fixed EQUAD per backend/receiver system
+        3. fixed ECORR per backend/receiver system
+        4. Red noise modeled as a power-law with 30 sampling frequencies
+        5. Linear timing model.
+        6. Chromatic noise for given pulsar list
+
+    global:
+        1.Common red noise modeled with user defined PSD with
+        30 sampling frequencies. Available PSDs are
+        ['powerlaw', 'turnover' 'spectrum']
+        2. Optional physical ephemeris modeling.
+
+    :param psd:
+        PSD to use for common red noise signal. Available options
+        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
+        value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param gamma_common:
+        Fixed common red process spectral index value. By default we
+        vary the spectral index over the range [0, 7].
+    :param upper_limit:
+        Perform upper limit on common red noise amplitude. By default
+        this is set to False. Note that when perfoming upper limits it
+        is recommended that the spectral index also be fixed to a specific
+        value.
+    :param bayesephem:
+        Include BayesEphem model. Set to False by default
+    :param wideband:
+        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param idx:
+        Index of chromatic process (i.e DM is 2, scattering would be 4). If
+        set to `vary` then will vary from 0 - 6 (This will be VERY slow!)
+    :param chromatic_psd:
+        PSD to use for chromatic noise. Available options
+        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
+        value.
+    :param c_psrs:
+        List of pulsars to use chromatic noise. 'all' will use all pulsars
+    """
+
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    # find the maximum time span to set GW frequency sampling
+    Tspan = model_utils.get_tspan(psrs)
+
+    # white noise
+    s = white_noise_block(vary=False, wideband=wideband)
+
+    # red noise
+    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+
+    # common red noise block
+    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                components=components, gamma_val=gamma_common,
+                                name='gw')
+
+    # ephemeris model
+    if bayesephem:
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+
+    # timing model
+    s += gp_signals.TimingModel()
+
+    # chromatic noise
+    sc = chromatic_noise_block(psd=chromatic_psd, idx=idx)
+    if c_psrs == 'all':
+        s += sc
+        models = [s(psr) for psr in psrs]
+    elif len(c_psrs) > 0:
+        models = []
+        for psr in psrs:
+            if psr.name in c_psrs:
+                print('Adding chromatic model to PSR {}'.format(psr.name))
+                snew = s + sc
+                models.append(snew(psr))
+            else:
+                models.append(s(psr))
+
+    # set up PTA
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
