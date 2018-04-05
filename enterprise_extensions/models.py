@@ -12,6 +12,7 @@ from enterprise.signals import gp_signals
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
+from enterprise.signals import prior
 
 from enterprise_extensions import model_utils
 
