@@ -863,8 +863,9 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 #### PTA models from paper ####
 
-def model_singlepsr_noise(psr, psd='powerlaw', components=30, upper_limit=False,
-                          wideband=False, gamma_val=None):
+def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
+                          components=30, upper_limit=False, wideband=False,
+                          gamma_val=None):
     """
     Reads in enterprise Pulsar instance and returns a PTA
     instantiated with the standard NANOGrav noise model:
@@ -878,7 +879,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', components=30, upper_limit=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # white noise
-    s = white_noise_block(vary=True, wideband=wideband)
+    s = white_noise_block(vary=white_vary, wideband=wideband)
 
     # red noise
     s += red_noise_block(psd=psd, prior=amp_prior, components=components,
@@ -889,6 +890,14 @@ def model_singlepsr_noise(psr, psd='powerlaw', components=30, upper_limit=False,
 
     # set up PTA of one
     pta = signal_base.PTA([s(psr)])
+
+    # set white noise parameters
+    if not white_vary:
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
