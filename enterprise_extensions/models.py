@@ -74,7 +74,7 @@ def free_spectrum(f, log10_rho=None):
     where \rho_i is the free parameter and T is the observation
     length.
     """
-    return np.repeat(10**(2*log10_rho), 2)
+    return np.repeat(10**(2*np.array(log10_rho)), 2)
 
 @signal_base.function
 def t_process(f, log10_A=-15, gamma=4.33, alphas=None):
@@ -579,14 +579,14 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                  lf0=lf0, kappa=kappa)
         elif psd == 'tprocess':
             df = 2
-            alphas = InvGamma(df/2, df/2, size=30)
+            alphas = InvGamma(df/2, df/2, size=components)
             pl = t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
 
     if psd == 'spectrum':
         if prior == 'uniform':
-            log10_rho = parameter.LinearExp(-9, -4, size=components)
+            log10_rho = parameter.LinearExp(-10, -4, size=components)
         elif prior == 'log-uniform':
-            log10_rho = parameter.Uniform(-9, -4, size=components)
+            log10_rho = parameter.Uniform(-10, -4, size=components)
 
         pl = free_spectrum(log10_rho=log10_rho)
 
