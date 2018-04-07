@@ -77,13 +77,22 @@ def free_spectrum(f, log10_rho=None):
     return np.repeat(10**(2*np.array(log10_rho)), 2)
 
 @signal_base.function
-def t_process(f, log10_A=-15, gamma=4.33, alphas=None):
+def t_process(f, log10_A=-15, gamma=4.33, alphas=None, nfreq=None):
     """
     t-process model. PSD  amplitude at each frequency
     is a fuzzy power-law.
     """
-    alphas = np.ones_like(f) if alphas is None else np.repeat(alphas, 2)
-    return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alphas
+    if alphas is None:
+        alpha_model = np.ones_like(f)
+    else:
+        if nfreq is None:
+            alpha_model = np.repeat(alphas, 2)
+        else:
+            alpha_model = np.ones_like(f)
+            alpha_model[2*np.rint(nfreq)] = alphas
+            alpha_model[2*np.rint(nfreq)+1] = alphas
+
+    return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
 
 def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
@@ -581,6 +590,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             df = 2
             alphas = InvGamma(df/2, df/2, size=components)
             pl = t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
+        elif psd == 'tprocess_adapt':
+            df = 2
+            alpha_adapt = InvGamma(df/2, df/2, size=1)
+            nfreq = parameter.Uniform(-0.5, components-0.5)
+            pl = t_process(log10_A=log10_A, gamma=gamma,
+                           alphas=alpha_adapt, nfreq=nfreq)
 
     if psd == 'spectrum':
         if prior == 'uniform':
