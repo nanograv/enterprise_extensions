@@ -561,7 +561,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess']:
+    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
