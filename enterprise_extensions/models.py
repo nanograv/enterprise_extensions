@@ -89,8 +89,8 @@ def t_process(f, log10_A=-15, gamma=4.33, alphas=None, nfreq=None):
             alpha_model = np.repeat(alphas, 2)
         else:
             alpha_model = np.ones_like(f)
-            alpha_model[2*np.rint(nfreq)] = alphas
-            alpha_model[2*np.rint(nfreq)+1] = alphas
+            alpha_model[2*int(np.rint(nfreq))] = alphas
+            alpha_model[2*int(np.rint(nfreq))+1] = alphas
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
 
