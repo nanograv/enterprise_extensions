@@ -665,7 +665,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     return rn
 
 def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None):
+                    components=30, gamma_val=None, dm_annual=False):
     """
     Returns DM noise model:
 
@@ -679,7 +679,13 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for indivicual pulsar.
-
+    :param components:
+        Number of frequencies in sampling of DM-variations.
+    :param gamma_val:
+        If given, this is the fixed slope of a power-law
+        DM-variation spectrum.
+    :param dm_annual:
+        Adds an annual DM-variation signal.
     """
     # dm noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
@@ -730,7 +736,45 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                                   Tspan=Tspan)
     dmgp = gp_signals.BasisGP(pl, dm_basis, name='dm_gp')
 
-    return dmgp
+    dm_block = dmgp
+
+    if dm_annual:
+        # DM sinusoid parameters
+        log10_Amp_dm1yr = parameter.Uniform(-10, -2)
+        phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+        # waveform
+        wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
+                                   phase=phase_dm1yr, idx=2)
+        dm1yr = deterministic_signals.Deterministic(wf, name='dm_s1yr')
+
+        dm_block += dm1yr
+
+    return dm_block
+
+def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
+    """
+    Returns chromatic exponential dip (i.e. TOA advance):
+
+    :param tmin, tmax:
+        search window for exponential dip time.
+    :param idx:
+        index of radio frequency dependence (i.e. DM is 2). If this is set
+        to 'vary' then the index will vary from 1 - 6
+    :param name: Name of signal
+
+    :return dmexp:
+        chromatic exponential dip waveform.
+    """
+
+
+    t0_dmexp = parameter.Uniform(tmin,taax)
+    log10_Amp_dmexp = parameter.Uniform(-10, -2)
+    log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
+    wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp, t0=t0_dmexp,
+                         log10_tau=log10_tau_dmexp, idx=idx)
+    dmexp = deterministic_signals.Deterministic(wf, name=name)
+
+    return dmexp
 
 def chromatic_noise_block(psd='powerlaw', idx=4,
                           name='chromatic', components=30):
