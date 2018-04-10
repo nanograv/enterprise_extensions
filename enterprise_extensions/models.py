@@ -20,8 +20,49 @@ from enterprise_extensions import model_utils
 #### Extra model components not part of base enterprise ####
 
 @signal_base.function
-def chromatic_quad_basis(toas, freqs, idx=4):
+def chrom_exp_decay(toas, freqs, log10_Amp=-7,
+                    t0=54000, log10_tau=1.7, idx=2):
+    """
+    Chromatic exponential-dip delay term in TOAs.
 
+    :param t0: time of exponential minimum [MJD]
+    :param tau: 1/e time of exponential [s]
+    :param log10_Amp: amplitude of dip
+    :param idx: index of chromatic dependence
+
+    :return wf: delay time-series [s]
+    """
+    t0 *= const.day
+    tau = 10**log10_tau * const.day
+    wf = -10**log10_Amp * np.heaviside(toas - t0, 1) * \
+        np.exp(- (toas - t0) / tau)
+
+    return wf * (1400 / freqs) ** idx
+
+@signal_base.function
+def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
+    """
+    Chromatic annual sinusoid.
+
+    :param log10_Amp: amplitude of sinusoid
+    :param phase: initial phase of sinusoid
+    :param idx: index of chromatic dependence
+
+    :return wf: delay time-series [s]
+    """
+
+    wf = 10**log10_Amp * np.sin( 2 * np.pi * const.fyr * toas + phase)
+    return wf * (1400 / freqs) ** idx
+
+@signal_base.function
+def chromatic_quad_basis(toas, freqs, idx=4):
+    """
+    Basis for chromatic quadratic function.
+
+    :param idx: index of chromatic dependence
+
+    :return ret: normalized quadratic basis matrix [Ntoa, 3]
+    """
     ret = np.zeros((len(toas), 3))
     t0 = (toas.max() + toas.min()) / 2
     for ii in range(3):
@@ -31,6 +72,11 @@ def chromatic_quad_basis(toas, freqs, idx=4):
 
 @signal_base.function
 def chromatic_quad_prior(toas):
+    """
+    Prior for chromatic quadratic function.
+
+    :return prior: prior-range for quadratic coefficients
+    """
     return np.ones(3) * 1e80
 
 @signal_base.function
@@ -618,6 +664,74 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     return rn
 
+def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
+                    components=30, gamma_val=None):
+    """
+    Returns DM noise model:
+
+        1. DM noise modeled as a power-law with 30 sampling frequencies
+
+    :param psd:
+        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+    :param prior:
+        Prior on log10_A. Default if "log-uniform". Use "uniform" for
+        upper limits.
+    :param Tspan:
+        Sets frequency sampling f_i = i / Tspan. Default will
+        use overall time span for indivicual pulsar.
+
+    """
+    # dm noise parameters that are common
+    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+        # parameters shared by PSD functions
+        if prior == 'uniform':
+            log10_A_dm = parameter.LinearExp(-20, -11)
+        elif prior == 'log-uniform' and gamma_val is not None:
+            if np.abs(gamma_val - 4.33) < 0.1:
+                log10_A_dm = parameter.Uniform(-20, -11)
+            else:
+                log10_A_dm = parameter.Uniform(-20, -11)
+        else:
+            log10_A_dm = parameter.Uniform(-20, -11)
+
+        if gamma_val is not None:
+            gamma_dm = parameter.Constant(gamma_val)
+        else:
+            gamma_dm = parameter.Uniform(0, 7)
+
+        # different PSD function parameters
+        if psd == 'powerlaw':
+            pl = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+        elif psd == 'turnover':
+            kappa_dm = parameter.Uniform(0, 7)
+            lf0_dm = parameter.Uniform(-9, -7)
+            pl = utils.turnover(log10_A=log10_A_dm, gamma=gamma_dm,
+                                 lf0=lf0_dm, kappa=kappa_dm)
+        elif psd == 'tprocess':
+            df = 2
+            alphas_dm = InvGamma(df/2, df/2, size=components)
+            pl = t_process(log10_A=log10_A_dm, gamma=gamma_dm, alphas=alphas_dm)
+        elif psd == 'tprocess_adapt':
+            df = 2
+            alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
+            nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
+            pl = t_process_adapt(log10_A=log10_A_dm, gamma=gamma_dm,
+                                 alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
+
+    if psd == 'spectrum':
+        if prior == 'uniform':
+            log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+        elif prior == 'log-uniform':
+            log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+
+        pl = free_spectrum(log10_rho=log10_rho_dm)
+
+    dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
+                                                  Tspan=Tspan)
+    dmgp = gp_signals.BasisGP(pl, dm_basis, name='dm_gp')
+
+    return dmgp
+
 def chromatic_noise_block(psd='powerlaw', idx=4,
                           name='chromatic', components=30):
     """
@@ -663,7 +777,8 @@ def chromatic_noise_block(psd='powerlaw', idx=4,
     cquad = gp_signals.BasisGP(prior_quad, basis_quad, name=name+'_quad')
 
     # Fourier piece
-    basis_gp = createfourierdesignmatrix_chromatic()
+    basis_gp = createfourierdesignmatrix_chromatic(nmodes=components,
+                                                   Tspan=Tspan)
     cgp = gp_signals.BasisGP(cpl, basis_gp, name=name+'_gp')
 
     return cquad + cgp
