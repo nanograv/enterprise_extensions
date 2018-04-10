@@ -77,20 +77,29 @@ def free_spectrum(f, log10_rho=None):
     return np.repeat(10**(2*np.array(log10_rho)), 2)
 
 @signal_base.function
-def t_process(f, log10_A=-15, gamma=4.33, alphas=None, nfreq=None):
+def t_process(f, log10_A=-15, gamma=4.33, alphas=None):
     """
     t-process model. PSD  amplitude at each frequency
     is a fuzzy power-law.
     """
-    if alphas is None:
+    alphas = np.ones_like(f) if alphas is None else np.repeat(alphas, 2)
+    return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alphas
+
+@signal_base.function
+def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
+    """
+    t-process model. PSD  amplitude at each frequency
+    is a fuzzy power-law.
+    """
+    if alphas_adapt is None:
         alpha_model = np.ones_like(f)
     else:
         if nfreq is None:
-            alpha_model = np.repeat(alphas, 2)
+            alpha_model = np.repeat(alphas_adapt, 2)
         else:
             alpha_model = np.ones_like(f)
-            alpha_model[2*int(np.rint(nfreq))] = alphas
-            alpha_model[2*int(np.rint(nfreq))+1] = alphas
+            alpha_model[2*int(np.rint(nfreq))] = alphas_adapt
+            alpha_model[2*int(np.rint(nfreq))+1] = alphas_adapt
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
 
@@ -593,9 +602,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         elif psd == 'tprocess_adapt':
             df = 2
             alpha_adapt = InvGamma(df/2, df/2, size=1)
-            nfreq = parameter.Uniform(-0.5, components-0.5)
-            pl = t_process(log10_A=log10_A, gamma=gamma,
-                           alphas=alpha_adapt, nfreq=nfreq)
+            nfreq = parameter.Uniform(-0.5, 10-0.5)
+            pl = t_process_adapt(log10_A=log10_A, gamma=gamma,
+                                 alphas_adapt=alpha_adapt, nfreq=nfreq)
 
     if psd == 'spectrum':
         if prior == 'uniform':
