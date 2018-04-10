@@ -765,8 +765,6 @@ def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
     :return dmexp:
         chromatic exponential dip waveform.
     """
-
-
     t0_dmexp = parameter.Uniform(tmin,taax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
     log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
@@ -1048,7 +1046,8 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
                           components=30, upper_limit=False, wideband=False,
-                          gamma_val=None):
+                          gamma_val=None, dm_var=False, dm_annual=False,
+                          gamma_dm_val=None):
     """
     Reads in enterprise Pulsar instance and returns a PTA
     instantiated with the standard NANOGrav noise model:
@@ -1058,6 +1057,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
         3. ECORR per backend/receiver system
         4. Red noise modeled as a power-law with 30 sampling frequencies
         5. Linear timing model.
+        6. (optional) DM variations (GP and annual)
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
@@ -1067,6 +1067,11 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     # red noise
     s += red_noise_block(psd=psd, prior=amp_prior, components=components,
                          gamma_val=gamma_val)
+
+    # GP DM variations
+    if dm_var:
+        s += dm_noise_block(psd=psd, prior=amp_prior, components=components,
+                            gamma_val=gamma_dm_val, dm_annual=dm_annual)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -1152,7 +1157,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False):
+             wideband=False, dm_var=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
