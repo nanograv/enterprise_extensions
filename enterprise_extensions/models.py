@@ -1046,8 +1046,8 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
                           components=30, upper_limit=False, wideband=False,
-                          gamma_val=None, dm_var=False, dm_annual=False,
-                          gamma_dm_val=None):
+                          gamma_val=None, dm_var=False, dm_psd='powerlaw',
+                          dm_annual=False, gamma_dm_val=None):
     """
     Reads in enterprise Pulsar instance and returns a PTA
     instantiated with the standard NANOGrav noise model:
@@ -1070,7 +1070,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
 
     # GP DM variations
     if dm_var:
-        s += dm_noise_block(psd=psd, prior=amp_prior, components=components,
+        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
                             gamma_val=gamma_dm_val, dm_annual=dm_annual)
 
     # timing model
