@@ -113,6 +113,43 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_dm_gp_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'dm_gp'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+
+        return q, float(lqxy)
+
+    def draw_from_dm1yr_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        dm1yr_names = [dmname for dmname in self.pnames if 'dm_s1yr' in dmname]
+        dmname = np.random.choice(dm1yr_names)
+        idx = self.pnames.index(dmname)
+        if 'log10_Amp' in dmname:
+            q[idx] = np.random.uniform(-10, -2)
+        elif 'phase' in dmname:
+            q[idx] = np.random.uniform(0, 2*np.pi)
+
+        return q, 0
+
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
@@ -304,6 +341,16 @@ def setup_sampler(pta, outdir='chains', resume=False):
     if 'red noise' in jp.snames:
         print('Adding red noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
+
+    # DM GP noise prior draw
+    if 'dm_gp' in jp.snames:
+        print('Adding DM GP noise prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
+
+    # DM annual prior draw
+    if 'dm_s1yr' in jp.snames:
+        print('Adding DM annual prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
     # Ephemeris prior draw
     if 'd_jupiter_mass' in pta.param_names:
@@ -652,6 +699,16 @@ class HyperModel(object):
             print('Adding red noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
+        # DM GP noise prior draw
+        if 'dm_gp' in self.snames:
+            print('Adding DM GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
+
+        # DM annual prior draw
+        if 'dm_s1yr' in jp.snames:
+            print('Adding DM annual prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
             print('Adding ephemeris model prior draws...\n')
@@ -685,6 +742,6 @@ class HyperModel(object):
         # Model index distribution draw
         if 'nmodel' in self.param_names:
             print('Adding nmodel uniform distribution draws...\n')
-            sampler.addProposalToCycle(self.draw_from_nmodel_prior, 10)
+            sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
 
         return sampler
