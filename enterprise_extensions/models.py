@@ -1118,7 +1118,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     if dm_var:
         if dm_type == 'gp':
             s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                                gamma_val=gamma_dm_val, dm_annual=dm_annual)
+                                gamma_val=gamma_dm_val)
         elif dm_type == 'dmx':
             s += dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
