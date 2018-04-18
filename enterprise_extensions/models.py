@@ -754,7 +754,7 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     return dmgp
 
-def dm_annual(idx=2, name='dm_s1yr'):
+def dm_annual_signal(idx=2, name='dm_s1yr'):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 
@@ -1122,7 +1122,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
         elif dm_type == 'dmx':
             s += dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
-            s += dm_annual()
+            s += dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components)
