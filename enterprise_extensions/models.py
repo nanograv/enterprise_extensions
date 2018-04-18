@@ -80,6 +80,24 @@ def chromatic_quad_prior(toas):
     return np.ones(3) * 1e80
 
 @signal_base.function
+def dmx_delay(toas, freqs, dmx_ids, **kwargs):
+    """
+    Delay in DMX model of DM variations.
+
+    :param dmx_ids: dictionary of DMX data for each pulsar from parfile
+    :param kwargs: dictionary of enterprise DMX parameters
+
+    :return wf: DMX signal
+    """
+    wf = np.zeros(len(toas))
+    dmx = kwargs
+    for dmx_id in dmx_ids:
+        mask = np.logical_and(toas >= (dmx_ids[dmx_id]['DMX_R1'] - 0.01) * 86400.,
+                              toas <= (dmx_ids[dmx_id]['DMX_R2'] + 0.01) * 86400.)
+        wf[mask] += dmx[dmx_id] / freqs[mask]**2 / const.DM_K / 1e12
+    return wf
+
+@signal_base.function
 def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
                                         logf=False, fmin=None, fmax=None,
                                         idx=4):
@@ -665,7 +683,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     return rn
 
 def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, dm_annual=False):
+                    components=30, gamma_val=None):
     """
     Returns DM noise model:
 
@@ -684,8 +702,6 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param gamma_val:
         If given, this is the fixed slope of a power-law
         DM-variation spectrum.
-    :param dm_annual:
-        Adds an annual DM-variation signal.
     """
     # dm noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
@@ -736,20 +752,28 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                                   Tspan=Tspan)
     dmgp = gp_signals.BasisGP(pl, dm_basis, name='dm_gp')
 
-    dm_block = dmgp
+    return dm_gp
 
-    if dm_annual:
-        # DM sinusoid parameters
-        log10_Amp_dm1yr = parameter.Uniform(-10, -2)
-        phase_dm1yr = parameter.Uniform(0, 2*np.pi)
-        # waveform
-        wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
-                                   phase=phase_dm1yr, idx=2)
-        dm1yr = deterministic_signals.Deterministic(wf, name='dm_s1yr')
+def dm_annual(idx=2, name='dm_s1yr'):
+    """
+    Returns chromatic annual signal (i.e. TOA advance):
 
-        dm_block += dm1yr
+    :param idx:
+        index of radio frequency dependence (i.e. DM is 2). If this is set
+        to 'vary' then the index will vary from 1 - 6
+    :param name: Name of signal
 
-    return dm_block
+    :return dm1yr:
+        chromatic annual waveform.
+    """
+    log10_Amp_dm1yr = parameter.Uniform(-10, -2)
+    phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+
+    wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
+                               phase=phase_dm1yr, idx=idx)
+    dm1yr = deterministic_signals.Deterministic(wf, name=name)
+
+    return dm1yr
 
 def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
     """
@@ -765,7 +789,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dmexp = parameter.Uniform(tmin,taax)
+    t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
     log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
     wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp, t0=t0_dmexp,
@@ -773,6 +797,26 @@ def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
+
+def dmx_signal(dmx_data, name='dmx_signal'):
+    """
+    Returns DMX signal:
+
+    :param dmx_data: dictionary of DMX data for each pulsar from parfile.
+    :param name: Name of signal.
+
+    :return dmx_sig:
+        dmx signal waveform.
+    """
+    dmx = {}
+    for dmx_id in sorted(dmx_data):
+        dmx_data_tmp = dmx_data[dmx_id]
+        dmx.update({dmx_id : parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
+                                              sigma=dmx_data_tmp['DMX_ERR'])})
+    wf = dmx_delay(dmx_ids=dmx_data, **dmx)
+    dmx_sig = deterministic_signals.Deterministic(wf, name=name)
+
+    return dmx_sig
 
 def chromatic_noise_block(psd='powerlaw', idx=4,
                           name='chromatic', components=30):
@@ -1046,8 +1090,10 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
                           components=30, upper_limit=False, wideband=False,
-                          gamma_val=None, dm_var=False, dm_psd='powerlaw',
-                          dm_annual=False, gamma_dm_val=None):
+                          gamma_val=None, dm_var=False, dm_type='gp',
+                          dmx_data=None, dm_psd='powerlaw',
+                          dm_annual=False, gamma_dm_val=None, dm_chrom=False,
+                          dmchrom_psd='powerlaw', dmchrom_idx=4):
     """
     Reads in enterprise Pulsar instance and returns a PTA
     instantiated with the standard NANOGrav noise model:
@@ -1068,10 +1114,18 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     s += red_noise_block(psd=psd, prior=amp_prior, components=components,
                          gamma_val=gamma_val)
 
-    # GP DM variations
+    # DM variations
     if dm_var:
-        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                            gamma_val=gamma_dm_val, dm_annual=dm_annual)
+        if dm_type == 'gp':
+            s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
+                                gamma_val=gamma_dm_val, dm_annual=dm_annual)
+        elif dm_type == 'dmx':
+            s += dmx_signal(dmx_data=dmx_data[psr.name])
+        if dm_annual:
+            s += dm_annual()
+        if dm_chrom:
+            s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
+                                       name='chromatic', components=components)
 
     # timing model
     s += gp_signals.TimingModel()

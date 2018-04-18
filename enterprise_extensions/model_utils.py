@@ -150,6 +150,28 @@ class JumpProposal(object):
 
         return q, 0
 
+    def draw_from_dmx_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'dmx_signal'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+
+        return q, float(lqxy)
+
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
@@ -351,6 +373,11 @@ def setup_sampler(pta, outdir='chains', resume=False):
     if 'dm_s1yr' in jp.snames:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
+    # DMX prior draw
+    if 'dmx_signal' in jp.snames:
+        print('Adding DMX prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
     # Ephemeris prior draw
     if 'd_jupiter_mass' in pta.param_names:
@@ -708,6 +735,11 @@ class HyperModel(object):
         if 'dm_s1yr' in jp.snames:
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
+        # DM annual prior draw
+        if 'dmx_signal' in jp.snames:
+            print('Adding DMX prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
