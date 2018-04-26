@@ -552,6 +552,32 @@ def CWSignal(cw_wf, psrTerm=False):
 
     return CWSignal
 
+@signal_base.function
+def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
+                           log10_n_earth=np.log10(8.7)):
+
+    """
+    Construct DM-Solar Model fourier design matrix.
+
+    :param toas: vector of time series in seconds
+    :param planetssb: solar system bayrcenter positions
+    :param pos_t: pulsar position as 3-vector
+    :param freqs: radio frequencies of observations [MHz]
+
+    :return dt_DM: DM due to solar wind
+    """
+    earth = planetssb[:, 2, :3]
+    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+
+    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+
+    n_earth = 10**log10_n_earth
+    dm_sol_wind = model_utils.dm_solar(n_earth,theta_impact,R_earth)
+
+    dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs**2
+
+    return dt_DM
 
 #### Model component building blocks ####
 

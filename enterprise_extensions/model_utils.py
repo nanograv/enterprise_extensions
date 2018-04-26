@@ -745,3 +745,96 @@ class HyperModel(object):
             sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
 
         return sampler
+
+
+#########Solar Wind Modeling########
+
+def mask_filter(psr, mask):
+    """filter given pulsar data by user defined mask"""
+    psr._toas = psr._toas[mask]
+    psr._toaerrs = psr._toaerrs[mask]
+    psr._residuals = psr._residuals[mask]
+    psr._ssbfreqs = psr._ssbfreqs[mask]
+
+    psr._designmatrix = psr._designmatrix[mask, :]
+    dmx_mask = np.sum(psr._designmatrix, axis=0) != 0.0
+    psr._designmatrix = psr._designmatrix[:, dmx_mask]
+
+    for key in psr._flags:
+        psr._flags[key] = psr._flags[key][mask]
+
+    if psr._planetssb is not None:
+        psr._planetssb = psr.planetssb[mask, :, :]
+
+    psr.sort_data()
+
+
+AU_light_sec = const.AU/const.c #1 AU in light seconds
+AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
+
+def _dm_solar_close(n_sun,r_earth):
+    return (n_sun*AU*AU_pc/r_earth)
+
+def _dm_solar(n_sun,theta_impact,r_earth):
+    return (n_sun*AU*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+
+def dm_solar(n_sun,theta_impact,r_earth):
+    """
+    Calculates Dispersion measure due to 1/r^2 solar wind density model.
+
+    See You et al. 20007 for details.
+    """
+    return np.where(np.pi-theta_impact>=1e-5,
+                    _dm_solar(n_sun,theta_impact,r_earth),
+                    _dm_solar_close(n_sun,r_earth))
+
+@signal_base.function
+def solar_wind(psr, n_earth=8.7):
+    """
+    Use the attributes of an enterprise Pulsar object to calculate the
+    dispersion measure due to the solar wind and solar impact angle.
+
+    param:: psr enterprise Pulsar objects
+    param:: n_earth, proton density at 1 Au
+
+    returns: DM due to solar wind (pc/cm^3) and solar impact angle (rad)
+    """
+    earth = planetssb[:, 2, :3]
+    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+
+    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+
+    dm_sol_wind = dm_solar(n_earth,theta_impact,R_earth)
+
+    return dm_sol_wind, theta_impact
+
+
+def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
+    """
+    Convenience function for masking TOAs lower than a certain solar impact.
+    Alternatively one can set a standard deviation limit, so that all TOAs above
+        a certain st dev away from the solar wind DM average for a given pulsar
+        can be excised.
+    param:: psrs list of enterprise Pulsar objects
+    param:: angle_cutoff (degrees) Mask TOAs within this angle
+    param:: std_cutoff (float number) Number of St. Devs above average to excise
+
+    returns:: dictionary of maskes for each pulsar
+    """
+    solar_wind_mask={}
+    if std_cutoff and angle_cutoff:
+        raise ValueError('Can not make mask using St Dev and Angular Cutoff!!')
+    if std_cutoff:
+        for ii,p in enumerate(psrs):
+            dm_sw, _ =solar_wind(p)
+            std = np.std(dm_sw)
+            mean = np.mean(dm_sw)
+            solar_wind_mask[p.name]=np.where(dm_sw<(mean+std_cutoff*std),True,False)
+    elif angle_cutoff:
+        angle_cutoff = np.deg2rad(angle_cutoff)
+        for ii,p in enumerate(psrs):
+            _, impact_ang =solar_wind(p)
+            solar_wind_mask[p.name]=np.where(impact_ang>angle_cutoff,True,False)
+
+    return solar_wind_mask
