@@ -263,7 +263,7 @@ class JumpProposal(object):
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
-    
+
     def draw_from_dm_sw_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -797,10 +797,10 @@ AU_light_sec = const.AU/const.c #1 AU in light seconds
 AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
 
 def _dm_solar_close(n_sun,r_earth):
-    return (n_sun*AU*AU_pc/r_earth)
+    return (n_sun*AU_light_sec*AU_pc/r_earth)
 
 def _dm_solar(n_sun,theta_impact,r_earth):
-    return (n_sun*AU*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+    return (n_sun*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
 
 def dm_solar(n_sun,theta_impact,r_earth):
     """
