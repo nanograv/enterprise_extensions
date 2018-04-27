@@ -9,6 +9,7 @@ import os
 import hashlib
 import acor
 from enterprise import constants as const
+from enterprise.signals import signal_base
 
 try:
     import cPickle as pickle
