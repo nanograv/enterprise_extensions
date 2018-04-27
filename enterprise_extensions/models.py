@@ -137,24 +137,24 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, log10_n_ea
     F, Ffreqs = utils.createfourierdesignmatrix_red(
         toas, nmodes=nmodes, Tspan=Tspan, logf=logf,
         fmin=fmin, fmax=fmax)
-    
+
     earth = planetssb[:, 2, :3]
     R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
     Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
-    
+
     theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
-    
+
     dm_sol_wind = dm_solar(1.0,theta_impact,R_earth)
 
-    
+
     dt_DM = (dm_sol_wind - dm_sol_wind.mean() ) * 4.148808e3 / freqs**2
-    
+
     N = len(toas)
-    
+
     add_on = np.zeros((N,2*nmodes))
-    
+
     add_on[:,0] += log10_n_earth
-    
+
     return (add_on + F)* dt_DM[:, None], Ffreqs
 
 @signal_base.function
@@ -1115,7 +1115,7 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
     return cw
 
 def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                   components=30, gamma_val=None, dm_annual=False):
+                   components=30, gamma_val=None):
     """
     Returns Solar Wind DM noise model:
 
@@ -1153,7 +1153,7 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             gamma_dm_sw = parameter.Constant(gamma_val)('gamma_sol')
         else:
             gamma_dm_sw = parameter.Uniform(-7,7)('gamma_sol')
-            
+
 
         # different PSD function parameters
         if psd == 'powerlaw':
@@ -1177,28 +1177,28 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     if psd == 'spectrum':
         if prior == 'uniform':
             log10_rho_dm_sw = parameter.LinearExp(-10,-2, size=components)('log10_rho_sol')
-            
+
         elif prior == 'log-uniform':
             log10_rho_dm_sw = parameter.Uniform(-10, -2, size=components)('log10_rho_sol')
-            
+
 
         dm_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
-        
 
-    
+
+
 
 
     #log10_A_dm_sw = parameter.LinearExp(-20,4)('log10_A_sol') #Uniform
     #gamma_dm_sw = parameter.Uniform(-7,7)('gamma_sol')
-    
-    log10_rho_dm_sw = parameter.LinearExp(-20,-2,size=30)('log10_rho_sol')
-    
+
+    #log10_rho_dm_sw = parameter.LinearExp(-20,-2,size=30)('log10_rho_sol')
+
     log10_n_earth = parameter.Uniform(np.log10(0.01),np.log10(50))('n_earth')
 
     dm_sw_basis = createfourierdesignmatrix_solar_dm(log10_n_earth=log10_n_earth,nmodes=components)
 
     dm_sw = gp_signals.BasisGP(dm_sw_prior, dm_sw_basis, name='dm_sw')
-    
+
     return dm_sw
 
 #### PTA models from paper ####
