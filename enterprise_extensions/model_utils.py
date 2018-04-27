@@ -261,6 +261,28 @@ class JumpProposal(object):
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
+    
+    def draw_from_dm_sw_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'dm_sw'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[param]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[param]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[param]]) - param.get_logpdf(q[self.pmap[param]])
+
+        return q, float(lqxy)
 
 
 def get_global_parameters(pta):
