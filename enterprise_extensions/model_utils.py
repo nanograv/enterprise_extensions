@@ -8,6 +8,7 @@ import json
 import os
 import hashlib
 import acor
+from enterprise import constants as const
 
 try:
     import cPickle as pickle
@@ -782,7 +783,7 @@ def dm_solar(n_sun,theta_impact,r_earth):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
 
-    See You et al. 20007 for details.
+    See You et al. 20007 for more details.
     """
     return np.where(np.pi-theta_impact>=1e-5,
                     _dm_solar(n_sun,theta_impact,r_earth),
