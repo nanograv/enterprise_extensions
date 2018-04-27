@@ -1176,10 +1176,10 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     if psd == 'spectrum':
         if prior == 'uniform':
-            log10_rho_dm_sw = parameter.LinearExp(-10,-2, size=components)('log10_rho_sol')
+            log10_rho_dm_sw = parameter.LinearExp(-10, 4, size=components)('log10_rho_sol')
 
         elif prior == 'log-uniform':
-            log10_rho_dm_sw = parameter.Uniform(-10, -2, size=components)('log10_rho_sol')
+            log10_rho_dm_sw = parameter.Uniform(-10, 4, size=components)('log10_rho_sol')
 
 
         dm_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
