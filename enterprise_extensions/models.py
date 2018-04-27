@@ -144,7 +144,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, log10_n_ea
 
     theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
 
-    dm_sol_wind = dm_solar(1.0,theta_impact,R_earth)
+    dm_sol_wind = model_utils.dm_solar(1.0,theta_impact,R_earth)
 
 
     dt_DM = (dm_sol_wind - dm_sol_wind.mean() ) * 4.148808e3 / freqs**2
