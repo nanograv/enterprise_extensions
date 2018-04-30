@@ -796,21 +796,23 @@ def mask_filter(psr, mask):
 AU_light_sec = const.AU/const.c #1 AU in light seconds
 AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
 
-def _dm_solar_close(n_sun,r_earth):
+def _dm_solar_close(n_earth,r_earth):
     return (n_sun*AU_light_sec*AU_pc/r_earth)
 
-def _dm_solar(n_sun,theta_impact,r_earth):
+def _dm_solar(n_earth,theta_impact,r_earth):
     return (n_sun*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
 
-def dm_solar(n_sun,theta_impact,r_earth):
+def dm_solar(n_earth,theta_impact,r_earth):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
-
+    ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
+    ::param :theta_impact: angle between sun and line-of-sight to pulsar (rad)
+    ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 20007 for more details.
     """
     return np.where(np.pi-theta_impact>=1e-5,
-                    _dm_solar(n_sun,theta_impact,r_earth),
-                    _dm_solar_close(n_sun,r_earth))
+                    _dm_solar(n_earth,theta_impact,r_earth),
+                    _dm_solar_close(n_earth,r_earth))
 
 @signal_base.function
 def solar_wind(psr, n_earth=8.7):
