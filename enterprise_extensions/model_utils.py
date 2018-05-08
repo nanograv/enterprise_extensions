@@ -814,7 +814,6 @@ def dm_solar(n_earth,theta_impact,r_earth):
                     _dm_solar(n_earth,theta_impact,r_earth),
                     _dm_solar_close(n_earth,r_earth))
 
-@signal_base.function
 def solar_wind(psr, n_earth=8.7):
     """
     Use the attributes of an enterprise Pulsar object to calculate the
@@ -825,9 +824,9 @@ def solar_wind(psr, n_earth=8.7):
 
     returns: DM due to solar wind (pc/cm^3) and solar impact angle (rad)
     """
-    earth = planetssb[:, 2, :3]
+    earth = psr.planetssb[:, 2, :3]
     R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, psr.pos_t)
 
     theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
 
