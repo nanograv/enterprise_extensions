@@ -302,7 +302,7 @@ def get_global_parameters(pta):
 def get_parameter_groups(pta):
     """Utility function to get parameter groupings for sampling."""
     ndim = len(pta.param_names)
-    groups  = [range(0, ndim)]
+    groups  = [list(np.arange(0, ndim))]
     params = pta.param_names
 
     # get global and individual parameters
@@ -588,7 +588,7 @@ class HyperModel(object):
             for sc in self.models[mm]._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-        for key in self.snames: self.snames[key] = np.unique(self.snames[key]).tolist()
+        for key in self.snames: self.snames[key] = list(set(self.snames[key]))
 
         for key in self.snames:
             uniq_params, ind = np.unique([p.name for p in self.snames[key]],
