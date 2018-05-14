@@ -590,6 +590,10 @@ def white_noise_block(vary=False, wideband=False):
     # define selection by observing backend
     selection = selections.Selection(selections.by_backend)
 
+    # define selection by nanograv backends
+    selection2 = selections.Selection(selections.nanograv_backends)
+
+
     # white noise parameters
     if vary:
         efac = parameter.Uniform(0.01, 10.0)
@@ -606,7 +610,7 @@ def white_noise_block(vary=False, wideband=False):
     ef = white_signals.MeasurementNoise(efac=efac, selection=selection)
     eq = white_signals.EquadNoise(log10_equad=equad, selection=selection)
     if not wideband:
-        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=selection)
+        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=selection2)
 
     # combine signals
     if not wideband:
@@ -1211,7 +1215,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, dm_var=False):
+             wideband=False, dm_var=False, dm_type='gp',
+             dm_psd='powerlaw', dm_annual=False,
+             dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1265,6 +1271,17 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=components, gamma_val=gamma_common,
                                 name='gw')
+
+    # DM variations
+    if dm_var:
+        if dm_type == 'gp':
+            s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
+                                gamma_val=None)
+        if dm_annual:
+            s += dm_annual_signal()
+        if dm_chrom:
+            s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
+                                       name='chromatic', components=components)
 
     # ephemeris model
     if bayesephem:
