@@ -573,7 +573,7 @@ def CWSignal(cw_wf, psrTerm=False):
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, wideband=False):
+def white_noise_block(vary=False, inc_ecorr=False):
     """
     Returns the white noise block of the model:
 
@@ -598,24 +598,24 @@ def white_noise_block(vary=False, wideband=False):
     if vary:
         efac = parameter.Uniform(0.01, 10.0)
         equad = parameter.Uniform(-8.5, -5)
-        if not wideband:
+        if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
     else:
         efac = parameter.Constant()
         equad = parameter.Constant()
-        if not wideband:
+        if inc_ecorr:
             ecorr = parameter.Constant()
 
     # white noise signals
     ef = white_signals.MeasurementNoise(efac=efac, selection=selection)
     eq = white_signals.EquadNoise(log10_equad=equad, selection=selection)
-    if not wideband:
+    if inc_ecorr:
         ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=selection2)
 
     # combine signals
-    if not wideband:
+    if inc_ecorr:
         s = ef + eq + ec
-    elif wideband:
+    elif not inc_ecorr:
         s = ef + eq
 
     return s
@@ -1111,11 +1111,8 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
-    # white noise
-    s = white_noise_block(vary=white_vary, wideband=wideband)
-
     # red noise
-    s += red_noise_block(psd=psd, prior=amp_prior, components=components,
+    s = red_noise_block(psd=psd, prior=amp_prior, components=components,
                          gamma_val=gamma_val)
 
     # DM variations
@@ -1134,8 +1131,16 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     # timing model
     s += gp_signals.TimingModel()
 
-    # set up PTA of one
-    pta = signal_base.PTA([s(psr)])
+    # adding white-noise, and acting on psr objects
+    if 'NANOGrav' in psr.flags['pta'] and not wideband:
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+        model = s2(psr)
+    else:
+        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+        model = s3(psr)
+
+    # set up PTA
+    pta = signal_base.PTA([model])
 
     # set white noise parameters
     if not white_vary:
@@ -1186,11 +1191,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(psd=psd, prior=amp_prior,
+    s = red_noise_block(psd=psd, prior=amp_prior,
                          Tspan=Tspan, components=components)
 
     # ephemeris model
@@ -1200,8 +1202,18 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1215,9 +1227,90 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, dm_var=False, dm_type='gp',
-             dm_psd='powerlaw', dm_annual=False,
-             dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4):
+             wideband=False):
+    """
+    Reads in list of enterprise Pulsar instance and returns a PTA
+    instantiated with model 2A from the analysis paper:
+    per pulsar:
+        1. fixed EFAC per backend/receiver system
+        2. fixed EQUAD per backend/receiver system
+        3. fixed ECORR per backend/receiver system
+        4. Red noise modeled as a power-law with 30 sampling frequencies
+        5. Linear timing model.
+    global:
+        1.Common red noise modeled with user defined PSD with
+        30 sampling frequencies. Available PSDs are
+        ['powerlaw', 'turnover' 'spectrum']
+        2. Optional physical ephemeris modeling.
+    :param psd:
+        PSD to use for common red noise signal. Available options
+        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
+        value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param gamma_common:
+        Fixed common red process spectral index value. By default we
+        vary the spectral index over the range [0, 7].
+    :param upper_limit:
+        Perform upper limit on common red noise amplitude. By default
+        this is set to False. Note that when perfoming upper limits it
+        is recommended that the spectral index also be fixed to a specific
+        value.
+    :param bayesephem:
+        Include BayesEphem model. Set to False by default
+    :param wideband:
+        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    """
+
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    # find the maximum time span to set GW frequency sampling
+    Tspan = model_utils.get_tspan(psrs)
+
+    # red noise
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+
+    # common red noise block
+    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                components=components, gamma_val=gamma_common,
+                                name='gw')
+
+    # ephemeris model
+    if bayesephem:
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+
+    # timing model
+    s += gp_signals.TimingModel()
+
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
+    # set up PTA
+    pta = signal_base.PTA(models)
+
+    # set white noise parameters
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
+
+    return pta
+
+
+def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
+                  orf=None, components=30, gamma_common=None, upper_limit=False,
+                  bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
+                  dm_psd='powerlaw', dm_annual=False,
+                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1261,16 +1354,18 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw')
+    if orf is None:
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    name='gw')
+    elif orf == 'hd':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='hd', name='gw')
 
     # DM variations
     if dm_var:
@@ -1288,10 +1383,20 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel()
+    s += gp_signals.TimingModel(use_svd=tm_svd)
+
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
 
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1344,11 +1449,8 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # dipole
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1362,8 +1464,18 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1419,11 +1531,8 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # dipole
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1442,8 +1551,18 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1496,11 +1615,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # monopole
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1514,8 +1630,18 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1568,11 +1694,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1586,8 +1709,18 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1643,11 +1776,8 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1666,8 +1796,18 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1726,11 +1866,8 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1754,8 +1891,18 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1811,12 +1958,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1835,8 +1978,18 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1894,11 +2047,8 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1912,8 +2062,18 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -1971,11 +2131,8 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
     amp_name = 'log10_A_{}'.format('gw')
@@ -2009,8 +2166,18 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -2022,6 +2189,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
+## Does not yet work with IPTA datasets due to white-noise modeling issues.
 def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
                     gamma_common=None, upper_limit=False, bayesephem=False,
                     wideband=False,
@@ -2173,11 +2341,8 @@ def model_bwm(psrs, noisedict=None, components=30, upper_limit=False,
     if Tmax_bwm == None:
         Tmax_bwm = tmax/const.day
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # GW BWM signal block
     s += bwm_block(Tmin_bwm, Tmax_bwm, amp_prior=amp_prior,
@@ -2191,8 +2356,18 @@ def model_bwm(psrs, noisedict=None, components=30, upper_limit=False,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -2238,11 +2413,8 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     tmax = np.max([p.toas.max() for p in psrs])
     Tspan = tmax - tmin
 
-    # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
-
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # GW CW signal block
     s += cw_block(amp_prior=amp_prior, skyloc=skyloc, log10_F=log10_F,
@@ -2255,8 +2427,18 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     # timing model
     s += gp_signals.TimingModel()
 
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
     # set up PTA
-    pta = signal_base.PTA([s(psr) for psr in psrs])
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
