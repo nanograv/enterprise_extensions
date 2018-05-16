@@ -19,6 +19,118 @@ from enterprise_extensions import model_utils
 
 #### Extra model components not part of base enterprise ####
 
+# linear interpolation basis in time with nu^-2 scaling
+@signal_base.function
+def linear_interp_basis_dm(toas, freqs, dt=30*86400):
+
+    # get linear interpolation basis in time
+    U, avetoas = utils.linear_interp_basis(toas, dt=dt)
+
+    # scale with radio frequency
+    Dm = (1400/freqs)**2
+
+    return U * Dm[:, None], avetoas
+
+# linear interpolation in radio frequcny
+@signal_base.function
+def linear_interp_basis_freq(freqs, df=64):
+
+    return utils.linear_interp_basis(freqs, dt=df)
+
+# DMX-like signal with Gaussian prior
+@signal_base.function
+def dmx_ridge_prior(avetoas, log10_sigma=-7):
+    sigma = 10**log10_sigma
+    return sigma**2 * np.ones_like(avetoas)
+
+# quasi-periodic kernel for DM
+@signal_base.function
+def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, gam_p=1, p=1):
+
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+
+    # convert units to seconds
+    sigma = 10**log10_sigma
+    l = 10**log10_ell * 86400
+    p *= 3.16e7
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    K = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2) + d
+    return K
+
+# squared-exponential kernel for FD
+@signal_base.function
+def se_kernel(avefreqs, log10_sigma=-7, log10_lam=np.log10(1000)):
+    tm = np.abs(avefreqs[None, :] - avefreqs[:, None])
+    lam = 10**log10_lam
+    sigma = 10**log10_sigma
+    d = np.eye(tm.shape[0]) * (sigma/500)**2
+    return sigma**2 * np.exp(-tm**2/2/lam) + d
+
+# quantization matrix in time and radio frequency to cut down on the kernel size.
+@signal_base.function
+def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
+    if df is None:
+        dfs = [(600, 1000), (1000, 1900), (1900, 3000), (3000, 5000)]
+    else:
+        fmin = freqs.min()
+        fmax = freqs.max()
+        fs = np.arange(fmin, fmax+df, df)
+        dfs = [(fs[ii], fs[ii+1]) for ii in range(len(fs)-1)]
+
+    Us, avetoas, avefreqs, masks = [], [], [], []
+    for rng in dfs:
+        mask = np.logical_and(freqs>=rng[0], freqs<rng[1])
+        if any(mask):
+            masks.append(mask)
+            U, _ = utils.create_quantization_matrix(toas[mask], dt=dt, nmin=1)
+            avetoa = np.array([toas[mask][idx.astype(bool)].mean() for idx in U.T])
+            avefreq = np.array([freqs[mask][idx.astype(bool)].mean() for idx in U.T])
+            Us.append(U)
+            avetoas.append(avetoa)
+            avefreqs.append(avefreq)
+
+    nc = np.sum(U.shape[1] for U in Us)
+    U = np.zeros((len(toas), nc))
+    avetoas = np.concatenate(avetoas)
+    idx = np.argsort(avetoas)
+    avefreqs = np.concatenate(avefreqs)
+    nctot = 0
+    for ct, mask in enumerate(masks):
+        Umat = Us[ct]
+        nn = Umat.shape[1]
+        U[mask, nctot:nn+nctot] = Umat
+        nctot += nn
+
+    if dm:
+         weights = (1400/freqs)**2
+    else:
+        weights = np.ones_like(freqs)
+
+    return U[:, idx] * weights[:, None], {'avetoas': avetoas[idx], 'avefreqs': avefreqs[idx]}
+
+# kernel is the product of a quasi-periodic time kernel and
+# a rational-quadratic frequency kernel.
+@signal_base.function
+def tf_kernel(labels, log10_sigma=-7, log10_ell=2, gam_p=1,
+              p=1, log10_ell2=4, alpha_wgt=2):
+
+    avetoas = labels['avetoas']
+    avefreqs = labels['avefreqs']
+
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+    r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
+
+    # convert units to seconds
+    sigma = 10**log10_sigma
+    l = 10**log10_ell * 86400
+    l2 = 10**log10_ell2
+    p *= 3.16e7
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    Kt = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2)
+    Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
+
+    return Kt * Kv + d
+
 @signal_base.function
 def chrom_exp_decay(toas, freqs, log10_Amp=-7,
                     t0=54000, log10_tau=1.7, idx=2):
@@ -686,8 +798,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     return rn
 
-def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None):
+def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
+                   prior='log-uniform', Tspan=None, components=30, gamma_val=None):
     """
     Returns DM noise model:
 
@@ -708,53 +820,86 @@ def dm_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         DM-variation spectrum.
     """
     # dm noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
-        # parameters shared by PSD functions
-        if prior == 'uniform':
-            log10_A_dm = parameter.LinearExp(-20, -11)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A_dm = parameter.Uniform(-20, -11)
+    if gp_kernel == 'diag':
+        if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+            # parameters shared by PSD functions
+            if prior == 'uniform':
+                log10_A_dm = parameter.LinearExp(-20, -11)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_A_dm = parameter.Uniform(-20, -11)
+                else:
+                    log10_A_dm = parameter.Uniform(-20, -11)
             else:
                 log10_A_dm = parameter.Uniform(-20, -11)
-        else:
-            log10_A_dm = parameter.Uniform(-20, -11)
 
-        if gamma_val is not None:
-            gamma_dm = parameter.Constant(gamma_val)
-        else:
-            gamma_dm = parameter.Uniform(0, 7)
+            if gamma_val is not None:
+                gamma_dm = parameter.Constant(gamma_val)
+            else:
+                gamma_dm = parameter.Uniform(0, 7)
 
-        # different PSD function parameters
-        if psd == 'powerlaw':
-            pl = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
-        elif psd == 'turnover':
-            kappa_dm = parameter.Uniform(0, 7)
-            lf0_dm = parameter.Uniform(-9, -7)
-            pl = utils.turnover(log10_A=log10_A_dm, gamma=gamma_dm,
-                                 lf0=lf0_dm, kappa=kappa_dm)
-        elif psd == 'tprocess':
-            df = 2
-            alphas_dm = InvGamma(df/2, df/2, size=components)
-            pl = t_process(log10_A=log10_A_dm, gamma=gamma_dm, alphas=alphas_dm)
-        elif psd == 'tprocess_adapt':
-            df = 2
-            alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
-            nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
-            pl = t_process_adapt(log10_A=log10_A_dm, gamma=gamma_dm,
-                                 alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
+            # different PSD function parameters
+            if psd == 'powerlaw':
+                dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+            elif psd == 'turnover':
+                kappa_dm = parameter.Uniform(0, 7)
+                lf0_dm = parameter.Uniform(-9, -7)
+                dm_prior = utils.turnover(log10_A=log10_A_dm, gamma=gamma_dm,
+                                          lf0=lf0_dm, kappa=kappa_dm)
+            elif psd == 'tprocess':
+                df = 2
+                alphas_dm = InvGamma(df/2, df/2, size=components)
+                dm_prior = t_process(log10_A=log10_A_dm, gamma=gamma_dm, alphas=alphas_dm)
+            elif psd == 'tprocess_adapt':
+                df = 2
+                alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
+                nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
+                dm_prior = t_process_adapt(log10_A=log10_A_dm, gamma=gamma_dm,
+                                           alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
 
-    if psd == 'spectrum':
-        if prior == 'uniform':
-            log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
-        elif prior == 'log-uniform':
-            log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+        if psd == 'spectrum':
+            if prior == 'uniform':
+                log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+            elif prior == 'log-uniform':
+                log10_rho_dm = parameter.Uniform(-10, -4, size=components)
 
-        pl = free_spectrum(log10_rho=log10_rho_dm)
+            dm_prior = free_spectrum(log10_rho=log10_rho_dm)
 
-    dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
-                                                  Tspan=Tspan)
-    dmgp = gp_signals.BasisGP(pl, dm_basis, name='dm_gp')
+        dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
+                                                      Tspan=Tspan)
+
+    elif gp_kernel == 'nondiag':
+        if nondiag_kernel == 'periodic':
+            # Periodic GP kernel for DM
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+            period = parameter.Uniform(0.2, 5.0)
+            gam_p = parameter.Uniform(0.1, 10.0)
+
+            dm_basis = linear_interp_basis_dm(dt=15*86400)
+            dm_prior = periodic_kernel(log10_sigma=log10_sigma,
+                                    log10_ell=log10_ell, gam_p=gam_p, p=period)
+        elif nondiag_kernel == 'periodic_rfband':
+            # Periodic GP kernel for DM with RQ radio-frequency dependence
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+            log10_ell2 = parameter.Uniform(2, 7)
+            alpha_wgt = parameter.Uniform(0.2, 6)
+            period = parameter.Uniform(0.2, 5.0)
+            gam_p = parameter.Uniform(0.1, 10.0)
+
+            dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
+            dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
+                                 gam_p=gam_p, p=period, alpha_wgt=alpha_wgt,
+                                 log10_ell2=log10_ell2)
+        elif nondiag_kernel == 'dmx_like':
+            # DMX-like signal
+            log10_sigma = parameter.Uniform(-10, -4)
+
+            dm_basis = linear_interp_basis_dm(dt=30*86400)
+            dm_prior = dmx_ridge_prior(log10_sigma=log10_sigma)
+
+    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp')
 
     return dmgp
 
@@ -1092,10 +1237,11 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 #### PTA models from paper ####
 
-def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
-                          components=30, upper_limit=False, wideband=False,
-                          gamma_val=None, dm_var=False, dm_type='gp',
-                          dmx_data=None, dm_psd='powerlaw',
+def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
+                          white_vary=True, components=30, upper_limit=False,
+                          wideband=False, gamma_val=None, dm_var=False,
+                          dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
+                          dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
                           dmchrom_psd='powerlaw', dmchrom_idx=4):
     """
@@ -1118,8 +1264,13 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
     # DM variations
     if dm_var:
         if dm_type == 'gp':
-            s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                                gamma_val=gamma_dm_val)
+            if dmgp_kernel == 'diag':
+                s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
+                                    prior=amp_prior, components=components,
+                                    gamma_val=gamma_dm_val)
+            elif dmgp_kernel == 'nondiag':
+                s += dm_noise_block(gp_kernel=dmgp_kernel,
+                                    nondiag_kernel=dm_nondiag_kernel)
         elif dm_type == 'dmx':
             s += dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
@@ -1129,7 +1280,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, white_vary=True,
                                        name='chromatic', components=components)
 
     # timing model
-    s += gp_signals.TimingModel()
+    s += gp_signals.TimingModel(use_svd=tm_svd)
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
