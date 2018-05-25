@@ -17,6 +17,48 @@ except:
 from enterprise.pulsar import Pulsar
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
+# New filter for different cadences
+def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
+    """ Filter data for coarser cadences. """
+    
+    if start_time is None and end_time is None and cadence is None:
+        mask = np.ones(psr._toas.shape, dtype=bool)
+    else:
+        # find start and end indices of cadence filtering
+        start_idx = (np.abs((psr._toas / 86400) - start_time)).argmin()
+        end_idx = (np.abs((psr._toas / 86400) - end_time)).argmin()
+        # make a safe copy of sliced toas
+        tmp_toas = psr._toas[start_idx:end_idx+1].copy()
+        # cumulative sum of time differences
+        cumsum = np.cumsum(np.diff(tmp_toas / 86400))
+        tspan = (tmp_toas.max() - tmp_toas.min()) / 86400
+        # find closest indices of sliced toas to desired cadence
+        mask = []
+        for ii in np.arange(1.0, tspan, cadence):
+            idx = (np.abs(cumsum - ii)).argmin()
+            mask.append(idx)
+        # append start and end segements with cadence-sliced toas
+        mask = np.append(np.arange(start_idx),
+                         np.array(mask) + start_idx)
+        mask = np.append(mask, np.arange(end_idx, len(psr._toas)))
+
+    psr._toas = psr._toas[mask]
+    psr._toaerrs = psr._toaerrs[mask]
+    psr._residuals = psr._residuals[mask]
+    psr._ssbfreqs = psr._ssbfreqs[mask]
+
+    psr._designmatrix = psr._designmatrix[mask, :]
+    dmx_mask = np.sum(psr._designmatrix, axis=0) != 0.0
+    psr._designmatrix = psr._designmatrix[:, dmx_mask]
+
+    for key in psr._flags:
+        psr._flags[key] = psr._flags[key][mask]
+
+    if psr._planetssb is not None:
+        psr._planetssb = psr.planetssb[mask, :, :]
+
+    psr.sort_data()
+
 def get_tspan(psrs):
     """ Returns maximum time span for all pulsars.
 

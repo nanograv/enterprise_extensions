@@ -82,9 +82,12 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
         mask = np.logical_and(freqs>=rng[0], freqs<rng[1])
         if any(mask):
             masks.append(mask)
-            U, _ = utils.create_quantization_matrix(toas[mask], dt=dt, nmin=1)
-            avetoa = np.array([toas[mask][idx.astype(bool)].mean() for idx in U.T])
-            avefreq = np.array([freqs[mask][idx.astype(bool)].mean() for idx in U.T])
+            U, _ = utils.create_quantization_matrix(toas[mask],
+                                                    dt=dt, nmin=1)
+            avetoa = np.array([toas[mask][idx.astype(bool)].mean()
+                               for idx in U.T])
+            avefreq = np.array([freqs[mask][idx.astype(bool)].mean()
+                                for idx in U.T])
             Us.append(U)
             avetoas.append(avetoa)
             avefreqs.append(avefreq)
@@ -106,7 +109,8 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
     else:
         weights = np.ones_like(freqs)
 
-    return U[:, idx] * weights[:, None], {'avetoas': avetoas[idx], 'avefreqs': avefreqs[idx]}
+    return U[:, idx] * weights[:, None], {'avetoas': avetoas[idx],
+                                          'avefreqs': avefreqs[idx]}
 
 # kernel is the product of a quasi-periodic time kernel and
 # a rational-quadratic frequency kernel.
@@ -292,6 +296,23 @@ def InvGamma(alpha=1, gamma=1, size=None):
                 + ('' if self._size is None else '[{}]'.format(self._size))
 
     return InvGamma
+
+@signal_base.function
+def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
+    """
+    Generic turnover spectrum with a high-frequency knee.
+    :param f: sampling frequencies of GWB
+    :param A: characteristic strain amplitude at f=1/yr
+    :param gamma: negative slope of PSD around f=1/yr (usually 13/3)
+    :param lfb: log10 transition frequency at which environment dominates GWs
+    :param lfk: log10 knee frequency due to population finiteness
+    :param kappa: smoothness of turnover (10/3 for 3-body stellar scattering)
+    :param delta: slope at higher frequencies
+    """
+    df = np.diff(np.concatenate((np.array([0]), f[::2])))
+    hcf = (10**log10_A * (f / const.fyr) ** ((3-gamma) / 2) *
+           (1.0 + (f / 10**lfk)) ** delta / np.sqrt(1 + (10**lfb / f) ** kappa))
+    return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
 
 @signal_base.function
 def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
@@ -1052,7 +1073,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover']:
+    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
         amp_name = 'log10_A_{}'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -1080,6 +1101,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             lf0_gw = parameter.Uniform(-9, -7)(lf0_name)
             cpl = utils.turnover(log10_A=log10_Agw, gamma=gamma_gw,
                                  lf0=lf0_gw, kappa=kappa_gw)
+        elif psd == 'turnover_knee':
+            kappa_name = 'kappa_{}'.format(name)
+            lfb_name = 'log10_fbend_{}'.format(name)
+            delta_name = 'delta_{}'.format(name)
+            lfk_name = 'log10_fknee_{}'.format(name)
+            kappa_gw = parameter.Uniform(0, 7)(kappa_name)
+            lfb_gw = parameter.Uniform(-9.3, -8)(lfb_name)
+            delta_gw = parameter.Uniform(-2, 0)(delta_name)
+            lfk_gw = parameter.Uniform(-8, -7)(lfk_name)
+            cpl = turnover_knee(log10_A=log10_Agw, gamma=gamma_gw,
+                                lfb=lfb_gw, lfk=lfk_gw,
+                                kappa=kappa_gw, delta=delta_gw)
 
     if psd == 'spectrum':
         rho_name = 'log10_rho_{}'.format(name)
