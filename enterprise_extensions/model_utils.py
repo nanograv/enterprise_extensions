@@ -20,7 +20,7 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 # New filter for different cadences
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
-    
+
     if start_time is None and end_time is None and cadence is None:
         mask = np.ones(psr._toas.shape, dtype=bool)
     else:
@@ -819,3 +819,86 @@ class HyperModel(object):
             sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
 
         return sampler
+
+    def get_process_timeseries(self, chain, burn, comp='DM', mle=False, model=0):
+        """
+        Construct a time series realization of various constrained processes.
+        :param chain: MCMC chain from sampling all models
+        :param burn: desired number of initial samples to discard
+        :param comp: which process to reconstruct? (red noise or DM) [default=DM]
+        :param mle: create time series from ML of GP hyper-parameters? [default=False]
+        :param model: which sub-model within the super-model to reconstruct from? [default=0]
+
+        :return ret: time-series of the reconstructed process
+        """
+
+        wave = 0
+        pta = self.models[model]
+        model_chain = chain[np.rint(chain[:,-5])==model,:]
+
+        # get parameter dictionary
+        if mle:
+            ind = np.argmax(model_chain[:, -4])
+        else:
+            ind = np.random.randint(burn, chain.shape[0])
+        params = {par: model_chain[ind, ct]
+                  for ct, par in enumerate(self.param_names)
+                  if par in pta.param_names}
+
+        # deterministic signal part
+        wave += pta.get_delay(params=params)[0]
+
+        # get linear parameters
+        Nvec = pta.get_ndiag(params)[0]
+        phiinv = pta.get_phiinv(params, logdet=False)[0]
+        T = pta.get_basis(params)[0]
+
+        d = pta.get_TNr(params)[0]
+        TNT = pta.get_TNT(params)[0]
+
+        # Red noise piece
+        Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+
+        try:
+            u, s, _ = sl.svd(Sigma)
+            mn = np.dot(u, np.dot(u.T, d)/s)
+            Li = u * np.sqrt(1/s)
+        except np.linalg.LinAlgError:
+
+            Q, R = sl.qr(Sigma)
+            Sigi = sl.solve(R, Q.T)
+            mn = np.dot(Sigi, d)
+            u, s, _ = sl.svd(Sigi)
+            Li = u * np.sqrt(1/s)
+
+        b = mn + np.dot(Li, np.random.randn(Li.shape[0]))
+
+        # find basis indices
+        pardict = {}
+        for sc in pta._signalcollections:
+            ntot = 0
+            for sig in sc._signals:
+                if sig.signal_type == 'basis':
+                    basis = sig.get_basis(params=params)
+                    nb = basis.shape[1]
+                    pardict[sig.signal_name] = np.arange(ntot, nb+ntot)
+                    ntot += nb
+
+        # DM quadratic + GP
+        if comp == 'DM':
+            idx = pardict['dm_gp']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
+        elif comp == 'red':
+            idx = pardict['red noise']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'FD':
+            idx = pardict['FD']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'all':
+            wave += np.dot(T, b)
+            ret = wave
+
+        return ret
