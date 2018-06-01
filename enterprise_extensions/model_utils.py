@@ -16,6 +16,7 @@ except:
     import pickle
 
 from enterprise.pulsar import Pulsar
+from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 # New filter for different cadences
