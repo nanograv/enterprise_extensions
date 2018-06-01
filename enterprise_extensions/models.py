@@ -1276,17 +1276,37 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
-                          dmchrom_psd='powerlaw', dmchrom_idx=4):
+                          dmchrom_psd='powerlaw', dmchrom_idx=4,
+                          dm_expdip=False, dm_expdip_idx=2,
+                          dm_expdip_tmin=None, dm_expdip_tmax=None):
     """
-    Reads in enterprise Pulsar instance and returns a PTA
-    instantiated with the standard NANOGrav noise model:
+    Single pulsar noise model
+    :param psr: etnerprise pulsar object
+    :param psd: red noise psd model
+    :param noisedict: dictionary of noise parameters
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
+    :param white_vary: boolean for varying white noise or keeping fixed
+    :param components: number of modes in Fourier domain processes
+    :param upper_limit: whether to do an upper-limit analysis
+    :param wideband: whether to include ecorr in the white noise model
+    :param gamma_val: red noise spectral index to fix
+    :param dm_var: whether to explicitly model DM-variations
+    :param dm_type: gaussian process ('gp') or dmx ('dmx')
+    :param dmgp_kernel: diagonal in frequency or non-diagonal
+    :param dm_psd: power-spectral density of DM variations
+    :param dm_nondiag_kernel: type of time-domain DM GP kernel
+    :param dmx_data: supply the DMX data from par files
+    :param dm_annual: include an annual DM signal
+    :param gamma_dm_val: spectral index of power-law DM variations
+    :param dm_chrom: include general chromatic noise
+    :param dmchrom_psd: power-spectral density of chromatic noise
+    :param dmchrom_idx: frequency scaling of chromatic noise
+    :param dm_expdip: inclue a DM exponential dip
+    :param dm_expdip_idx: chromatic index of exponential dip
+    :param dm_expdip_tmin: sampling minimum of DM dip epoch
+    :param dm_expdip_tmax: sampling maximum of DM dip epoch
 
-        1. EFAC per backend/receiver system
-        2. EQUAD per backend/receiver system
-        3. ECORR per backend/receiver system
-        4. Red noise modeled as a power-law with 30 sampling frequencies
-        5. Linear timing model.
-        6. (optional) DM variations (GP and annual)
+    :return s: single pulsar noise model
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
@@ -1311,6 +1331,15 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components)
+        if dm_expdip:
+            if dm_expdip_tmin is None and dm_expdip_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_expdip_tmin
+                tmax = dm_expdip_tmax
+            s += dm_exponential_dip(tmin=tmin, tmax=tmax,
+                                    idx=dm_dipidx, name='dmexp')
 
     # timing model
     s += gp_signals.TimingModel(use_svd=tm_svd)
