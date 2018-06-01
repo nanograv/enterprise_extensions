@@ -895,7 +895,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
             period = parameter.Uniform(0.2, 5.0)
-            gam_p = parameter.Uniform(0.1, 10.0)
+            gam_p = parameter.Uniform(0.1, 30.0)
 
             dm_basis = linear_interp_basis_dm(dt=15*86400)
             dm_prior = periodic_kernel(log10_sigma=log10_sigma,
@@ -907,7 +907,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_ell2 = parameter.Uniform(2, 7)
             alpha_wgt = parameter.Uniform(0.2, 6)
             period = parameter.Uniform(0.2, 5.0)
-            gam_p = parameter.Uniform(0.1, 10.0)
+            gam_p = parameter.Uniform(0.1, 30.0)
 
             dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
             dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
