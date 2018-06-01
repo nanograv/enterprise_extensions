@@ -1339,7 +1339,7 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
                 tmin = dm_expdip_tmin
                 tmax = dm_expdip_tmax
             s += dm_exponential_dip(tmin=tmin, tmax=tmax,
-                                    idx=dm_dipidx, name='dmexp')
+                                    idx=dm_expdip_idx, name='dmexp')
 
     # timing model
     s += gp_signals.TimingModel(use_svd=tm_svd)
