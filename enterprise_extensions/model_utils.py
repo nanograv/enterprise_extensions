@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import scipy.stats as scistats
+import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from glob import glob
 import json
@@ -17,7 +18,50 @@ except:
     import pickle
 
 from enterprise.pulsar import Pulsar
+from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
+
+# New filter for different cadences
+def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
+    """ Filter data for coarser cadences. """
+
+    if start_time is None and end_time is None and cadence is None:
+        mask = np.ones(psr._toas.shape, dtype=bool)
+    else:
+        # find start and end indices of cadence filtering
+        start_idx = (np.abs((psr._toas / 86400) - start_time)).argmin()
+        end_idx = (np.abs((psr._toas / 86400) - end_time)).argmin()
+        # make a safe copy of sliced toas
+        tmp_toas = psr._toas[start_idx:end_idx+1].copy()
+        # cumulative sum of time differences
+        cumsum = np.cumsum(np.diff(tmp_toas / 86400))
+        tspan = (tmp_toas.max() - tmp_toas.min()) / 86400
+        # find closest indices of sliced toas to desired cadence
+        mask = []
+        for ii in np.arange(1.0, tspan, cadence):
+            idx = (np.abs(cumsum - ii)).argmin()
+            mask.append(idx)
+        # append start and end segements with cadence-sliced toas
+        mask = np.append(np.arange(start_idx),
+                         np.array(mask) + start_idx)
+        mask = np.append(mask, np.arange(end_idx, len(psr._toas)))
+
+    psr._toas = psr._toas[mask]
+    psr._toaerrs = psr._toaerrs[mask]
+    psr._residuals = psr._residuals[mask]
+    psr._ssbfreqs = psr._ssbfreqs[mask]
+
+    psr._designmatrix = psr._designmatrix[mask, :]
+    dmx_mask = np.sum(psr._designmatrix, axis=0) != 0.0
+    psr._designmatrix = psr._designmatrix[:, dmx_mask]
+
+    for key in psr._flags:
+        psr._flags[key] = psr._flags[key][mask]
+
+    if psr._planetssb is not None:
+        psr._planetssb = psr.planetssb[mask, :, :]
+
+    psr.sort_data()
 
 def get_tspan(psrs):
     """ Returns maximum time span for all pulsars.
@@ -151,6 +195,28 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(0, 2*np.pi)
 
         return q, 0
+
+    def draw_from_dmx_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'dmx_signal'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+
+        return q, float(lqxy)
 
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
@@ -375,6 +441,11 @@ def setup_sampler(pta, outdir='chains', resume=False):
     if 'dm_s1yr' in jp.snames:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
+    # DMX prior draw
+    if 'dmx_signal' in jp.snames:
+        print('Adding DMX prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
     # Ephemeris prior draw
     if 'd_jupiter_mass' in pta.param_names:
@@ -733,6 +804,11 @@ class HyperModel(object):
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
+        # DM annual prior draw
+        if 'dmx_signal' in jp.snames:
+            print('Adding DMX prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
             print('Adding ephemeris model prior draws...\n')
@@ -771,95 +847,87 @@ class HyperModel(object):
         return sampler
 
 
-#########Solar Wind Modeling########
+    def get_process_timeseries(self, psr, chain, burn, comp='DM',
+                               mle=False, model=0):
+        """
+        Construct a time series realization of various constrained processes.
+        :param psr: etnerprise pulsar object
+        :param chain: MCMC chain from sampling all models
+        :param burn: desired number of initial samples to discard
+        :param comp: which process to reconstruct? (red noise or DM) [default=DM]
+        :param mle: create time series from ML of GP hyper-parameters? [default=False]
+        :param model: which sub-model within the super-model to reconstruct from? [default=0]
 
-def mask_filter(psr, mask):
-    """filter given pulsar data by user defined mask"""
-    psr._toas = psr._toas[mask]
-    psr._toaerrs = psr._toaerrs[mask]
-    psr._residuals = psr._residuals[mask]
-    psr._ssbfreqs = psr._ssbfreqs[mask]
+        :return ret: time-series of the reconstructed process
+        """
 
-    psr._designmatrix = psr._designmatrix[mask, :]
-    dmx_mask = np.sum(psr._designmatrix, axis=0) != 0.0
-    psr._designmatrix = psr._designmatrix[:, dmx_mask]
+        wave = 0
+        pta = self.models[model]
+        model_chain = chain[np.rint(chain[:,-5])==model,:]
 
-    for key in psr._flags:
-        psr._flags[key] = psr._flags[key][mask]
+        # get parameter dictionary
+        if mle:
+            ind = np.argmax(model_chain[:, -4])
+        else:
+            ind = np.random.randint(burn, chain.shape[0])
+        params = {par: model_chain[ind, ct]
+                  for ct, par in enumerate(self.param_names)
+                  if par in pta.param_names}
 
-    if psr._planetssb is not None:
-        psr._planetssb = psr.planetssb[mask, :, :]
+        # deterministic signal part
+        wave += pta.get_delay(params=params)[0]
 
-    psr.sort_data()
+        # get linear parameters
+        Nvec = pta.get_ndiag(params)[0]
+        phiinv = pta.get_phiinv(params, logdet=False)[0]
+        T = pta.get_basis(params)[0]
 
+        d = pta.get_TNr(params)[0]
+        TNT = pta.get_TNT(params)[0]
 
-AU_light_sec = const.AU/const.c #1 AU in light seconds
-AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
+        # Red noise piece
+        Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
 
-def _dm_solar_close(n_earth,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/r_earth)
+        try:
+            u, s, _ = sl.svd(Sigma)
+            mn = np.dot(u, np.dot(u.T, d)/s)
+            Li = u * np.sqrt(1/s)
+        except np.linalg.LinAlgError:
 
-def _dm_solar(n_earth,theta_impact,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+            Q, R = sl.qr(Sigma)
+            Sigi = sl.solve(R, Q.T)
+            mn = np.dot(Sigi, d)
+            u, s, _ = sl.svd(Sigi)
+            Li = u * np.sqrt(1/s)
 
-def dm_solar(n_earth,theta_impact,r_earth):
-    """
-    Calculates Dispersion measure due to 1/r^2 solar wind density model.
-    ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
-    ::param :theta_impact: angle between sun and line-of-sight to pulsar (rad)
-    ::param :r_earth :distance from Earth to Sun in (light seconds).
-    See You et al. 20007 for more details.
-    """
-    return np.where(np.pi-theta_impact>=1e-5,
-                    _dm_solar(n_earth,theta_impact,r_earth),
-                    _dm_solar_close(n_earth,r_earth))
+        b = mn + np.dot(Li, np.random.randn(Li.shape[0]))
 
-def solar_wind(psr, n_earth=8.7):
-    """
-    Use the attributes of an enterprise Pulsar object to calculate the
-    dispersion measure due to the solar wind and solar impact angle.
+        # find basis indices
+        pardict = {}
+        for sc in pta._signalcollections:
+            ntot = 0
+            for sig in sc._signals:
+                if sig.signal_type == 'basis':
+                    basis = sig.get_basis(params=params)
+                    nb = basis.shape[1]
+                    pardict[sig.signal_name] = np.arange(ntot, nb+ntot)
+                    ntot += nb
 
-    param:: psr enterprise Pulsar objects
-    param:: n_earth, proton density at 1 Au
+        # DM quadratic + GP
+        if comp == 'DM':
+            idx = pardict['dm_gp']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
+        elif comp == 'red':
+            idx = pardict['red noise']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'FD':
+            idx = pardict['FD']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'all':
+            wave += np.dot(T, b)
+            ret = wave
 
-    returns: DM due to solar wind (pc/cm^3) and solar impact angle (rad)
-    """
-    earth = psr.planetssb[:, 2, :3]
-    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, psr.pos_t)
-
-    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
-
-    dm_sol_wind = dm_solar(n_earth,theta_impact,R_earth)
-
-    return dm_sol_wind, theta_impact
-
-
-def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
-    """
-    Convenience function for masking TOAs lower than a certain solar impact.
-    Alternatively one can set a standard deviation limit, so that all TOAs above
-        a certain st dev away from the solar wind DM average for a given pulsar
-        can be excised.
-    param:: psrs list of enterprise Pulsar objects
-    param:: angle_cutoff (degrees) Mask TOAs within this angle
-    param:: std_cutoff (float number) Number of St. Devs above average to excise
-
-    returns:: dictionary of maskes for each pulsar
-    """
-    solar_wind_mask={}
-    if std_cutoff and angle_cutoff:
-        raise ValueError('Can not make mask using St Dev and Angular Cutoff!!')
-    if std_cutoff:
-        for ii,p in enumerate(psrs):
-            dm_sw, _ =solar_wind(p)
-            std = np.std(dm_sw)
-            mean = np.mean(dm_sw)
-            solar_wind_mask[p.name]=np.where(dm_sw<(mean+std_cutoff*std),True,False)
-    elif angle_cutoff:
-        angle_cutoff = np.deg2rad(angle_cutoff)
-        for ii,p in enumerate(psrs):
-            _, impact_ang =solar_wind(p)
-            solar_wind_mask[p.name]=np.where(impact_ang>angle_cutoff,True,False)
-
-    return solar_wind_mask
+        return ret
