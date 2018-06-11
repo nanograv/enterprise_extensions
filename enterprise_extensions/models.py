@@ -1270,7 +1270,8 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 #### PTA models from paper ####
 
-def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
+def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
+                          noisedict=None, tm_svd=False,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
@@ -1281,7 +1282,8 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
                           dm_expdip_tmin=None, dm_expdip_tmax=None):
     """
     Single pulsar noise model
-    :param psr: etnerprise pulsar object
+    :param psr: enterprise pulsar object
+    :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
     :param tm_svd: boolean for svd-stabilised timing model design matrix
@@ -1310,9 +1312,13 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
+    # timing model
+    s = gp_signals.TimingModel(use_svd=tm_svd)
+
     # red noise
-    s = red_noise_block(psd=psd, prior=amp_prior, components=components,
-                         gamma_val=gamma_val)
+    if red_var:
+        s += red_noise_block(psd=psd, prior=amp_prior,
+                             components=components, gamma_val=gamma_val)
 
     # DM variations
     if dm_var:
@@ -1340,9 +1346,6 @@ def model_singlepsr_noise(psr, psd='powerlaw', noisedict=None, tm_svd=False,
                 tmax = dm_expdip_tmax
             s += dm_exponential_dip(tmin=tmin, tmax=tmax,
                                     idx=dm_expdip_idx, name='dmexp')
-
-    # timing model
-    s += gp_signals.TimingModel(use_svd=tm_svd)
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:

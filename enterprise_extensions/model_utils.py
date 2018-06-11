@@ -904,5 +904,7 @@ class HyperModel(object):
         elif comp == 'all':
             wave += np.dot(T, b)
             ret = wave
+        else:
+            ret = wave
 
         return ret
