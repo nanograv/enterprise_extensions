@@ -97,8 +97,9 @@ class JumpProposal(object):
 
         # collecting signal parameters across pta
         if snames is None:
-            self.snames = dict.fromkeys(np.unique([[qq.signal_name for qq in pp._signals]
-                                                   for pp in pta._signalcollections]))
+            allsigs = np.hstack([[qq.signal_name for qq in pp._signals]
+                                                 for pp in pta._signalcollections])
+            self.snames = dict.fromkeys(np.unique(allsigs))
             for key in self.snames: self.snames[key] = []
 
             for sc in pta._signalcollections:
