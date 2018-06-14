@@ -807,7 +807,7 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
         # BWM prior draw
-        if 'log10_A_bwm' in self.param_names:
+        if 'bwm_log10_A' in self.param_names:
             print('Adding BWM prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
