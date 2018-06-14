@@ -725,10 +725,10 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
     """
 
     # define selection by observing backend
-    selection = selections.Selection(selections.by_backend)
+    backend = selections.Selection(selections.by_backend)
 
     # define selection by nanograv backends
-    selection2 = selections.Selection(selections.nanograv_backends)
+    backend_ng = selections.Selection(selections.nanograv_backends)
 
 
     # white noise parameters
@@ -747,10 +747,10 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
             ecorr = parameter.Constant()
 
     # white noise signals
-    ef = white_signals.MeasurementNoise(efac=efac, selection=selection)
-    eq = white_signals.EquadNoise(log10_equad=equad, selection=selection)
+    ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
+    eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
     if inc_ecorr:
-        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=selection2)
+        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
