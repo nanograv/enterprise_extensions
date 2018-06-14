@@ -706,7 +706,7 @@ def CWSignal(cw_wf, psrTerm=False):
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, inc_ecorr=False):
+def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
     """
     Returns the white noise block of the model:
 
@@ -718,18 +718,25 @@ def white_noise_block(vary=False, inc_ecorr=False):
         If set to true we vary these parameters
         with uniform priors. Otherwise they are set to constants
         with values to be set later.
+    :param inc_ecorr:
+        include ECORR, needed for NANOGrav channelized TOAs
+    :param efac1:
+        use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
 
     # define selection by observing backend
-    selection = selections.Selection(selections.by_backend)
+    backend = selections.Selection(selections.by_backend)
 
     # define selection by nanograv backends
-    selection2 = selections.Selection(selections.nanograv_backends)
+    backend_ng = selections.Selection(selections.nanograv_backends)
 
 
     # white noise parameters
     if vary:
-        efac = parameter.Uniform(0.01, 10.0)
+        if efac1:
+            efac = parameter.Normal(1.0, 0.1)
+        else:
+            efac = parameter.Uniform(0.01, 10.0)
         equad = parameter.Uniform(-8.5, -5)
         if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
@@ -740,10 +747,10 @@ def white_noise_block(vary=False, inc_ecorr=False):
             ecorr = parameter.Constant()
 
     # white noise signals
-    ef = white_signals.MeasurementNoise(efac=efac, selection=selection)
-    eq = white_signals.EquadNoise(log10_equad=equad, selection=selection)
+    ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
+    eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
     if inc_ecorr:
-        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=selection2)
+        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
@@ -761,14 +768,18 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         1. Red noise modeled as a power-law with 30 sampling frequencies
 
     :param psd:
-        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+        PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for indivicual pulsar.
-
+    :param components:
+        Number of frequencies in sampling of red noise
+    :param gamma_val:
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess red noise
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
@@ -837,8 +848,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
     :param components:
         Number of frequencies in sampling of DM-variations.
     :param gamma_val:
-        If given, this is the fixed slope of a power-law
-        DM-variation spectrum.
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess DM-variations
     """
     # dm noise parameters that are common
     if gp_kernel == 'diag':
@@ -1160,20 +1171,20 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     """
 
     # BWM parameters
-    amp_name = 'log10_A_{}'.format(name)
+    amp_name = '{}_log10_A'.format(name)
     if amp_prior == 'uniform':
         log10_A_bwm = parameter.LinearExp(logmin, logmax)(amp_name)
     elif amp_prior == 'log-uniform':
         log10_A_bwm = parameter.Uniform(logmin, logmax)(amp_name)
 
-    pol_name = 'pol_{}'.format(name)
+    pol_name = '{}_pol'.format(name)
     pol = parameter.Uniform(0, np.pi)(pol_name)
 
-    t0_name = 't0_{}'.format(name)
+    t0_name = '{}_t0'.format(name)
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
-    costh_name = 'costheta_{}'.format(name)
-    phi_name = 'phi_{}'.format(name)
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
         phi = parameter.Uniform(0, 2*np.pi)(phi_name)
@@ -2510,28 +2521,33 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_bwm(psrs, noisedict=None, components=30, upper_limit=False,
-              bayesephem=False, Tmin_bwm=None, Tmax_bwm=None, skyloc=None,
-              logmin=-18, logmax=-11, wideband=False):
+def model_bwm(psrs, noisedict=None, tm_svd=False,
+              Tmin_bwm=None, Tmax_bwm=None, skyloc=None,
+              red_psd='powerlaw', components=30,
+              dm_var=False, dm_psd='powerlaw', dm_annual=False,
+              upper_limit=False, bayesephem=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with BWM model:
+
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system
-        3. fixed ECORR per backend/receiver system
-        4. Red noise modeled as a power-law with 30 sampling frequencies
+        3. fixed ECORR per backend/receiver system (if NG channelized)
+        4. Red noise modeled by a specified psd
         5. Linear timing model.
+        6. Optional DM-variation modeling
     global:
         1. Deterministic GW burst with memory signal.
         2. Optional physical ephemeris modeling.
-    :param upper_limit:
-        Perform upper limit on common red noise amplitude. By default
-        this is set to False. Note that when perfoming upper limits it
-        is recommended that the spectral index also be fixed to a specific
-        value.
-    :param bayesephem:
-        Include BayesEphem model. Set to False by default
+
+    :param psrs:
+        list of enterprise.Pulsar objects for PTA
+    :param noisedict:
+        Dictionary of pulsar noise properties for fixed white noise.
+        Can provide manually, or the code will attempt to find it.
+    :param tm_svd:
+        boolean for svd-stabilised timing model design matrix
     :param Tmin_bwm:
         Min time to search for BWM (MJD). If omitted, uses first TOA.
     :param Tmax_bwm:
@@ -2539,15 +2555,29 @@ def model_bwm(psrs, noisedict=None, components=30, upper_limit=False,
     :param skyloc:
         Fixed sky location of BWM signal search as [cos(theta), phi].
         Search over sky location if ``None`` given.
-    :param logmin:
-        log of minimum BWM amplitude for prior (log10)
-    :param logmax:
-        log of maximum BWM amplitude for prior (log10)
+    :param red_psd:
+        PSD to use for per pulsar red noise. Available options
+        are ['powerlaw', 'turnover', tprocess, 'spectrum'].
+    :param components:
+        number of modes in Fourier domain processes (red noise, DM
+        variations, etc)
+    :param dm_var:
+        include gaussian process DM variations
+    :param dm_psd:
+        power-spectral density for gp DM variations
+    :param dm_annual:
+        include a yearly period DM variation
+    :param upper_limit:
+        Perform upper limit on BWM amplitude. By default this is
+        set to False for a 'detection' run.
+    :param bayesephem:
+        Include BayesEphem model.
+    :return: instantiated enterprise.PTA object
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
-    # find the maximum time span to set GW frequency sampling
+    # find the maximum time span to set frequency sampling
     tmin = np.min([p.toas.min() for p in psrs])
     tmax = np.max([p.toas.max() for p in psrs])
     Tspan = tmax - tmin
@@ -2558,28 +2588,41 @@ def model_bwm(psrs, noisedict=None, components=30, upper_limit=False,
         Tmax_bwm = tmax/const.day
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components)
+
+    # DM variations
+    if dm_var:
+        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
+                            gamma_val=None)
+        if dm_annual:
+            s += dm_annual_signal()
+
+        # DM exponential dip for J1713's DM event
+        dmexp = dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
     s += bwm_block(Tmin_bwm, Tmax_bwm, amp_prior=amp_prior,
-                   skyloc=skyloc, logmin=logmin, logmax=logmax,
-                   name='bwm')
+                   skyloc=skyloc, name='bwm')
 
     # ephemeris model
     if bayesephem:
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel()
+    s += gp_signals.TimingModel(use_svd=tm_svd)
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            if 'J1713+0747' == p.name:
+                s2 += dmexp
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            if 'J1713+0747' == p.name:
+                s3 += dmexp
             models.append(s3(p))
 
     # set up PTA

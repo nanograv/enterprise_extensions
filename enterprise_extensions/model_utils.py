@@ -97,8 +97,9 @@ class JumpProposal(object):
 
         # collecting signal parameters across pta
         if snames is None:
-            self.snames = dict.fromkeys(np.unique([[qq.signal_name for qq in pp._signals]
-                                                   for pp in pta._signalcollections]))
+            allsigs = np.hstack([[qq.signal_name for qq in pp._signals]
+                                                 for pp in pta._signalcollections])
+            self.snames = dict.fromkeys(np.unique(allsigs))
             for key in self.snames: self.snames[key] = []
 
             for sc in pta._signalcollections:
@@ -447,6 +448,16 @@ def setup_sampler(pta, outdir='chains', resume=False):
     if 'log10Apol_tt' in pta.param_names:
         print('Adding alternative GW-polarization uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_altpol_log_uniform_distribution, 10)
+
+    # BWM prior draw
+    if 'bwm_log10_A' in pta.param_names:
+        print('Adding BWM prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+    # CW prior draw
+    if 'log10_h' in pta.param_names:
+        print('Adding CW prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
     return sampler
 
@@ -806,7 +817,7 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
         # BWM prior draw
-        if 'log10_A_bwm' in self.param_names:
+        if 'bwm_log10_A' in self.param_names:
             print('Adding BWM prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
