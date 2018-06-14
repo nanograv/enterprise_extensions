@@ -1171,20 +1171,20 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     """
 
     # BWM parameters
-    amp_name = 'log10_A_{}'.format(name)
+    amp_name = '{}_log10_A'.format(name)
     if amp_prior == 'uniform':
         log10_A_bwm = parameter.LinearExp(logmin, logmax)(amp_name)
     elif amp_prior == 'log-uniform':
         log10_A_bwm = parameter.Uniform(logmin, logmax)(amp_name)
 
-    pol_name = 'pol_{}'.format(name)
+    pol_name = '{}_pol'.format(name)
     pol = parameter.Uniform(0, np.pi)(pol_name)
 
-    t0_name = 't0_{}'.format(name)
+    t0_name = '{}_t0'.format(name)
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
-    costh_name = 'costheta_{}'.format(name)
-    phi_name = 'phi_{}'.format(name)
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
         phi = parameter.Uniform(0, 2*np.pi)(phi_name)
