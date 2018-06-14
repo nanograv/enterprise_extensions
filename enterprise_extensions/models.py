@@ -768,14 +768,18 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         1. Red noise modeled as a power-law with 30 sampling frequencies
 
     :param psd:
-        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+        PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for indivicual pulsar.
-
+    :param components:
+        Number of frequencies in sampling of red noise
+    :param gamma_val:
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess red noise
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
@@ -844,8 +848,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
     :param components:
         Number of frequencies in sampling of DM-variations.
     :param gamma_val:
-        If given, this is the fixed slope of a power-law
-        DM-variation spectrum.
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess DM-variations
     """
     # dm noise parameters that are common
     if gp_kernel == 'diag':
