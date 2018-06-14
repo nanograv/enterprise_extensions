@@ -2617,12 +2617,12 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
             if 'J1713+0747' == p.name:
-                s2 += expdip
+                s2 += dmexp
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             if 'J1713+0747' == p.name:
-                s3 += expdip
+                s3 += dmexp
             models.append(s3(p))
 
     # set up PTA
