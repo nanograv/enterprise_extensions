@@ -706,7 +706,7 @@ def CWSignal(cw_wf, psrTerm=False):
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, inc_ecorr=False):
+def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
     """
     Returns the white noise block of the model:
 
@@ -718,6 +718,10 @@ def white_noise_block(vary=False, inc_ecorr=False):
         If set to true we vary these parameters
         with uniform priors. Otherwise they are set to constants
         with values to be set later.
+    :param inc_ecorr:
+        include ECORR, needed for NANOGrav channelized TOAs
+    :param efac1:
+        use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
 
     # define selection by observing backend
@@ -729,7 +733,10 @@ def white_noise_block(vary=False, inc_ecorr=False):
 
     # white noise parameters
     if vary:
-        efac = parameter.Uniform(0.01, 10.0)
+        if efac1:
+            efac = parameter.Normal(1.0, 0.1)
+        else:
+            efac = parameter.Uniform(0.01, 10.0)
         equad = parameter.Uniform(-8.5, -5)
         if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
