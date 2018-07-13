@@ -334,10 +334,10 @@ class JumpProposal(object):
         # scalar parameter
         else:
             q[self.pmap[str(param)]] = param.sample()
-        
+
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
-        
+
         return q, float(lqxy)
 
     def draw_from_cw_log_uniform_distribution(self, x, iter, beta):

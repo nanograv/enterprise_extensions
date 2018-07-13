@@ -513,14 +513,14 @@ def Dropout_PhysicalEphemerisSignal(
 def cw_delay(toas, theta, phi,
              cos_gwtheta=0, gwphi=0, cos_inc=0,
              log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
-             phase0=0, psi=0, 
+             phase0=0, psi=0,
              psrTerm=False, pdist=1, p_phase=None,
              evolve=False, phase_approx=False, check=False,
              tref=0):
     """
-    Function to create GW incuced residuals from a SMBMB as 
+    Function to create GW incuced residuals from a SMBMB as
     defined in Ellis et. al 2012,2013.
-    :param toas: 
+    :param toas:
         Pular toas in seconds
     :param theta:
         Polar angle of pulsar location.
@@ -547,7 +547,7 @@ def cw_delay(toas, theta, phi,
     :param psi:
         Polarization angle of GW source [radians]
     :param psrTerm:
-        Option to include pulsar term [boolean] 
+        Option to include pulsar term [boolean]
     :param pdist:
         Pulsar distance to use other than those in psr [kpc]
     :param p_phase:
@@ -555,7 +555,7 @@ def cw_delay(toas, theta, phi,
     :param evolve:
         Option to include/exclude full evolution [boolean]
     :param phase_approx:
-        Option to include/exclude phase evolution across observation time 
+        Option to include/exclude phase evolution across observation time
         [boolean]
     :param check:
         Check if frequency evolves significantly over obs. time [boolean]
@@ -571,7 +571,7 @@ def cw_delay(toas, theta, phi,
         dist = 10**log10_dist * const.Mpc / const.c
     else:
         dist = 2 * mc**(5/3) * (np.pi*fgw)**(2/3) / 10**log10_h
-    
+
     # convert units to time
     mc = 10**log10_mc * const.Tsun
     fgw = 10**log10_fgw
@@ -584,7 +584,7 @@ def cw_delay(toas, theta, phi,
         fstart = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[0])**(-3/8)
         fend = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[-1])**(-3/8)
         df = fend - fstart
-        
+
         # observation time
         Tobs = toas.max()-toas.min()
         fbin = 1/Tobs
@@ -599,7 +599,7 @@ def cw_delay(toas, theta, phi,
     # get antenna pattern funcs and cosMu
     fplus, fcross, cosMu = utils.create_gw_antenna_pattern(theta, phi,
                                                            gwtheta, gwphi)
-    
+
     # get pulsar time
     toas -= tref
     tp = toas-pdist*(1-cosMu)
@@ -622,9 +622,9 @@ def cw_delay(toas, theta, phi,
     elif phase_approx:
         # monochromatic
         omega = w0
-        omega_p = w0 * (1 + 256/5 
+        omega_p = w0 * (1 + 256/5
                         * mc**(5/3) * w0**(8/3) * pdist*(1-cosMu))**(-3/8)
-        
+
         # phases
         phase = phase0 + omega * toas
         if p_phase is not None:
@@ -632,13 +632,13 @@ def cw_delay(toas, theta, phi,
         else:
             phase_p = (phase0 + omega_p*toas
                        + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3)))
-          
+
     # no evolution
-    else: 
+    else:
         # monochromatic
         omega = np.pi*fgw
         omega_p = omega
-        
+
         # phases
         phase = phase0 + omega * toas
         phase_p = phase0 + omega * tp
@@ -652,7 +652,7 @@ def cw_delay(toas, theta, phi,
     # now define time dependent amplitudes
     alpha = mc**(5./3.)/(dist*omega**(1./3.))
     alpha_p = mc**(5./3.)/(dist*omega_p**(1./3.))
-    
+
     # define rplus and rcross
     rplus = alpha*(-At*np.cos(2*psi)+Bt*np.sin(2*psi))
     rcross = alpha*(At*np.sin(2*psi)+Bt*np.cos(2*psi))
@@ -1419,13 +1419,13 @@ def cw_block_circ(amp_prior='log-uniform',
         phi = parameter.Constant(skyloc[1])(phi_name)
 
     # continuous wave signal
-    wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc
-                                     log10_mc=log10_Mc, log10_F=log10_fgw,
-                                     log10_h=log10_h, log10_dist=log10_dist,
-                                     phase0=phase0, psi=psi,
-                                     psrTerm=True, pdist=None, pphase=None,
-                                     phase_approx=True, check=False,
-                                     tref=tref)
+    wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc,
+                  log10_mc=log10_Mc, log10_F=log10_fgw,
+                  log10_h=log10_h, log10_dist=log10_dist,
+                  phase0=phase0, psi=psi,
+                  psrTerm=True, pdist=None, pphase=None,
+                  phase_approx=True, check=False,
+                  tref=tref)
     cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
 
     return cw
@@ -2920,7 +2920,7 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     # GW CW signal block
     if not ecc:
         s += cw_block_circ(amp_prior=amp_prior,
-                           skyloc=skyloc, log10_fgw=log10_F
+                           skyloc=skyloc, log10_fgw=log10_F,
                            psrTerm=psrTerm, tref=tmin, name='cw')
     else:
         if type(ecc) is not float:
