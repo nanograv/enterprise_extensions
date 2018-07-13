@@ -1436,7 +1436,10 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
     return cw
 
-#### PTA models from paper ####
+
+###############################
+###  PTA models from paper  ###
+###############################
 
 def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           noisedict=None, tm_svd=False,
