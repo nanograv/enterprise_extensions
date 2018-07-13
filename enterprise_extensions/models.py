@@ -2871,7 +2871,8 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     return pta
 
 
-def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
+def model_cw(psrs, upper_limits=False,
+             noisedict=None, rn_psd='powerlaw', components=30,
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
     """
@@ -2891,6 +2892,8 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
         this is set to False. Note that when perfoming upper limits it
         is recommended that the spectral index also be fixed to a specific
         value.
+    :param rn_psd:
+        psd to use in red_noise_block()
     :param bayesephem:
         Include BayesEphem model. Set to False by default
     :param skyloc:
@@ -2915,7 +2918,8 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     Tspan = tmax - tmin
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior,
+                        psd=rn_psd, Tspan=Tspan, components=components)
 
     # GW CW signal block
     if not ecc:
