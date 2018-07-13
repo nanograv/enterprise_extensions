@@ -515,7 +515,7 @@ def cw_delay(toas, theta, phi,
              log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
              phase0=0, psi=0, 
              psrTerm=False, p_dist=1, p_phase=None,
-             evolve=False, phase_approx=True,
+             evolve=False, phase_approx=False, check=False,
              tref=0):
     """
     Function to create GW incuced residuals from a SMBMB as 
@@ -557,6 +557,8 @@ def cw_delay(toas, theta, phi,
     :param phase_approx:
         Option to include/exclude phase evolution across observation time 
         [boolean]
+    :param check:
+        Check if frequency evolves significantly over obs. time [boolean]
     :param tref:
         Reference time for phase and frequency [s]
     :return: Vector of induced residuals
@@ -576,6 +578,23 @@ def cw_delay(toas, theta, phi,
     p_dist *= const.kpc / const.c
     gwtheta = np.arccos(cos_gwtheta)
     inc = np.arccos(cos_inc)
+
+    if check:
+        # check that frequency is not evolving significantly over obs. time
+        fstart = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[0])**(-3/8)
+        fend = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[-1])**(-3/8)
+        df = fend - fstart
+        
+        # observation time
+        Tobs = toas.max()-toas.min()
+        fbin = 1/Tobs
+
+        if np.abs(df) > fbin:
+            print('WARNING: Frequency is evolving over more than one '
+                  'frequency bin.')
+            print('f0 = {0}, f1 = {1}, df = {2}, fbin = {3}'
+                  .format(fstart, fend, df,  fbin))
+            return np.ones(len(toas)) * np.nan
 
     # get antenna pattern funcs and cosMu
     fplus, fcross, cosMu = utils.create_gw_antenna_pattern(theta, phi,
