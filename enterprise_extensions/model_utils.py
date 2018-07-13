@@ -383,6 +383,29 @@ def get_parameter_groups(pta):
 
     return groups
 
+def get_cw_groups(pta):
+    """Utility function to get parameter groups for CW sampling.
+    These groups should be appended to the usual get_parameter_groups()
+    output.
+    """
+    ang_pars = ['costheta', 'phi', 'cosinc', 'phase0', 'psi']
+    mfdh_pars = ['log10_Mc', 'log10_fgw', 'log10_dL', 'log10_h']
+    freq_pars = ['log10_Mc', 'log10_fgw', 'pdist', 'pphase']
+
+    groups = []
+    for pars in [ang_pars, mfdh_pars, freq_pars]:
+        groups.append(group_from_params(pta, pars))
+
+    return groups
+
+def group_from_params(pta, params):
+    gr = []
+    for p in params:
+        for q in pta.param_names:
+            if p in q:
+                gr.append(pta.param_names.index(q))
+    return gr
+
 
 def setup_sampler(pta, outdir='chains', resume=False):
     """
