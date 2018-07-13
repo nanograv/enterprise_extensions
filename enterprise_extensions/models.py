@@ -2871,7 +2871,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     return pta
 
 
-def model_cw(psrs, upper_limits=False,
+def model_cw(psrs, upper_limit=False,
              noisedict=None, rn_psd='powerlaw', components=30,
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
