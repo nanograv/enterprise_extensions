@@ -318,6 +318,28 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_cw_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'cw'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+        
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        
+        return q, float(lqxy)
+
     def draw_from_cw_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
@@ -455,9 +477,12 @@ def setup_sampler(pta, outdir='chains', resume=False):
         sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
     # CW prior draw
-    if 'log10_h' in pta.param_names:
-        print('Adding CW prior draws...\n')
+    if 'log10_h_cw' in pta.param_names:
+        print('Adding CW strain prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+    if 'log10_Mc_cw' in pta.param_names:
+        print('Adding CW prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
     return sampler
 
