@@ -681,7 +681,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
 
     return rr
 
-def CWSignal(cw_wf, psrTerm=False):
+def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
     BaseClass = deterministic_signals.Deterministic(cw_wf, name='cw')
 
@@ -693,13 +693,14 @@ def CWSignal(cw_wf, psrTerm=False):
             if psrTerm:
                 pdist = parameter.Normal(psr.pdist[0], psr.pdist[1])('_'.join([psr.name, 'pdist', 'cw']))
                 pphase = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pphase', 'cw']))
-                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
                 self._params['pdist'] = pdist
                 self._params['pphase'] = pphase
-                self._params['pgam'] = pgam
                 self._wf['']._params['pdist'] = pdist
                 self._wf['']._params['pphase'] = pphase
-                self._wf['']._params['pgam'] = pgam
+                if ecc:
+                    pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
+                    self._params['pgam'] = pgam
+                    self._wf['']._params['pgam'] = pgam
 
     return CWSignal
 
@@ -1275,7 +1276,7 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
                                      e0=e_0, l0=l_0, q=q, nmax=400,
                                      pdist=None, pphase=None, pgam=None,
                                      tref=tref, check=False)
-    cw = CWSignal(wf, psrTerm=psrTerm)
+    cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
 
     return cw
 
