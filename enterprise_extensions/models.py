@@ -1357,8 +1357,79 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
     return bwm
 
-def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
-             ecc=None, psrTerm=False, tref=0, name='cw'):
+def cw_block_circ(amp_prior='log-uniform',
+                  skyloc=None, log10_fgw=None, log10_dist=None,
+                  psrTerm=False, tref=0, name='cw'):
+    """
+    Returns deterministic continuous GW model:
+    :param amp_prior:
+        Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
+        log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
+        log10_h searched over.
+    :param skyloc:
+        Fixed sky location of CW signal search as [cos(theta), phi].
+        Search over sky location if ``None`` given.
+    :param log10_fgw:
+        Fixed log10 GW frequency of CW signal search.
+        Search over GW frequency if ``None`` given.
+    :param ecc:
+        Fixed log10 distance to SMBHB search.
+        Search over distance or strain if ``None`` given.
+    :param psrTerm:
+        Boolean for whether to include the pulsar term. Default is False.
+    :param name:
+        Name of CW signal.
+    """
+
+    if amp_prior == 'uniform':
+        # search log10_h for upper limits
+        log10_h = parameter.LinearExp(-18.0, -11.0)('log10_h_{}'.format(name))
+        log10_dist = None
+    elif amp_prior == 'log-uniform':
+        log10_h = None
+        log10_dL = parameter.Uniform(-2.0, 4.0)('log10_dL_{}'.format(name))
+
+    # chirp mass [Msol]
+    log10_Mc = parameter.Uniform(6.0, 10.0)('log10_Mc_{}'.format(name))
+
+    # GW frequency [Hz]
+    if log10_fgw is None:
+        log10_fgw = parameter.Uniform(-9.0, -7.0)('log10_fgw_{}'.format(name))
+    else:
+        log10_fgw = parameter.Constant(log10_fgw)('log10_fgw_{}'.format(name))
+    # orbital inclination angle [radians]
+    cosinc = parameter.Uniform(-1.0, 1.0)('cosinc_{}'.format(name))
+    # initial GW phase [radians]
+    phase0 = parameter.Uniform(0.0, np.pi)('phase0_{}'.format(name))
+
+    # polarization
+    psi_name = 'psi_{}'.format(name)
+    psi = parameter.Uniform(0, np.pi)(pol_name)
+
+    # sky location
+    costh_name = 'costheta_{}'.format(name)
+    phi_name = 'phi_{}'.format(name)
+    if skyloc is None:
+        costh = parameter.Uniform(-1, 1)(costh_name)
+        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+    else:
+        costh = parameter.Constant(skyloc[0])(costh_name)
+        phi = parameter.Constant(skyloc[1])(phi_name)
+
+    # continuous wave signal
+    wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc
+                                     log10_mc=log10_Mc, log10_F=log10_fgw,
+                                     log10_h=log10_h, log10_dist=log10_dist,
+                                     phase0=phase0, psi=psi,
+                                     psrTerm=True, pdist=None, pphase=None,
+                                     phase_approx=True, check=False,
+                                     tref=tref)
+    cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
+
+    return cw
+
+def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
+                 ecc=None, psrTerm=False, tref=0, name='cw'):
     """
     Returns deterministic continuous GW model:
     :param amp_prior:
@@ -2799,11 +2870,11 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
 
 
 def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
-             bayesephem=False, skyloc=None, log10_F=None, ecc=None, psrTerm=False,
-             wideband=False):
+             bayesephem=False, skyloc=None, log10_F=None, ecc=False,
+             psrTerm=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
-    instantiated with CW model:
+    instantiated with eccentric CW model:
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system
@@ -2823,6 +2894,15 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     :param skyloc:
         Fixed sky location of CW signal search as [cos(theta), phi].
         Search over sky location if ``None`` given.
+    :param log10_F:
+        Fixed frequency of CW signal search.
+        Search over frequency if ``None`` given.
+    :param ecc:
+        boolean or float
+        if boolean: include/exclude eccentricity in search
+        if float: use fixed eccentricity with eccentric model
+    :psrTerm:
+        boolean, include/exclude pulsar term in search
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2836,8 +2916,16 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # GW CW signal block
-    s += cw_block(amp_prior=amp_prior, skyloc=skyloc, log10_F=log10_F,
-                  ecc=ecc, psrTerm=psrTerm, tref=tmin, name='cw')
+    if not ecc:
+        s += cw_block_circ(amp_prior=amp_prior,
+                           skyloc=skyloc, log10_fgw=log10_F
+                           psrTerm=psrTerm, tref=tmin, name='cw')
+    else:
+        if type(ecc) is not float:
+            ecc = None
+        s += cw_block_ecc(amp_prior=amp_prior,
+                          skyloc=skyloc, log10_F=log10_F, ecc=ecc,
+                          psrTerm=psrTerm, tref=tmin, name='cw')
 
     # ephemeris model
     if bayesephem:
