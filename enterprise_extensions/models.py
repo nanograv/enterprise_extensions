@@ -514,7 +514,7 @@ def cw_delay(toas, theta, phi,
              cos_gwtheta=0, gwphi=0, cos_inc=0,
              log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
              phase0=0, psi=0, 
-             psrTerm=False, p_dist=1, p_phase=None,
+             psrTerm=False, pdist=1, p_phase=None,
              evolve=False, phase_approx=False, check=False,
              tref=0):
     """
@@ -548,7 +548,7 @@ def cw_delay(toas, theta, phi,
         Polarization angle of GW source [radians]
     :param psrTerm:
         Option to include pulsar term [boolean] 
-    :param p_dist:
+    :param pdist:
         Pulsar distance to use other than those in psr [kpc]
     :param p_phase:
         Use pulsar phase to determine distance [radian]
@@ -575,7 +575,7 @@ def cw_delay(toas, theta, phi,
     # convert units to time
     mc = 10**log10_mc * const.Tsun
     fgw = 10**log10_fgw
-    p_dist *= const.kpc / const.c
+    pdist *= const.kpc / const.c
     gwtheta = np.arccos(cos_gwtheta)
     inc = np.arccos(cos_inc)
 
@@ -602,7 +602,7 @@ def cw_delay(toas, theta, phi,
     
     # get pulsar time
     toas -= tref
-    tp = toas-p_dist*(1-cosMu)
+    tp = toas-pdist*(1-cosMu)
 
     # orbital frequency
     w0 = np.pi * fgw
@@ -622,14 +622,16 @@ def cw_delay(toas, theta, phi,
     elif phase_approx:
         # monochromatic
         omega = w0
-        omega_p = w0 * (1 + 256/5 * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+        omega_p = w0 * (1 + 256/5 
+                        * mc**(5/3) * w0**(8/3) * pdist*(1-cosMu))**(-3/8)
         
         # phases
         phase = phase0 + omega * toas
         if p_phase is not None:
-            phase_p = phase0 + p_phase + omega_p * toas
+            phase_p = phase0 + p_phase + omega_p*toas
         else:
-            phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3)) + omega_p*toas
+            phase_p = (phase0 + omega_p*toas
+                       + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3)))
           
     # no evolution
     else: 
