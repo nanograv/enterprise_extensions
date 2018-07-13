@@ -1406,7 +1406,7 @@ def cw_block_circ(amp_prior='log-uniform',
 
     # polarization
     psi_name = 'psi_{}'.format(name)
-    psi = parameter.Uniform(0, np.pi)(pol_name)
+    psi = parameter.Uniform(0, np.pi)(psi_name)
 
     # sky location
     costh_name = 'costheta_{}'.format(name)
@@ -1426,7 +1426,7 @@ def cw_block_circ(amp_prior='log-uniform',
                   psrTerm=True, pdist=None, pphase=None,
                   phase_approx=True, check=False,
                   tref=tref)
-    cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
+    cw = CWSignal(wf, ecc=False, psrTerm=psrTerm)
 
     return cw
 
