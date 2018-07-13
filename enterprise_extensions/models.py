@@ -1363,7 +1363,7 @@ def cw_block_circ(amp_prior='log-uniform',
                   skyloc=None, log10_fgw=None, log10_dist=None,
                   psrTerm=False, tref=0, name='cw'):
     """
-    Returns deterministic continuous GW model:
+    Returns deterministic, cirular orbit continuous GW model:
     :param amp_prior:
         Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
         log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
@@ -1433,7 +1433,7 @@ def cw_block_circ(amp_prior='log-uniform',
 def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
                  ecc=None, psrTerm=False, tref=0, name='cw'):
     """
-    Returns deterministic continuous GW model:
+    Returns deterministic, eccentric orbit continuous GW model:
     :param amp_prior:
         Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
         log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
@@ -2877,7 +2877,7 @@ def model_cw(psrs, upper_limit=False,
              psrTerm=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
-    instantiated with eccentric CW model:
+    instantiated with CW model:
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system
