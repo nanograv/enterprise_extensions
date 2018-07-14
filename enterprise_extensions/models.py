@@ -1244,7 +1244,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     # common red noise parameters
     if psd in ['powerlaw', 'turnover', 'turnover_knee']:
-        amp_name = 'log10_A_{}'.format(name)
+        amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
         elif prior == 'log-uniform' and gamma_val is not None:
@@ -1255,7 +1255,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         else:
             log10_Agw = parameter.Uniform(-18, -11)(amp_name)
 
-        gam_name = 'gamma_{}'.format(name)
+        gam_name = '{}_gamma'.format(name)
         if gamma_val is not None:
             gamma_gw = parameter.Constant(gamma_val)(gam_name)
         else:
@@ -1265,17 +1265,17 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
         elif psd == 'turnover':
-            kappa_name = 'kappa_{}'.format(name)
-            lf0_name = 'log10_fbend_{}'.format(name)
+            kappa_name = '{}_kappa'.format(name)
+            lf0_name = '{}_log10_fbend'.format(name)
             kappa_gw = parameter.Uniform(0, 7)(kappa_name)
             lf0_gw = parameter.Uniform(-9, -7)(lf0_name)
             cpl = utils.turnover(log10_A=log10_Agw, gamma=gamma_gw,
                                  lf0=lf0_gw, kappa=kappa_gw)
         elif psd == 'turnover_knee':
-            kappa_name = 'kappa_{}'.format(name)
-            lfb_name = 'log10_fbend_{}'.format(name)
-            delta_name = 'delta_{}'.format(name)
-            lfk_name = 'log10_fknee_{}'.format(name)
+            kappa_name = '{}_kappa'.format(name)
+            lfb_name = '{}_log10_fbend'.format(name)
+            delta_name = '{}_delta'.format(name)
+            lfk_name = '{}_log10_fknee'.format(name)
             kappa_gw = parameter.Uniform(0, 7)(kappa_name)
             lfb_gw = parameter.Uniform(-9.3, -8)(lfb_name)
             delta_gw = parameter.Uniform(-2, 0)(delta_name)
@@ -1285,7 +1285,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                 kappa=kappa_gw, delta=delta_gw)
 
     if psd == 'spectrum':
-        rho_name = 'log10_rho_{}'.format(name)
+        rho_name = '{}_log10_rho'.format(name)
         if prior == 'uniform':
             log10_rho_gw = parameter.LinearExp(-9, -4, size=components)(rho_name)
         elif prior == 'log-uniform':
@@ -1385,32 +1385,32 @@ def cw_block_circ(amp_prior='log-uniform',
 
     if amp_prior == 'uniform':
         # search log10_h for upper limits
-        log10_h = parameter.LinearExp(-18.0, -11.0)('log10_h_{}'.format(name))
+        log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
         log10_dist = None
     elif amp_prior == 'log-uniform':
         log10_h = None
-        log10_dL = parameter.Uniform(-2.0, 4.0)('log10_dL_{}'.format(name))
+        log10_dL = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
 
     # chirp mass [Msol]
-    log10_Mc = parameter.Uniform(6.0, 10.0)('log10_Mc_{}'.format(name))
+    log10_Mc = parameter.Uniform(6.0, 10.0)('{}_log10_Mc'.format(name))
 
     # GW frequency [Hz]
     if log10_fgw is None:
-        log10_fgw = parameter.Uniform(-9.0, -7.0)('log10_fgw_{}'.format(name))
+        log10_fgw = parameter.Uniform(-9.0, -7.0)('{}_log10_fgw'.format(name))
     else:
-        log10_fgw = parameter.Constant(log10_fgw)('log10_fgw_{}'.format(name))
+        log10_fgw = parameter.Constant(log10_fgw)('{}_log10_fgw'.format(name))
     # orbital inclination angle [radians]
-    cosinc = parameter.Uniform(-1.0, 1.0)('cosinc_{}'.format(name))
+    cosinc = parameter.Uniform(-1.0, 1.0)('{}_cosinc'.format(name))
     # initial GW phase [radians]
-    phase0 = parameter.Uniform(0.0, np.pi)('phase0_{}'.format(name))
+    phase0 = parameter.Uniform(0.0, np.pi)('{}_phase0'.format(name))
 
     # polarization
-    psi_name = 'psi_{}'.format(name)
+    psi_name = '{}_psi'.format(name)
     psi = parameter.Uniform(0, np.pi)(psi_name)
 
     # sky location
-    costh_name = 'costheta_{}'.format(name)
-    phi_name = 'phi_{}'.format(name)
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
         phi = parameter.Uniform(0, 2*np.pi)(phi_name)
@@ -1454,42 +1454,42 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
     """
 
     if amp_prior == 'uniform':
-        log10_h = parameter.LinearExp(-18.0, -11.0)('log10_h_{}'.format(name))
+        log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
     elif amp_prior == 'log-uniform':
         log10_h = None
     # chirp mass [Msol]
-    log10_Mc = parameter.Uniform(6.0, 10.0)('log10_Mc_{}'.format(name))
+    log10_Mc = parameter.Uniform(6.0, 10.0)('{}_log10_Mc'.format(name))
     # luminosity distance [Mpc]
-    log10_dL = parameter.Uniform(-2.0, 4.0)('log10_dL_{}'.format(name))
+    log10_dL = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
 
     # orbital frequency [Hz]
     if log10_F is None:
-        log10_Forb = parameter.Uniform(-9.0, -7.0)('log10_Forb_{}'.format(name))
+        log10_Forb = parameter.Uniform(-9.0, -7.0)('{}_log10_Forb'.format(name))
     else:
-        log10_Forb = parameter.Constant(log10_F)('log10_Forb_{}'.format(name))
+        log10_Forb = parameter.Constant(log10_F)('{}_log10_Forb'.format(name))
     # orbital inclination angle [radians]
-    cosinc = parameter.Uniform(-1.0, 1.0)('cosinc_{}'.format(name))
+    cosinc = parameter.Uniform(-1.0, 1.0)('{}_cosinc'.format(name))
     # periapsis position angle [radians]
-    gamma_0 = parameter.Uniform(0.0, np.pi)('gamma0_{}'.format(name))
+    gamma_0 = parameter.Uniform(0.0, np.pi)('{}_gamma0'.format(name))
 
     # Earth-term eccentricity
     if ecc is None:
-        e_0 = parameter.Uniform(0.0, 0.99)('e0_{}'.format(name))
+        e_0 = parameter.Uniform(0.0, 0.99)('{}_e0'.format(name))
     else:
-        e_0 = parameter.Constant(ecc)('e0_{}'.format(name))
+        e_0 = parameter.Constant(ecc)('{}_e0'.format(name))
 
     # initial mean anomaly [radians]
-    l_0 = parameter.Uniform(0.0, 2.0*np.pi)('l0_{}'.format(name))
+    l_0 = parameter.Uniform(0.0, 2.0*np.pi)('{}_l0'.format(name))
     # mass ratio = M_2/M_1
-    q = parameter.Constant(1.0)('q_{}'.format(name))
+    q = parameter.Constant(1.0)('{}_q'.format(name))
 
     # polarization
-    pol_name = 'pol_{}'.format(name)
+    pol_name = '{}_pol'.format(name)
     pol = parameter.Uniform(0, np.pi)(pol_name)
 
     # sky location
-    costh_name = 'costheta_{}'.format(name)
-    phi_name = 'phi_{}'.format(name)
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
         phi = parameter.Uniform(0, 2*np.pi)(phi_name)
@@ -2595,7 +2595,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    amp_name = 'log10_A_{}'.format('gw')
+    amp_name = '{}_log10_A'.format('gw')
     if amp_prior == 'uniform':
         log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
     elif amp_prior == 'log-uniform' and gamma_common is not None:
@@ -2606,7 +2606,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     else:
         log10_Agw = parameter.Uniform(-18, -11)(amp_name)
 
-    gam_name = 'gamma_{}'.format('gw')
+    gam_name = '{}_gamma'.format('gw')
     if gamma_common is not None:
         gamma_gw = parameter.Constant(gamma_common)(gam_name)
     else:

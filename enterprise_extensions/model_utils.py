@@ -223,7 +223,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_gw')
+        idx = self.pnames.index('gw_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -234,7 +234,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_dipole')
+        idx = self.pnames.index('dipole_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -245,7 +245,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_monopole')
+        idx = self.pnames.index('monopole_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -475,17 +475,17 @@ def setup_sampler(pta, outdir='chains', resume=False):
         sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
     # GWB uniform distribution draw
-    if 'log10_A_gw' in pta.param_names:
+    if 'gw_log10_A' in pta.param_names:
         print('Adding GWB uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
     # Dipole uniform distribution draw
-    if 'log10_A_dipole' in pta.param_names:
+    if 'dipole_log10_A' in pta.param_names:
         print('Adding dipole uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
 
     # Monopole uniform distribution draw
-    if 'log10_A_monopole' in pta.param_names:
+    if 'monopole_log10_A' in pta.param_names:
         print('Adding monopole uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
@@ -500,10 +500,10 @@ def setup_sampler(pta, outdir='chains', resume=False):
         sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
     # CW prior draw
-    if 'log10_h_cw' in pta.param_names:
+    if 'cw_log10_h' in pta.param_names:
         print('Adding CW strain prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
-    if 'log10_Mc_cw' in pta.param_names:
+    if 'cw_log10_Mc' in pta.param_names:
         print('Adding CW prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
@@ -850,17 +850,17 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
         # GWB uniform distribution draw
-        if 'log10_A_gw' in self.param_names:
+        if 'gw_log10_A' in self.param_names:
             print('Adding GWB uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
         # Dipole uniform distribution draw
-        if 'log10_A_dipole' in self.param_names:
+        if 'dipole_log10_A' in self.param_names:
             print('Adding dipole uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
 
         # Monopole uniform distribution draw
-        if 'log10_A_monopole' in self.param_names:
+        if 'monopole_log10_A' in self.param_names:
             print('Adding monopole uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
@@ -870,7 +870,7 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
         # CW prior draw
-        if 'log10_h' in self.param_names:
+        if 'cw_log10_h' in self.param_names:
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
