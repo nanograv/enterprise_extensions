@@ -2849,12 +2849,12 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if 'J1713+0747' == p.name:
+            if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-            if 'J1713+0747' == p.name:
+            if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
 
