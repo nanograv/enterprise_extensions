@@ -510,6 +510,164 @@ def Dropout_PhysicalEphemerisSignal(
     return Dropout_PhysicalEphemerisSignal
 
 @signal_base.function
+def cw_delay(toas, theta, phi,
+             cos_gwtheta=0, gwphi=0, cos_inc=0,
+             log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
+             phase0=0, psi=0,
+             psrTerm=False, pdist=1, p_phase=None,
+             evolve=False, phase_approx=False, check=False,
+             tref=0):
+    """
+    Function to create GW incuced residuals from a SMBMB as
+    defined in Ellis et. al 2012,2013.
+    :param toas:
+        Pular toas in seconds
+    :param theta:
+        Polar angle of pulsar location.
+    :param phi:
+        Azimuthal angle of pulsar location.
+    :param cos_gwtheta:
+        Cosine of Polar angle of GW source in celestial coords [radians]
+    :param gwphi:
+        Azimuthal angle of GW source in celestial coords [radians]
+    :param cos_inc:
+        cosine of Inclination of GW source [radians]
+    :param log10_mc:
+        log10 of Chirp mass of SMBMB [solar masses]
+    :param log10_fgw:
+        log10 of Frequency of GW (twice the orbital frequency) [Hz]
+    :param log10_dist:
+        log10 of Luminosity distance to SMBMB [Mpc],
+        used to compute strain, if not None
+    :param log10_h:
+        log10 of GW strain,
+        used to compute distance, if not None
+    :param phase0:
+        Initial Phase of GW source [radians]
+    :param psi:
+        Polarization angle of GW source [radians]
+    :param psrTerm:
+        Option to include pulsar term [boolean]
+    :param pdist:
+        Pulsar distance to use other than those in psr [kpc]
+    :param p_phase:
+        Use pulsar phase to determine distance [radian]
+    :param evolve:
+        Option to include/exclude full evolution [boolean]
+    :param phase_approx:
+        Option to include/exclude phase evolution across observation time
+        [boolean]
+    :param check:
+        Check if frequency evolves significantly over obs. time [boolean]
+    :param tref:
+        Reference time for phase and frequency [s]
+    :return: Vector of induced residuals
+    """
+    if log10_h is None and log10_dist is None:
+        raise ValueError("one of log10_dist or log10_h must be non-None")
+    elif log10_h is not  None and log10_dist is not None:
+        raise ValueError("only one of log10_dist or log10_h can be non-None")
+    elif log10_h is None:
+        dist = 10**log10_dist * const.Mpc / const.c
+    else:
+        dist = 2 * mc**(5/3) * (np.pi*fgw)**(2/3) / 10**log10_h
+
+    # convert units to time
+    mc = 10**log10_mc * const.Tsun
+    fgw = 10**log10_fgw
+    pdist *= const.kpc / const.c
+    gwtheta = np.arccos(cos_gwtheta)
+    inc = np.arccos(cos_inc)
+
+    if check:
+        # check that frequency is not evolving significantly over obs. time
+        fstart = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[0])**(-3/8)
+        fend = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[-1])**(-3/8)
+        df = fend - fstart
+
+        # observation time
+        Tobs = toas.max()-toas.min()
+        fbin = 1/Tobs
+
+        if np.abs(df) > fbin:
+            print('WARNING: Frequency is evolving over more than one '
+                  'frequency bin.')
+            print('f0 = {0}, f1 = {1}, df = {2}, fbin = {3}'
+                  .format(fstart, fend, df,  fbin))
+            return np.ones(len(toas)) * np.nan
+
+    # get antenna pattern funcs and cosMu
+    fplus, fcross, cosMu = utils.create_gw_antenna_pattern(theta, phi,
+                                                           gwtheta, gwphi)
+
+    # get pulsar time
+    toas -= tref
+    tp = toas-pdist*(1-cosMu)
+
+    # orbital frequency
+    w0 = np.pi * fgw
+    phase0 /= 2 # orbital phase
+    omegadot = 96/5 * mc**(5/3) * w0**(11/3)
+
+    # evolution
+    if evolve:
+        # calculate time dependent frequency at earth and pulsar
+        omega = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * toas)**(-3/8)
+        omega_p = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * tp)**(-3/8)
+
+        # calculate time dependent phase
+        phase = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega**(-5/3))
+        phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+
+    elif phase_approx:
+        # monochromatic
+        omega = w0
+        omega_p = w0 * (1 + 256/5
+                        * mc**(5/3) * w0**(8/3) * pdist*(1-cosMu))**(-3/8)
+
+        # phases
+        phase = phase0 + omega * toas
+        if p_phase is not None:
+            phase_p = phase0 + p_phase + omega_p*toas
+        else:
+            phase_p = (phase0 + omega_p*toas
+                       + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3)))
+
+    # no evolution
+    else:
+        # monochromatic
+        omega = np.pi*fgw
+        omega_p = omega
+
+        # phases
+        phase = phase0 + omega * toas
+        phase_p = phase0 + omega * tp
+
+    # define time dependent coefficients
+    At = -0.5*np.sin(2*phase)*(3+np.cos(2*inc))
+    Bt = 2*np.cos(2*phase)*np.cos(inc)
+    At_p = -0.5*np.sin(2*phase_p)*(3+np.cos(2*inc))
+    Bt_p = 2*np.cos(2*phase_p)*np.cos(inc)
+
+    # now define time dependent amplitudes
+    alpha = mc**(5./3.)/(dist*omega**(1./3.))
+    alpha_p = mc**(5./3.)/(dist*omega_p**(1./3.))
+
+    # define rplus and rcross
+    rplus = alpha*(-At*np.cos(2*psi)+Bt*np.sin(2*psi))
+    rcross = alpha*(At*np.sin(2*psi)+Bt*np.cos(2*psi))
+    rplus_p = alpha_p*(-At_p*np.cos(2*psi)+Bt_p*np.sin(2*psi))
+    rcross_p = alpha_p*(At_p*np.sin(2*psi)+Bt_p*np.cos(2*psi))
+
+    # residuals
+    if inc_psr_term:
+        res = fplus*(rplus_p-rplus)+fcross*(rcross_p-rcross)
+    else:
+        res = -fplus*rplus - fcross*rcross
+
+    return res
+
+@signal_base.function
 def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
                                 log10_mc, log10_dist, log10_h, log10_F, cos_inc,
                                 psi, gamma0, e0, l0, q, nmax=400, pdist=1.0,
@@ -681,7 +839,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
 
     return rr
 
-def CWSignal(cw_wf, psrTerm=False):
+def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
     BaseClass = deterministic_signals.Deterministic(cw_wf, name='cw')
 
@@ -693,13 +851,14 @@ def CWSignal(cw_wf, psrTerm=False):
             if psrTerm:
                 pdist = parameter.Normal(psr.pdist[0], psr.pdist[1])('_'.join([psr.name, 'pdist', 'cw']))
                 pphase = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pphase', 'cw']))
-                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
                 self._params['pdist'] = pdist
                 self._params['pphase'] = pphase
-                self._params['pgam'] = pgam
                 self._wf['']._params['pdist'] = pdist
                 self._wf['']._params['pphase'] = pphase
-                self._wf['']._params['pgam'] = pgam
+                if ecc:
+                    pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
+                    self._params['pgam'] = pgam
+                    self._wf['']._params['pgam'] = pgam
 
     return CWSignal
 
@@ -1085,7 +1244,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     # common red noise parameters
     if psd in ['powerlaw', 'turnover', 'turnover_knee']:
-        amp_name = 'log10_A_{}'.format(name)
+        amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
         elif prior == 'log-uniform' and gamma_val is not None:
@@ -1096,7 +1255,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         else:
             log10_Agw = parameter.Uniform(-18, -11)(amp_name)
 
-        gam_name = 'gamma_{}'.format(name)
+        gam_name = '{}_gamma'.format(name)
         if gamma_val is not None:
             gamma_gw = parameter.Constant(gamma_val)(gam_name)
         else:
@@ -1106,17 +1265,17 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
         elif psd == 'turnover':
-            kappa_name = 'kappa_{}'.format(name)
-            lf0_name = 'log10_fbend_{}'.format(name)
+            kappa_name = '{}_kappa'.format(name)
+            lf0_name = '{}_log10_fbend'.format(name)
             kappa_gw = parameter.Uniform(0, 7)(kappa_name)
             lf0_gw = parameter.Uniform(-9, -7)(lf0_name)
             cpl = utils.turnover(log10_A=log10_Agw, gamma=gamma_gw,
                                  lf0=lf0_gw, kappa=kappa_gw)
         elif psd == 'turnover_knee':
-            kappa_name = 'kappa_{}'.format(name)
-            lfb_name = 'log10_fbend_{}'.format(name)
-            delta_name = 'delta_{}'.format(name)
-            lfk_name = 'log10_fknee_{}'.format(name)
+            kappa_name = '{}_kappa'.format(name)
+            lfb_name = '{}_log10_fbend'.format(name)
+            delta_name = '{}_delta'.format(name)
+            lfk_name = '{}_log10_fknee'.format(name)
             kappa_gw = parameter.Uniform(0, 7)(kappa_name)
             lfb_gw = parameter.Uniform(-9.3, -8)(lfb_name)
             delta_gw = parameter.Uniform(-2, 0)(delta_name)
@@ -1126,7 +1285,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                 kappa=kappa_gw, delta=delta_gw)
 
     if psd == 'spectrum':
-        rho_name = 'log10_rho_{}'.format(name)
+        rho_name = '{}_log10_rho'.format(name)
         if prior == 'uniform':
             log10_rho_gw = parameter.LinearExp(-9, -4, size=components)(rho_name)
         elif prior == 'log-uniform':
@@ -1200,10 +1359,81 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
     return bwm
 
-def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
-             ecc=None, psrTerm=False, tref=0, name='cw'):
+def cw_block_circ(amp_prior='log-uniform',
+                  skyloc=None, log10_fgw=None, log10_dist=None,
+                  psrTerm=False, tref=0, name='cw'):
     """
-    Returns deterministic continuous GW model:
+    Returns deterministic, cirular orbit continuous GW model:
+    :param amp_prior:
+        Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
+        log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
+        log10_h searched over.
+    :param skyloc:
+        Fixed sky location of CW signal search as [cos(theta), phi].
+        Search over sky location if ``None`` given.
+    :param log10_fgw:
+        Fixed log10 GW frequency of CW signal search.
+        Search over GW frequency if ``None`` given.
+    :param ecc:
+        Fixed log10 distance to SMBHB search.
+        Search over distance or strain if ``None`` given.
+    :param psrTerm:
+        Boolean for whether to include the pulsar term. Default is False.
+    :param name:
+        Name of CW signal.
+    """
+
+    if amp_prior == 'uniform':
+        # search log10_h for upper limits
+        log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
+        log10_dist = None
+    elif amp_prior == 'log-uniform':
+        log10_h = None
+        log10_dL = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
+
+    # chirp mass [Msol]
+    log10_Mc = parameter.Uniform(6.0, 10.0)('{}_log10_Mc'.format(name))
+
+    # GW frequency [Hz]
+    if log10_fgw is None:
+        log10_fgw = parameter.Uniform(-9.0, -7.0)('{}_log10_fgw'.format(name))
+    else:
+        log10_fgw = parameter.Constant(log10_fgw)('{}_log10_fgw'.format(name))
+    # orbital inclination angle [radians]
+    cosinc = parameter.Uniform(-1.0, 1.0)('{}_cosinc'.format(name))
+    # initial GW phase [radians]
+    phase0 = parameter.Uniform(0.0, np.pi)('{}_phase0'.format(name))
+
+    # polarization
+    psi_name = '{}_psi'.format(name)
+    psi = parameter.Uniform(0, np.pi)(psi_name)
+
+    # sky location
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
+    if skyloc is None:
+        costh = parameter.Uniform(-1, 1)(costh_name)
+        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+    else:
+        costh = parameter.Constant(skyloc[0])(costh_name)
+        phi = parameter.Constant(skyloc[1])(phi_name)
+
+    # continuous wave signal
+    wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc,
+                  log10_mc=log10_Mc, log10_F=log10_fgw,
+                  log10_h=log10_h, log10_dist=log10_dist,
+                  phase0=phase0, psi=psi,
+                  psrTerm=True, pdist=None, pphase=None,
+                  phase_approx=True, check=False,
+                  tref=tref)
+    cw = CWSignal(wf, ecc=False, psrTerm=psrTerm)
+
+    return cw
+
+def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
+                 ecc=None, psrTerm=False, tref=0, name='cw'):
+    """
+    Returns deterministic, eccentric orbit continuous GW model:
     :param amp_prior:
         Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
         log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
@@ -1224,42 +1454,42 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
     """
 
     if amp_prior == 'uniform':
-        log10_h = parameter.LinearExp(-18.0, -11.0)('log10_h_{}'.format(name))
+        log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
     elif amp_prior == 'log-uniform':
         log10_h = None
     # chirp mass [Msol]
-    log10_Mc = parameter.Uniform(6.0, 10.0)('log10_Mc_{}'.format(name))
+    log10_Mc = parameter.Uniform(6.0, 10.0)('{}_log10_Mc'.format(name))
     # luminosity distance [Mpc]
-    log10_dL = parameter.Uniform(-2.0, 4.0)('log10_dL_{}'.format(name))
+    log10_dL = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
 
     # orbital frequency [Hz]
     if log10_F is None:
-        log10_Forb = parameter.Uniform(-9.0, -7.0)('log10_Forb_{}'.format(name))
+        log10_Forb = parameter.Uniform(-9.0, -7.0)('{}_log10_Forb'.format(name))
     else:
-        log10_Forb = parameter.Constant(log10_F)('log10_Forb_{}'.format(name))
+        log10_Forb = parameter.Constant(log10_F)('{}_log10_Forb'.format(name))
     # orbital inclination angle [radians]
-    cosinc = parameter.Uniform(-1.0, 1.0)('cosinc_{}'.format(name))
+    cosinc = parameter.Uniform(-1.0, 1.0)('{}_cosinc'.format(name))
     # periapsis position angle [radians]
-    gamma_0 = parameter.Uniform(0.0, np.pi)('gamma0_{}'.format(name))
+    gamma_0 = parameter.Uniform(0.0, np.pi)('{}_gamma0'.format(name))
 
     # Earth-term eccentricity
     if ecc is None:
-        e_0 = parameter.Uniform(0.0, 0.99)('e0_{}'.format(name))
+        e_0 = parameter.Uniform(0.0, 0.99)('{}_e0'.format(name))
     else:
-        e_0 = parameter.Constant(ecc)('e0_{}'.format(name))
+        e_0 = parameter.Constant(ecc)('{}_e0'.format(name))
 
     # initial mean anomaly [radians]
-    l_0 = parameter.Uniform(0.0, 2.0*np.pi)('l0_{}'.format(name))
+    l_0 = parameter.Uniform(0.0, 2.0*np.pi)('{}_l0'.format(name))
     # mass ratio = M_2/M_1
-    q = parameter.Constant(1.0)('q_{}'.format(name))
+    q = parameter.Constant(1.0)('{}_q'.format(name))
 
     # polarization
-    pol_name = 'pol_{}'.format(name)
+    pol_name = '{}_pol'.format(name)
     pol = parameter.Uniform(0, np.pi)(pol_name)
 
     # sky location
-    costh_name = 'costheta_{}'.format(name)
-    phi_name = 'phi_{}'.format(name)
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
         phi = parameter.Uniform(0, 2*np.pi)(phi_name)
@@ -1275,11 +1505,14 @@ def cw_block(amp_prior='log-uniform', skyloc=None, log10_F=None,
                                      e0=e_0, l0=l_0, q=q, nmax=400,
                                      pdist=None, pphase=None, pgam=None,
                                      tref=tref, check=False)
-    cw = CWSignal(wf, psrTerm=psrTerm)
+    cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
 
     return cw
 
-#### PTA models from paper ####
+
+###############################
+###  PTA models from paper  ###
+###############################
 
 def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           noisedict=None, tm_svd=False,
@@ -2362,7 +2595,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    amp_name = 'log10_A_{}'.format('gw')
+    amp_name = '{}_log10_A'.format('gw')
     if amp_prior == 'uniform':
         log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
     elif amp_prior == 'log-uniform' and gamma_common is not None:
@@ -2373,7 +2606,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     else:
         log10_Agw = parameter.Uniform(-18, -11)(amp_name)
 
-    gam_name = 'gamma_{}'.format('gw')
+    gam_name = '{}_gamma'.format('gw')
     if gamma_common is not None:
         gamma_gw = parameter.Constant(gamma_common)(gam_name)
     else:
@@ -2616,12 +2849,12 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if 'J1713+0747' == p.name:
+            if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-            if 'J1713+0747' == p.name:
+            if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
 
@@ -2638,9 +2871,10 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     return pta
 
 
-def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
-             bayesephem=False, skyloc=None, log10_F=None, ecc=None, psrTerm=False,
-             wideband=False):
+def model_cw(psrs, upper_limit=False,
+             noisedict=None, rn_psd='powerlaw', components=30,
+             bayesephem=False, skyloc=None, log10_F=None, ecc=False,
+             psrTerm=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
@@ -2658,11 +2892,22 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
         this is set to False. Note that when perfoming upper limits it
         is recommended that the spectral index also be fixed to a specific
         value.
+    :param rn_psd:
+        psd to use in red_noise_block()
     :param bayesephem:
         Include BayesEphem model. Set to False by default
     :param skyloc:
         Fixed sky location of CW signal search as [cos(theta), phi].
         Search over sky location if ``None`` given.
+    :param log10_F:
+        Fixed frequency of CW signal search.
+        Search over frequency if ``None`` given.
+    :param ecc:
+        boolean or float
+        if boolean: include/exclude eccentricity in search
+        if float: use fixed eccentricity with eccentric model
+    :psrTerm:
+        boolean, include/exclude pulsar term in search
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2673,11 +2918,20 @@ def model_cw(psrs, noisedict=None, components=30, upper_limit=False,
     Tspan = tmax - tmin
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior,
+                        psd=rn_psd, Tspan=Tspan, components=components)
 
     # GW CW signal block
-    s += cw_block(amp_prior=amp_prior, skyloc=skyloc, log10_F=log10_F,
-                  ecc=ecc, psrTerm=psrTerm, tref=tmin, name='cw')
+    if not ecc:
+        s += cw_block_circ(amp_prior=amp_prior,
+                           skyloc=skyloc, log10_fgw=log10_F,
+                           psrTerm=psrTerm, tref=tmin, name='cw')
+    else:
+        if type(ecc) is not float:
+            ecc = None
+        s += cw_block_ecc(amp_prior=amp_prior,
+                          skyloc=skyloc, log10_F=log10_F, ecc=ecc,
+                          psrTerm=psrTerm, tref=tmin, name='cw')
 
     # ephemeris model
     if bayesephem:
