@@ -129,7 +129,7 @@ class JumpProposal(object):
 
         # scalar parameter
         else:
-            q[idx] = param.sample()
+            q[self.pmap[str(param)] = param.sample()
 
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
