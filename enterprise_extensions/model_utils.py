@@ -105,7 +105,8 @@ class JumpProposal(object):
             for sc in pta._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-            for key in self.snames: self.snames[key] = np.unique(self.snames[key]).tolist()
+            # remove duplicates (I think)
+            for key in self.snames: self.snames[key] = list(set(self.snames[key]))
         else:
             self.snames = snames
 
