@@ -99,8 +99,9 @@ class JumpProposal(object):
 
         # collecting signal parameters across pta
         if snames is None:
-            self.snames = dict.fromkeys(np.unique([[qq.signal_name for qq in pp._signals]
-                                                   for pp in pta._signalcollections]))
+            allsigs = np.hstack([[qq.signal_name for qq in pp._signals]
+                                                 for pp in pta._signalcollections])
+            self.snames = dict.fromkeys(np.unique(allsigs))
             for key in self.snames: self.snames[key] = []
 
             for sc in pta._signalcollections:
@@ -130,7 +131,7 @@ class JumpProposal(object):
 
         # scalar parameter
         else:
-            q[idx] = param.sample()
+            q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
@@ -224,7 +225,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_gw')
+        idx = self.pnames.index('gw_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -235,7 +236,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_dipole')
+        idx = self.pnames.index('dipole_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -246,7 +247,7 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        idx = self.pnames.index('log10_A_monopole')
+        idx = self.pnames.index('monopole_log10_A')
         q[idx] = np.random.uniform(-18, -11)
 
         return q, 0
@@ -303,6 +304,28 @@ class JumpProposal(object):
         lqxy = 0
 
         signal_name = 'bwm'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+
+        return q, float(lqxy)
+
+    def draw_from_cw_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'cw'
 
         # draw parameter from signal model
         param = np.random.choice(self.snames[signal_name])
@@ -384,6 +407,29 @@ def get_parameter_groups(pta):
 
     return groups
 
+def get_cw_groups(pta):
+    """Utility function to get parameter groups for CW sampling.
+    These groups should be appended to the usual get_parameter_groups()
+    output.
+    """
+    ang_pars = ['costheta', 'phi', 'cosinc', 'phase0', 'psi']
+    mfdh_pars = ['log10_Mc', 'log10_fgw', 'log10_dL', 'log10_h']
+    freq_pars = ['log10_Mc', 'log10_fgw', 'pdist', 'pphase']
+
+    groups = []
+    for pars in [ang_pars, mfdh_pars, freq_pars]:
+        groups.append(group_from_params(pta, pars))
+
+    return groups
+
+def group_from_params(pta, params):
+    gr = []
+    for p in params:
+        for q in pta.param_names:
+            if p in q:
+                gr.append(pta.param_names.index(q))
+    return gr
+
 
 def setup_sampler(pta, outdir='chains', resume=False):
     """
@@ -453,17 +499,17 @@ def setup_sampler(pta, outdir='chains', resume=False):
         sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
     # GWB uniform distribution draw
-    if 'log10_A_gw' in pta.param_names:
+    if 'gw_log10_A' in pta.param_names:
         print('Adding GWB uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
     # Dipole uniform distribution draw
-    if 'log10_A_dipole' in pta.param_names:
+    if 'dipole_log10_A' in pta.param_names:
         print('Adding dipole uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
 
     # Monopole uniform distribution draw
-    if 'log10_A_monopole' in pta.param_names:
+    if 'monopole_log10_A' in pta.param_names:
         print('Adding monopole uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
@@ -471,6 +517,19 @@ def setup_sampler(pta, outdir='chains', resume=False):
     if 'log10Apol_tt' in pta.param_names:
         print('Adding alternative GW-polarization uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_altpol_log_uniform_distribution, 10)
+
+    # BWM prior draw
+    if 'bwm_log10_A' in pta.param_names:
+        print('Adding BWM prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+    # CW prior draw
+    if 'cw_log10_h' in pta.param_names:
+        print('Adding CW strain prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+    if 'cw_log10_Mc' in pta.param_names:
+        print('Adding CW prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
     return sampler
 
@@ -815,27 +874,27 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
         # GWB uniform distribution draw
-        if 'log10_A_gw' in self.param_names:
+        if 'gw_log10_A' in self.param_names:
             print('Adding GWB uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
         # Dipole uniform distribution draw
-        if 'log10_A_dipole' in self.param_names:
+        if 'dipole_log10_A' in self.param_names:
             print('Adding dipole uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
 
         # Monopole uniform distribution draw
-        if 'log10_A_monopole' in self.param_names:
+        if 'monopole_log10_A' in self.param_names:
             print('Adding monopole uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
 
         # BWM prior draw
-        if 'log10_A_bwm' in self.param_names:
+        if 'bwm_log10_A' in self.param_names:
             print('Adding BWM prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
         # CW prior draw
-        if 'log10_h' in self.param_names:
+        if 'cw_log10_h' in self.param_names:
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
@@ -928,6 +987,8 @@ class HyperModel(object):
             ret = wave
         elif comp == 'all':
             wave += np.dot(T, b)
+            ret = wave
+        else:
             ret = wave
 
         return ret
