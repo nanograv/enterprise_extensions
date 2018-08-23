@@ -910,7 +910,8 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
 @signal_base.function
 def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
-                           log10_n_earth=np.log10(8.7)):
+                           log10_n_earth=None, n_earth_bins=1,
+                           t_init=None, t_final=None):
 
     """
     Construct DM-Solar Model fourier design matrix.
@@ -919,19 +920,37 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
     :param planetssb: solar system bayrcenter positions
     :param pos_t: pulsar position as 3-vector
     :param freqs: radio frequencies of observations [MHz]
+    :param log10_n_earth: log10 of the electron density from the solar wind
+                at 1 AU.
+    :param n_earth_bins: Number of binned values of n_earth for which to fit.
 
     :return dt_DM: DM due to solar wind
     """
-    earth = planetssb[:, 2, :3]
-    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
-
-    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+    if log10_n_earth is None: log10_n_earth = np.log10(8.7)
 
     n_earth = 10**log10_n_earth
-    dm_sol_wind = model_utils.dm_solar(n_earth,theta_impact,R_earth)
 
-    dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs**2
+    if n_earth_bins==1:
+        earth = planetssb[:, 2, :3]
+        R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+        Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+
+        theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+
+        dm_sol_wind = model_utils.dm_solar(n_earth,theta_impact,R_earth)
+        dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs**2
+
+    elif n_earth_bins>1 and (t_init or t_final) is None:
+        raise ValueError('Need to enter t_init and t_final to used binned n_earth values.'):
+    else:
+        edges, step = np.linspace(t_init,t_final,n_earth_bins,endpoint=True,retstep=True)
+        print('Fitting {0} binned values of n_Earth of width {1}.'.format(n_earth_bins,step))
+        dt_DM = []
+        for ii, bin in enumerate(edges[:-1]):
+
+            bin_mask = np.logical_and(toas>bin, toas<edges[ii+1])
+            
+
 
     return dt_DM
 
