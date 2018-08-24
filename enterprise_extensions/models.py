@@ -972,7 +972,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
             theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
             dm_sol_wind = model_utils.dm_solar(n_earth[ii],theta_impact,R_earth)
-            dt_DM.append((dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs[bin_mask]**2)
+            dt_DM.extend((dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs[bin_mask]**2)
 
         dt_DM = np.array(dt_DM)
 
@@ -1643,14 +1643,13 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         Number of frequencies in sampling of DM-variations.
     :param gamma_val:
         If given, this is the fixed slope of a power-law
-        DM-variation spectrum.
+        DM-variation spectrum for the solar wind.
     """
     # dm noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A_dm_sw = parameter.LinearExp(-20,4)('log10_A_sol')
-            #log10_A_dm = parameter.LinearExp(-20, -11)
         elif prior == 'log-uniform' and gamma_val is not None:
             if np.abs(gamma_val - 4.33) < 0.1:
                 log10_A_dm_sw = parameter.Uniform(-20,4)('log10_A_sol')
@@ -1686,22 +1685,14 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     if psd == 'spectrum':
         if prior == 'uniform':
-            log10_rho_dm_sw = parameter.LinearExp(-10, 4, size=components)('log10_rho_sol')
+            log10_rho_dm_sw = parameter.LinearExp(-6, 8, size=components)('log10_rho_sol')
 
         elif prior == 'log-uniform':
-            log10_rho_dm_sw = parameter.Uniform(-10, 4, size=components)('log10_rho_sol')
+            log10_rho_dm_sw = parameter.Uniform(-6, 8, size=components)('log10_rho_sol')
 
 
         dm_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
 
-
-
-
-
-    #log10_A_dm_sw = parameter.LinearExp(-20,4)('log10_A_sol') #Uniform
-    #gamma_dm_sw = parameter.Uniform(-7,7)('gamma_sol')
-
-    #log10_rho_dm_sw = parameter.LinearExp(-20,-2,size=30)('log10_rho_sol')
 
     log10_n_earth = parameter.Uniform(np.log10(0.01),np.log10(50))('n_earth')
 
