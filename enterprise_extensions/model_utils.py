@@ -107,7 +107,7 @@ class JumpProposal(object):
             for sc in pta._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-            for key in self.snames: self.snames[key] = np.unique(self.snames[key]).tolist()
+            for key in self.snames: self.snames[key] = list(set(self.snames[key]))
         else:
             self.snames = snames
 
@@ -364,14 +364,14 @@ class JumpProposal(object):
         param = np.random.choice(self.snames[signal_name])
         if param.size:
             idx2 = np.random.randint(0, param.size)
-            q[self.pmap[param]][idx2] = param.sample()[idx2]
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
         # scalar parameter
         else:
-            q[self.pmap[param]] = param.sample()
+            q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[param]]) - param.get_logpdf(q[self.pmap[param]])
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
 
         return q, float(lqxy)
 
@@ -1019,10 +1019,10 @@ AU_light_sec = const.AU/const.c #1 AU in light seconds
 AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
 
 def _dm_solar_close(n_earth,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/r_earth)
+    return (n_earth*AU_light_sec*AU_pc/r_earth)
 
 def _dm_solar(n_earth,theta_impact,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+    return (n_earth*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
 
 def dm_solar(n_earth,theta_impact,r_earth):
     """
