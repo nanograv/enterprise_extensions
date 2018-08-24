@@ -910,7 +910,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
 @signal_base.function
 def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
-                           log10_n_earth=None, n_earth_bins=1,
+                           log10_n_earth=None, n_earth_bins=None,
                            t_init=None, t_final=None):
 
     """
@@ -922,7 +922,15 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
     :param freqs: radio frequencies of observations [MHz]
     :param log10_n_earth: log10 of the electron density from the solar wind
                 at 1 AU.
-    :param n_earth_bins: Number of binned values of n_earth for which to fit.
+    :param n_earth_bins: Number of binned values of n_earth for which to fit or
+                an array or list of bin edges to use for binned n_Earth values.
+                In the latter case the first and last edges must encompass all
+                TOAs and in all cases it must match the size (number of
+                elements) of log10_n_earth.
+    :param t_init: Initial time of earliest TOA in entire dataset, including all
+                pulsar.
+    :param t_final: Final time of latest TOA in entire dataset, including all
+                pulsar.
 
     :return dt_DM: DM due to solar wind
     """
@@ -930,7 +938,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
     n_earth = 10**log10_n_earth
 
-    if n_earth_bins==1:
+    if n_earth_bins is None:
         earth = planetssb[:, 2, :3]
         R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
         Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
@@ -940,17 +948,33 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
         dm_sol_wind = model_utils.dm_solar(n_earth,theta_impact,R_earth)
         dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs**2
 
-    elif n_earth_bins>1 and (t_init or t_final) is None:
-        raise ValueError('Need to enter t_init and t_final to used binned n_earth values.'):
     else:
-        edges, step = np.linspace(t_init,t_final,n_earth_bins,endpoint=True,retstep=True)
-        print('Fitting {0} binned values of n_Earth of width {1}.'.format(n_earth_bins,step))
+        if isinstance(n_earth_bins,int) and (t_init is None or t_final is None):
+            raise ValueError('Need to enter t_init and t_final to make binned n_earth values.'):
+
+        elif isinstance(n_earth_bins, int):
+            edges, step = np.linspace(t_init, t_final, n_earth_bins,
+                                      endpoint=True, retstep=True)
+
+        elif isinstance(n_earth_bins, list) or isinstance(n_earth_bins, array):
+            edges = n_earth_bins
+            step = np.mean(np.diff(edges))
+
+        print('Fitting {0} binned values of n_Earth of mean width {1}.'.format(n_earth_bins,step))
+
         dt_DM = []
         for ii, bin in enumerate(edges[:-1]):
 
             bin_mask = np.logical_and(toas>bin, toas<edges[ii+1])
-            
+            earth = planetssb[bin_mask, 2, :3]
+            R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+            Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t[bin_mask])
 
+            theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+            dm_sol_wind = model_utils.dm_solar(n_earth[ii],theta_impact,R_earth)
+            dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs[bin_mask]**2
+
+        dt_DM = =np.array(dt_DM)
 
     return dt_DM
 
