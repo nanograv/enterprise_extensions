@@ -1019,10 +1019,10 @@ AU_light_sec = const.AU/const.c #1 AU in light seconds
 AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
 
 def _dm_solar_close(n_earth,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/r_earth)
+    return (n_earth*AU_light_sec*AU_pc/r_earth)
 
 def _dm_solar(n_earth,theta_impact,r_earth):
-    return (n_sun*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+    return (n_earth*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
 
 def dm_solar(n_earth,theta_impact,r_earth):
     """
