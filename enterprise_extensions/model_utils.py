@@ -107,7 +107,7 @@ class JumpProposal(object):
             for sc in pta._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-            for key in self.snames: self.snames[key] = np.unique(self.snames[key]).tolist()
+            for key in self.snames: self.snames[key] = list(set(self.snames[key]))
         else:
             self.snames = snames
 
@@ -364,14 +364,14 @@ class JumpProposal(object):
         param = np.random.choice(self.snames[signal_name])
         if param.size:
             idx2 = np.random.randint(0, param.size)
-            q[self.pmap[param]][idx2] = param.sample()[idx2]
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
         # scalar parameter
         else:
-            q[self.pmap[param]] = param.sample()
+            q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[param]]) - param.get_logpdf(q[self.pmap[param]])
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
 
         return q, float(lqxy)
 
