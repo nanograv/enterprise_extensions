@@ -950,7 +950,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
     else:
         if isinstance(n_earth_bins,int) and (t_init is None or t_final is None):
-            raise ValueError('Need to enter t_init and t_final to make binned n_earth values.'):
+            raise ValueError('Need to enter t_init and t_final to make binned n_earth values.')
 
         elif isinstance(n_earth_bins, int):
             edges, step = np.linspace(t_init, t_final, n_earth_bins,
@@ -960,7 +960,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
             edges = n_earth_bins
             step = np.mean(np.diff(edges))
 
-        print('Fitting {0} binned values of n_Earth of mean width {1}.'.format(n_earth_bins,step))
+        #print('Fitting {0} binned values of n_Earth of mean width {1}.'.format(n_earth_bins,step))
 
         dt_DM = []
         for ii, bin in enumerate(edges[:-1]):
@@ -972,9 +972,9 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
             theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
             dm_sol_wind = model_utils.dm_solar(n_earth[ii],theta_impact,R_earth)
-            dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs[bin_mask]**2
+            dt_DM.append((dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs[bin_mask]**2)
 
-        dt_DM = =np.array(dt_DM)
+        dt_DM = np.array(dt_DM)
 
     return dt_DM
 
