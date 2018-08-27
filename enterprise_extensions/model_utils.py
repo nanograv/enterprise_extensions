@@ -1015,14 +1015,15 @@ def mask_filter(psr, mask):
     psr.sort_data()
 
 
-AU_light_sec = const.AU/const.c #1 AU in light seconds
-AU_pc = const.AU/const.pc #1 AU in parsecs (for DM normalization)
+AU_light_sec = const.AU / const.c #1 AU in light seconds
+AU_pc = const.AU / const.pc #1 AU in parsecs (for DM normalization)
 
 def _dm_solar_close(n_earth,r_earth):
-    return (n_earth*AU_light_sec*AU_pc/r_earth)
+    return (n_earth * AU_light_sec * AU_pc / r_earth)
 
 def _dm_solar(n_earth,theta_impact,r_earth):
-    return (n_earth*AU_light_sec*AU_pc/(r_earth*np.sin(theta_impact)))*(np.pi-theta_impact)
+    return (n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta_impact))) *
+     (np.pi - theta_impact)
 
 def dm_solar(n_earth,theta_impact,r_earth):
     """
@@ -1032,9 +1033,9 @@ def dm_solar(n_earth,theta_impact,r_earth):
     ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 20007 for more details.
     """
-    return np.where(np.pi-theta_impact>=1e-5,
-                    _dm_solar(n_earth,theta_impact,r_earth),
-                    _dm_solar_close(n_earth,r_earth))
+    return np.where(np.pi - theta_impact >= 1e-5,
+                    _dm_solar(n_earth, theta_impact, r_earth),
+                    _dm_solar_close(n_earth, r_earth))
 
 def solar_wind(psr, n_earth=8.7):
     """
@@ -1050,9 +1051,9 @@ def solar_wind(psr, n_earth=8.7):
     R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
     Re_cos_theta_impact = np.einsum('ij,ij->i',earth, psr.pos_t)
 
-    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+    theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
 
-    dm_sol_wind = dm_solar(n_earth,theta_impact,R_earth)
+    dm_sol_wind = dm_solar(n_earth, theta_impact, R_earth)
 
     return dm_sol_wind, theta_impact
 
@@ -1069,19 +1070,21 @@ def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
 
     returns:: dictionary of maskes for each pulsar
     """
-    solar_wind_mask={}
+    solar_wind_mask = {}
     if std_cutoff and angle_cutoff:
         raise ValueError('Can not make mask using St Dev and Angular Cutoff!!')
     if std_cutoff:
         for ii,p in enumerate(psrs):
-            dm_sw, _ =solar_wind(p)
+            dm_sw, _ = solar_wind(p)
             std = np.std(dm_sw)
             mean = np.mean(dm_sw)
-            solar_wind_mask[p.name]=np.where(dm_sw<(mean+std_cutoff*std),True,False)
+            solar_wind_mask[p.name] = np.where(dm_sw < (mean + std_cutoff * std),
+                                               True, False)
     elif angle_cutoff:
         angle_cutoff = np.deg2rad(angle_cutoff)
         for ii,p in enumerate(psrs):
-            _, impact_ang =solar_wind(p)
-            solar_wind_mask[p.name]=np.where(impact_ang>angle_cutoff,True,False)
+            _, impact_ang = solar_wind(p)
+            solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
+                                               True, False)
 
     return solar_wind_mask
