@@ -965,7 +965,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
         dt_DM = []
         for ii, bin in enumerate(edges[:-1]):
 
-            bin_mask = np.logical_and(toas>bin, toas<edges[ii+1])
+            bin_mask = np.logical_and(toas>bin, toas<=edges[ii+1])
             earth = planetssb[bin_mask, 2, :3]
             R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
             Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t[bin_mask])
