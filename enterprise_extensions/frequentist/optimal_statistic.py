@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division,
 import numpy as np
 import scipy.linalg as sl
 
-from models.models import model_2a
+from enterprise_extensions import models
 
 from enterprise.signals import utils
 from enterprise.signals import signal_base
@@ -31,8 +31,8 @@ class OptimalStatistic(object):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
-        self.pta = model_2a(psrs, psd='powerlaw', bayesephem=bayesephem,
-                            gamma_common=gamma_common)
+        self.pta = models.model_2a(psrs, psd='powerlaw', bayesephem=bayesephem,
+                                   gamma_common=gamma_common)
 
 
         # get frequencies here

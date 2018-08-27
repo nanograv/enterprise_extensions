@@ -25,7 +25,7 @@ setup(
     author='Stephen R. Taylor, Paul T. Baker, Jeffrey S. Hazboun',
     author_email='srtaylor@caltech.edu',
     license='MIT',
-    packages=['enterprise_extensions'],
+    packages=['enterprise_extensions','enterprise_extensions.frequentist'],
     install_requires=['numpy','scipy','enterprise'],
     include_package_data=True,
     zip_safe=False,
