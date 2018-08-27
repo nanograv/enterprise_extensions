@@ -1022,8 +1022,10 @@ def _dm_solar_close(n_earth,r_earth):
     return (n_earth * AU_light_sec * AU_pc / r_earth)
 
 def _dm_solar(n_earth,theta_impact,r_earth):
-    return (n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta_impact))) *
-     (np.pi - theta_impact)
+    return ( (np.pi - theta_impact) *
+            (n_earth * AU_light_sec * AU_pc
+             / (r_earth * np.sin(theta_impact))) )
+
 
 def dm_solar(n_earth,theta_impact,r_earth):
     """
