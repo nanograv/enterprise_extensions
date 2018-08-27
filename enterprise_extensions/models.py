@@ -1562,7 +1562,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     # red noise
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
-                             components=components, gamma_val=gamma_val)
+                            components=components, gamma_val=gamma_val)
 
     # DM variations
     if dm_var:
