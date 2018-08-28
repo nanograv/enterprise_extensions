@@ -958,7 +958,6 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
         elif isinstance(n_earth_bins, list) or isinstance(n_earth_bins, array):
             edges = n_earth_bins
-            step = np.mean(np.diff(edges))
 
         #print('Fitting {0} binned values of n_Earth of mean width {1}.'.format(n_earth_bins,step))
 
@@ -972,8 +971,8 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
             theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
             dm_sol_wind = model_utils.dm_solar(n_earth[ii],theta_impact,R_earth)
-            
-            if dm_sol_wind.shape !=0:
+
+            if dm_sol_wind.shape != 0:
                 dt_DM.extend((dm_sol_wind - dm_sol_wind.mean())
                              * 4.148808e3 / freqs[bin_mask]**2)
             else:
