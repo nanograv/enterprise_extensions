@@ -910,7 +910,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
 @signal_base.function
 def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
-                           log10_n_earth=None, n_earth_bins=None,
+                           n_earth=5, n_earth_bins=None,
                            t_init=None, t_final=None):
 
     """
@@ -934,9 +934,6 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
     :return dt_DM: DM due to solar wind
     """
-    if log10_n_earth is None: log10_n_earth = np.log10(8.7)
-
-    n_earth = 10**log10_n_earth
 
     if n_earth_bins is None:
         earth = planetssb[:, 2, :3]
