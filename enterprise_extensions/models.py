@@ -953,7 +953,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
             edges, step = np.linspace(t_init, t_final, n_earth_bins,
                                       endpoint=True, retstep=True)
 
-        elif isinstance(n_earth_bins, list) or isinstance(n_earth_bins, array):
+        elif isinstance(n_earth_bins, list) or isinstance(n_earth_bins, np.ndarray):
             edges = n_earth_bins
 
         #print('Fitting {0} binned values of n_Earth of mean width {1}.'.format(n_earth_bins,step))
