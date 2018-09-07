@@ -943,7 +943,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
         theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
 
         dm_sol_wind = model_utils.dm_solar(n_earth,theta_impact,R_earth)
-        dt_DM = (dm_sol_wind - dm_sol_wind.mean()) * 4.148808e3 / freqs**2
+        dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
 
     else:
         if isinstance(n_earth_bins,int) and (t_init is None or t_final is None):
@@ -970,7 +970,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
             dm_sol_wind = model_utils.dm_solar(n_earth[ii],theta_impact,R_earth)
 
             if dm_sol_wind.size != 0:
-                dt_DM.extend((dm_sol_wind - dm_sol_wind.mean())
+                dt_DM.extend((dm_sol_wind)
                              * 4.148808e3 / freqs[bin_mask]**2)
             else:
                 pass
