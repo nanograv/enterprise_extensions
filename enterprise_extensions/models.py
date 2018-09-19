@@ -1275,7 +1275,7 @@ def dmx_signal(dmx_data, name='dmx_signal'):
     return dmx_sig
 
 def chromatic_noise_block(psd='powerlaw', idx=4,
-                          name='chromatic', components=30):
+                          name='chromatic', components=30, Tspan=None):
     """
     Returns GP chromatic noise model :
 
