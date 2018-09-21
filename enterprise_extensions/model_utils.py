@@ -359,28 +359,36 @@ def get_global_parameters(pta):
     for sc in pta._signalcollections:
         pars.extend(sc.param_names)
 
-    gpars = np.unique(list(filter(lambda x: pars.count(x)>1, pars)))
-    ipars = np.array([p for p in pars if p not in gpars])
+    gpars = list(set(par for par in pars if pars.count(par) > 1))
+    ipars = [par for par in pars if par not in gpars]
 
-    return gpars, ipars
+    # gpars = np.unique(list(filter(lambda x: pars.count(x)>1, pars)))
+    # ipars = np.array([p for p in pars if p not in gpars])
+
+    return np.array(gpars), np.array(ipars)
 
 
 def get_parameter_groups(pta):
     """Utility function to get parameter groupings for sampling."""
-    ndim = len(pta.param_names)
-    groups  = [range(0, ndim)]
+
     params = pta.param_names
+
+    # start with a group of all parameters
+    ndim = len(params)
+    groups = [list(range(0, ndim))] 
 
     # get global and individual parameters
     gpars, ipars = get_global_parameters(pta)
-    if any(gpars):
-        groups.extend([[params.index(gp) for gp in gpars]])
+    if gpars.size:
+        # add a group of all global parameters
+        groups.append([params.index(gp) for gp in gpars])
 
+    # make a group for each signal, with all non-global parameters
     for sc in pta._signalcollections:
         for signal in sc._signals:
-            ind = [params.index(p) for p in signal.param_names if p not in gpars]
+            ind = [params.index(p) for p in signal.param_names if not gpars.size or p not in gpars]
             if ind:
-                groups.extend([ind])
+                groups.append(ind)
 
     return groups
 
