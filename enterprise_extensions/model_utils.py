@@ -393,7 +393,8 @@ def get_global_parameters(pta):
 
 def get_parameter_groups(pta):
     """Utility function to get parameter groupings for sampling."""
-    ndim = len(pta.param_names)
+    params = pta.param_names
+    ndim = len(params)
     groups  = [list(np.arange(0, ndim))]
 
     # get global and individual parameters
@@ -456,7 +457,8 @@ def setup_sampler(pta, outdir='chains', resume=False):
     """
 
     # dimension of parameter space
-    ndim = len(pta.param_names)
+    params = pta.param_names
+    ndim = len(params)
 
     # initial jump covariance matrix
     cov = np.diag(np.ones(ndim) * 0.1**2)
