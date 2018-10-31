@@ -980,7 +980,7 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
+def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'):
     """
     Returns the white noise block of the model:
 
@@ -998,11 +998,14 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False):
         use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
 
-    # define selection by observing backend
-    backend = selections.Selection(selections.by_backend)
-
-    # define selection by nanograv backends
-    backend_ng = selections.Selection(selections.nanograv_backends)
+    if select == 'backend':
+        # define selection by observing backend
+        backend = selections.Selection(selections.by_backend)
+        # define selection by nanograv backends
+        backend_ng = selections.Selection(selections.nanograv_backends)
+    else:
+        # define no selection
+        backend = selections.Selection(selections.no_selection)
 
 
     # white noise parameters
@@ -1230,7 +1233,7 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
 
     return dm1yr
 
-def dm_exponential_dip(tmin, tmax, idx=2, name='dmexp'):
+def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -1273,7 +1276,7 @@ def dmx_signal(dmx_data, name='dmx_signal'):
 
     return dmx_sig
 
-def chromatic_noise_block(psd='powerlaw', idx=4,
+def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
                           name='chromatic', components=30):
     """
     Returns GP chromatic noise model :
@@ -1881,7 +1884,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False):
+             wideband=False, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1941,10 +1944,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA

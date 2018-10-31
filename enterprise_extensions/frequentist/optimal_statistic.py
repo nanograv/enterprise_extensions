@@ -27,12 +27,14 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd'):
+    def __init__(self, psrs, bayesephem=True, gamma_common=4.33,
+                 orf='hd', wideband=False, select=None):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
         self.pta = models.model_2a(psrs, psd='powerlaw', bayesephem=bayesephem,
-                                   gamma_common=gamma_common)
+                                   gamma_common=gamma_common, wideband=wideband,
+                                   select=select)
 
 
         # get frequencies here
@@ -55,7 +57,7 @@ class OptimalStatistic(object):
         else:
             raise ValueError('Unknown ORF!')
 
-    def compute_os(self, params={}):
+    def compute_os(self, params=None):
         """
         Computes the optimal statistic values given an
         `enterprise` parameter dictionary.
@@ -72,6 +74,8 @@ class OptimalStatistic(object):
         .. note:: SNR is computed as OS / OS_sig.
 
         """
+        if params is None:
+            params = self.
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
