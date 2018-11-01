@@ -335,7 +335,7 @@ def InvGammaPrior(value, gamma=1):
 
 def InvGammaSampler(gamma=1, size=None):
     """Sampling function for Uniform parameters."""
-     return scipy.stats.invgamma.rvs(scale=gamma, size=size))
+    return scipy.stats.invgamma.rvs(scale=gamma, size=size)
 
 def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
