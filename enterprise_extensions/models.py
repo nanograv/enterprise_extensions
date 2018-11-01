@@ -245,8 +245,9 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     return F * Dm[:, None], Ffreqs
 
 @signal_base.function
-def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, log10_n_earth=8.7, nmodes=30, Tspan=None,
-                                 logf=False, fmin=None, fmax=None):
+def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t,
+                                       log10_n_earth=8.7, nmodes=30, Tspan=None,
+                                       logf=False, fmin=None, fmax=None):
 
     """
     Construct DM-Solar Model fourier design matrix.
@@ -1046,7 +1047,7 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None):
+                    components=30, gamma_val=None, coefficients=False):
     """
     Returns red noise model:
 
@@ -1065,6 +1066,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess red noise
+    :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
@@ -1111,12 +1113,14 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
         pl = free_spectrum(log10_rho=log10_rho)
 
-    rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan)
+    rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                   coefficients=coefficients)
 
     return rn
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
-                   prior='log-uniform', Tspan=None, components=30, gamma_val=None):
+                   prior='log-uniform', Tspan=None, components=30, gamma_val=None,
+                   coefficients=False):
     """
     Returns DM noise model:
 
@@ -1216,7 +1220,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             dm_basis = linear_interp_basis_dm(dt=30*86400)
             dm_prior = dmx_ridge_prior(log10_sigma=log10_sigma)
 
-    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp')
+    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
+                              coefficients=coefficients)
 
     return dmgp
 
@@ -1285,7 +1290,8 @@ def dmx_signal(dmx_data, name='dmx_signal'):
     return dmx_sig
 
 def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
-                          name='chromatic', components=30):
+                          name='chromatic', components=30,
+                          coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -1331,13 +1337,14 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
     # Fourier piece
     basis_gp = createfourierdesignmatrix_chromatic(nmodes=components,
                                                    Tspan=Tspan)
-    cgp = gp_signals.BasisGP(cpl, basis_gp, name=name+'_gp')
+    cgp = gp_signals.BasisGP(cpl, basis_gp, name=name+'_gp',
+                             coefficients=coefficients)
 
     return cquad + cgp
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw'):
+                           orf=None, name='gw', coefficients=False):
     """
     Returns common red noise model:
 
@@ -1420,11 +1427,13 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         cpl = free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
-        crn = gp_signals.FourierBasisGP(cpl, components=components,
-                                        Tspan=Tspan, name=name)
+        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+                                        components=components, Tspan=Tspan,
+                                        name=name)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], components=components,
-                                              Tspan=Tspan, name=name)
+        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
+                                              components=components, Tspan=Tspan,
+                                              name=name)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
@@ -1728,7 +1737,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dm_expdip_idx=2,
-                          dm_expdip_tmin=None, dm_expdip_tmax=None):
+                          dm_expdip_tmin=None, dm_expdip_tmax=None,
+                          coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1756,6 +1766,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
+    :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
     """
@@ -1767,7 +1778,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     # red noise
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
-                            components=components, gamma_val=gamma_val)
+                            components=components, gamma_val=gamma_val,
+                            coefficients=coefficients)
 
     # DM variations
     if dm_var:
@@ -1775,17 +1787,20 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
             if dmgp_kernel == 'diag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
                                     prior=amp_prior, components=components,
-                                    gamma_val=gamma_dm_val)
+                                    gamma_val=gamma_dm_val,
+                                    coefficients=coefficients)
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
-                                    nondiag_kernel=dm_nondiag_kernel)
+                                    nondiag_kernel=dm_nondiag_kernel,
+                                    coefficients=coefficients)
         elif dm_type == 'dmx':
             s += dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
             s += dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=components)
+                                       name='chromatic', components=components,
+                                       coefficients=coefficients)
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = psr.toas.min() / 86400
