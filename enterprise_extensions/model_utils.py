@@ -205,11 +205,11 @@ class JumpProposal(object):
         dmexp_names = [dmname for dmname in self.pnames if 'dmexp' in dmname]
         dmname = np.random.choice(dmexp_names)
         idx = self.pnames.index(dmname)
-        if 'log10_Amp_dmexp' in dmname:
+        if 'log10_Amp' in dmname:
             q[idx] = np.random.uniform(-10, -2)
-        elif 'log10_tau_dmexp' in dmname:
+        elif 'log10_tau' in dmname:
             q[idx] = np.random.uniform(np.log10(5), np.log10(100))
-        elif 't0_dmexp' in dmname:
+        elif 't0' in dmname:
             q[idx] = np.random.uniform(53393.0, 57388.0)
 
         return q, 0
@@ -892,7 +892,7 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
         # DM annual prior draw
-        if 'dmexp' in jp.snames:
+        if 'dmexp' in '\t'.join(jp.snames):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexp_prior, 10)
 
