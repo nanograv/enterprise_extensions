@@ -335,7 +335,7 @@ def InvGammaPrior(value, gamma=1):
 
 def InvGammaSampler(gamma=1, size=None):
     """Sampling function for Uniform parameters."""
-     return scipy.stats.invgamma.rvs(scale=gamma, size=size))
+    return scipy.stats.invgamma.rvs(scale=gamma, size=size)
 
 def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
@@ -1729,7 +1729,7 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 ###############################
 
 def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
-                          noisedict=None, tm_svd=False,
+                          noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
@@ -1738,7 +1738,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          coefficients=False):
+                          num_dmdips=1, dmdip_seqname=None, coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1746,6 +1746,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
     :param tm_svd: boolean for svd-stabilised timing model design matrix
+    :param tm_norm: normalize the timing model, or provide custom normalization
     :param white_vary: boolean for varying white noise or keeping fixed
     :param components: number of modes in Fourier domain processes
     :param upper_limit: whether to do an upper-limit analysis
@@ -1766,6 +1767,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
+    :param num_dmdips: number of dm exponential dips
+    :param dmdip_seqname: name of dip sequence
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -1773,7 +1776,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # timing model
-    s = gp_signals.TimingModel(use_svd=tm_svd)
+    s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
+                               coefficients=coefficients)
 
     # red noise
     if red_var:
@@ -1808,8 +1812,14 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
             else:
                 tmin = dm_expdip_tmin
                 tmax = dm_expdip_tmax
-            s += dm_exponential_dip(tmin=tmin, tmax=tmax,
-                                    idx=dm_expdip_idx, name='dmexp')
+            if dmdip_seqname is not None:
+                dmdipname_base = 'dmexp_'+dmdip_seqname+'_'
+            else:
+                dmdipname_base = 'dmexp_'
+            for dd in range(1,num_dmdips+1):
+                s += dm_exponential_dip(tmin=tmin, tmax=tmax,
+                                        idx=dm_expdip_idx,
+                                        name=dmdipname_base+str(dd))
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
