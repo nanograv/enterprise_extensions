@@ -211,6 +211,8 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(np.log10(5), np.log10(100))
         elif 't0' in dmname:
             q[idx] = np.random.uniform(53393.0, 57388.0)
+        elif 'sign_param' in dmname:
+            q[idx] = np.random.uniform(-1.0, 1.0)
 
         return q, 0
 

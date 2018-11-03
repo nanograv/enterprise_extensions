@@ -135,7 +135,7 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, gam_p=1,
     return Kt * Kv + d
 
 @signal_base.function
-def chrom_exp_decay(toas, freqs, log10_Amp=-7,
+def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=1.0,
                     t0=54000, log10_tau=1.7, idx=2):
     """
     Chromatic exponential-dip delay term in TOAs.
@@ -143,6 +143,7 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7,
     :param t0: time of exponential minimum [MJD]
     :param tau: 1/e time of exponential [s]
     :param log10_Amp: amplitude of dip
+    :param sign_param: sign of waveform
     :param idx: index of chromatic dependence
 
     :return wf: delay time-series [s]
@@ -152,7 +153,7 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7,
     wf = -10**log10_Amp * np.heaviside(toas - t0, 1) * \
         np.exp(- (toas - t0) / tau)
 
-    return wf * (1400 / freqs) ** idx
+    return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
@@ -1255,6 +1256,8 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     :param idx:
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
+    :param sign:
+        [boolean] allow for positive or negative exponential features.
     :param name: Name of signal
 
     :return dmexp:
@@ -1263,8 +1266,13 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
     log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
-    wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp, t0=t0_dmexp,
-                         log10_tau=log10_tau_dmexp, idx=idx)
+    if sign:
+        sign_param = parameter.Uniform(-1.0, 1.0)
+    else:
+        sign_param = 1.0
+    wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
+                         t0=t0_dmexp, log10_tau=log10_tau_dmexp,
+                         sign_param=sign_param, idx=idx)
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
@@ -1736,7 +1744,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
-                          dm_expdip=False, dm_expdip_idx=2,
+                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None, coefficients=False):
     """
@@ -1764,6 +1772,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :param dmchrom_psd: power-spectral density of chromatic noise
     :param dmchrom_idx: frequency scaling of chromatic noise
     :param dm_expdip: inclue a DM exponential dip
+    :param dmexp_sign: include a sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
@@ -1819,6 +1828,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
             for dd in range(1,num_dmdips+1):
                 s += dm_exponential_dip(tmin=tmin, tmax=tmax,
                                         idx=dm_expdip_idx,
+                                        sign=dmexp_sign,
                                         name=dmdipname_base+str(dd))
 
     # adding white-noise, and acting on psr objects
