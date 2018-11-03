@@ -135,7 +135,7 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, gam_p=1,
     return Kt * Kv + d
 
 @signal_base.function
-def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=1.0,
+def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
                     t0=54000, log10_tau=1.7, idx=2):
     """
     Chromatic exponential-dip delay term in TOAs.
@@ -150,7 +150,7 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=1.0,
     """
     t0 *= const.day
     tau = 10**log10_tau * const.day
-    wf = -10**log10_Amp * np.heaviside(toas - t0, 1) * \
+    wf = 10**log10_Amp * np.heaviside(toas - t0, 1) * \
         np.exp(- (toas - t0) / tau)
 
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
@@ -1269,7 +1269,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     if sign:
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
-        sign_param = 1.0
+        sign_param = -1.0
     wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
                          t0=t0_dmexp, log10_tau=log10_tau_dmexp,
                          sign_param=sign_param, idx=idx)
