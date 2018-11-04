@@ -706,15 +706,34 @@ def odds_ratio(chain, models=[0,1], uncertainty=True, thin=False):
 
         return bf
 
+def bic(chain, nobs, log_evidence=False):
+    """
+    Computes the Bayesian Information Criterion.
+
+    :param chain: MCMC samples of all parameters, plus meta-data
+    :param nobs: Number of observations in data
+    :param evidence: return evidence estimate too?
+
+    :returns: (bic, evidence)
+    """
+    nparams = chain.shape[1] - 4 # removing 4 aux columns
+    maxlnlike = chain[:,-4].max()
+
+    bic = np.log(nobs)*nparams - 2.0*maxlnlike
+    if log_evidence:
+        return (bic, -0.5*bic)
+    else:
+        return bic
 
 class HyperModel(object):
     """
     Class to define hyper-model that is the concatenation of all models.
     """
 
-    def __init__(self, models):
+    def __init__(self, models, log_weights=None):
         self.models = models
         self.num_models = len(self.models)
+        self.log_weights = log_weights
 
         #########
         self.param_names, ind = np.unique(np.concatenate([p.param_names
@@ -764,7 +783,7 @@ class HyperModel(object):
 
         # find model index variable
         idx = list(self.param_names).index('nmodel')
-        nmodel = np.rint(x[idx])
+        nmodel = int(np.rint(x[idx]))
 
         # find parameters of active model
         q = []
@@ -773,13 +792,18 @@ class HyperModel(object):
             q.append(x[idx])
 
         # only active parameters enter likelihood
-        return self.models[nmodel].get_lnlikelihood(q)
+        active_lnlike = self.models[nmodel].get_lnlikelihood(q)
+
+        if self.log_weights is not None:
+            active_lnlike += self.log_weights[nmodel]
+
+        return active_lnlike
 
     def get_lnprior(self, x):
 
         # find model index variable
         idx = list(self.param_names).index('nmodel')
-        nmodel = np.rint(x[idx])
+        nmodel = int(np.rint(x[idx]))
 
         if nmodel not in self.models.keys():
             return -np.inf
