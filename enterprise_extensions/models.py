@@ -342,7 +342,7 @@ def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
     class InvGamma(parameter.Parameter):
         _size = size
-        _prior = Function(InvGammaPrior, gamma=gamma)
+        _prior = parameter.Function(InvGammaPrior, gamma=gamma)
         _sampler = staticmethod(InvGammaSampler)
         _alpha = alpha
         _gamma = gamma
