@@ -44,7 +44,7 @@ class OptimalStatistic(object):
 
 
         # get frequencies here
-        self.freqs = self._get_freqs()
+        self.freqs = self._get_freqs(psrs)
 
         # get F-matrices and set up cache
         self.Fmats = self.get_Fmats()
@@ -80,8 +80,9 @@ class OptimalStatistic(object):
         .. note:: SNR is computed as OS / OS_sig.
 
         """
-        # if params is None:
-        #     params = self.pta
+        if params is None:
+            params = {par: par.sample()
+                      for ct, par in enumerate(self.pta.params)}
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -188,12 +189,12 @@ class OptimalStatistic(object):
 
         return Fmats
 
-    def _get_freqs(self):
+    def _get_freqs(self,psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
             if sig.signal_name == 'red noise':
                 sig._construct_basis()
-                freqs = np.array(sig._labels.values()[0])
+                freqs = np.array(sig._labels[''])
                 break
         return freqs
 
