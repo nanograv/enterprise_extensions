@@ -81,8 +81,9 @@ class OptimalStatistic(object):
 
         """
         if params is None:
-            params = {par: par.sample()
-                      for ct, par in enumerate(self.pta.params)}
+            params = {name: par.sample() for name, par
+                      in zip(self.pta.param_names, self.pta.params)}
+
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
