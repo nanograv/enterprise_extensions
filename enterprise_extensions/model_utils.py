@@ -987,7 +987,7 @@ class HyperModel(object):
         if mle:
             ind = np.argmax(model_chain[:, -4])
         else:
-            ind = np.random.randint(burn, chain.shape[0])
+            ind = np.random.randint(burn, model_chain.shape[0])
         params = {par: model_chain[ind, ct]
                   for ct, par in enumerate(self.param_names)
                   if par in pta.param_names}
