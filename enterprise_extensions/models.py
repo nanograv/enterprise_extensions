@@ -330,19 +330,19 @@ def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
 
-def InvGammaPrior(value, gamma=1):
+def InvGammaPrior(value, alpha=1, gamma=1):
     """Prior function for InvGamma parameters."""
-    return scipy.stats.invgamma.pdf(value, scale=gamma)
+    return scipy.stats.invgamma.pdf(value, alpha, scale=gamma)
 
-def InvGammaSampler(gamma=1, size=None):
+def InvGammaSampler(alpha=1, gamma=1, size=None):
     """Sampling function for Uniform parameters."""
-    return scipy.stats.invgamma.rvs(scale=gamma, size=size)
+    return scipy.stats.invgamma.rvs(alpha, scale=gamma, size=size)
 
 def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
     class InvGamma(parameter.Parameter):
         _size = size
-        _prior = parameter.Function(InvGammaPrior, gamma=gamma)
+        _prior = parameter.Function(InvGammaPrior, alpha=alpha, gamma=gamma)
         _sampler = staticmethod(InvGammaSampler)
         _alpha = alpha
         _gamma = gamma
