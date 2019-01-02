@@ -566,11 +566,11 @@ def Dropout_PhysicalEphemerisSignal(
     return Dropout_PhysicalEphemerisSignal
 
 @signal_base.function
-def cw_delay(toas, theta, phi,
+def cw_delay(toas, theta, phi, pdist,
              cos_gwtheta=0, gwphi=0, cos_inc=0,
              log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
              phase0=0, psi=0,
-             psrTerm=False, pdist=1, p_phase=None,
+             psrTerm=False, p_dist=1, p_phase=None,
              evolve=False, phase_approx=False, check=False,
              tref=0):
     """
@@ -582,6 +582,8 @@ def cw_delay(toas, theta, phi,
         Polar angle of pulsar location.
     :param phi:
         Azimuthal angle of pulsar location.
+    :param pdist:
+        Pulsar distance (mean and uncertainty) [kpc]
     :param cos_gwtheta:
         Cosine of Polar angle of GW source in celestial coords [radians]
     :param gwphi:
@@ -604,8 +606,8 @@ def cw_delay(toas, theta, phi,
         Polarization angle of GW source [radians]
     :param psrTerm:
         Option to include pulsar term [boolean]
-    :param pdist:
-        Pulsar distance to use other than those in psr [kpc]
+    :param p_dist:
+        Pulsar distance parameter
     :param p_phase:
         Use pulsar phase to determine distance [radian]
     :param evolve:
@@ -631,10 +633,10 @@ def cw_delay(toas, theta, phi,
     # convert units to time
     mc = 10**log10_mc * const.Tsun
     fgw = 10**log10_fgw
-    pdist *= const.kpc / const.c
     gwtheta = np.arccos(cos_gwtheta)
     inc = np.arccos(cos_inc)
-
+    p_dist = (pdist[0] + pdist[1]*p_dist)*const.kpc/const.c
+    
     if check:
         # check that frequency is not evolving significantly over obs. time
         fstart = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[0])**(-3/8)
@@ -658,7 +660,10 @@ def cw_delay(toas, theta, phi,
 
     # get pulsar time
     toas -= tref
-    tp = toas-pdist*(1-cosMu)
+    if p_dist > 0:
+        tp = toas-pdist*(1-cosMu)
+    else:
+        tp = toas
 
     # orbital frequency
     w0 = np.pi * fgw
@@ -671,15 +676,29 @@ def cw_delay(toas, theta, phi,
         omega = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * toas)**(-3/8)
         omega_p = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * tp)**(-3/8)
 
+        if p_dist > 0:
+            omega_p0 = w0 * (1 + 256/5
+                             * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+        else:
+            omega_p0 = w0
+
         # calculate time dependent phase
         phase = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega**(-5/3))
-        phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+        
+        if p_phase is None:
+            phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+        else:
+            phase_p = (phase0 + p_phase
+                       + 1/32*mc**(-5/3) * (omega_p0**(-5/3) - omega_p**(-5/3)))
 
     elif phase_approx:
         # monochromatic
         omega = w0
-        omega_p = w0 * (1 + 256/5
-                        * mc**(5/3) * w0**(8/3) * pdist*(1-cosMu))**(-3/8)
+        if p_dist > 0:
+            omega_p = w0 * (1 + 256/5
+                            * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+        else:
+            omega_p = w0
 
         # phases
         phase = phase0 + omega * toas
@@ -904,17 +923,10 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
         def __init__(self, psr):
             super(CWSignal, self).__init__(psr)
             self._wf[''].add_kwarg(psrTerm=psrTerm)
-            if psrTerm:
-                pdist = parameter.Normal(psr.pdist[0], psr.pdist[1])('_'.join([psr.name, 'pdist', 'cw']))
-                pphase = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pphase', 'cw']))
-                self._params['pdist'] = pdist
-                self._params['pphase'] = pphase
-                self._wf['']._params['pdist'] = pdist
-                self._wf['']._params['pphase'] = pphase
-                if ecc:
-                    pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
-                    self._params['pgam'] = pgam
-                    self._wf['']._params['pgam'] = pgam
+            if ecc:
+                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
+                self._params['pgam'] = pgam
+                self._wf['']._params['pgam'] = pgam
 
     return CWSignal
 
@@ -1561,12 +1573,19 @@ def cw_block_circ(amp_prior='log-uniform',
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
 
+    if psrTerm:
+        p_phase = parameter.Uniform(0, 2*np.pi)
+        p_dist = parameter.Normal(0, 1)
+    else:
+        p_phase = None
+        p_dist = 0
+            
     # continuous wave signal
     wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc,
                   log10_mc=log10_Mc, log10_F=log10_fgw,
                   log10_h=log10_h, log10_dist=log10_dist,
                   phase0=phase0, psi=psi,
-                  psrTerm=True, pdist=None, pphase=None,
+                  psrTerm=True, p_dist=p_dist, p_phase=p_phase,
                   phase_approx=True, check=False,
                   tref=tref)
     cw = CWSignal(wf, ecc=False, psrTerm=psrTerm)
