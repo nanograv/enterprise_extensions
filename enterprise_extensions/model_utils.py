@@ -1149,3 +1149,95 @@ def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
                                                True, False)
 
     return solar_wind_mask
+
+#########Empirical Distributions########
+
+# class used to define a 1D empirical distribution
+# based on posterior from another MCMC
+class EmpiricalDistribution1D(object):
+
+    def __init__(self, param_name, samples, bins):
+        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
+        self.param_name = param_name
+        self._Nbins = len(bins)-1
+        hist, x_bins = np.histogram(samples, bins=bins)
+        
+        self._edges = x_bins[:-1]
+        self._wids = np.diff(x_bins)
+        
+        hist += 1  # add a sample to every bin
+        counts = np.sum(hist)
+        self._pdf = hist / float(counts) / self._wids
+        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
+        
+        self._logpdf = np.log(self._pdf)
+    
+    def draw(self):
+        draw = np.random.rand()
+        draw_bin = np.searchsorted(self._cdf, draw)
+        
+        idx = np.unravel_index(draw_bin, self._Nbins)
+        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
+        return np.array(samp)
+    
+    def prob(self, params):
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
+                 
+        return self._pdf[ix]
+    
+    def logprob(self, params):
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
+                 
+        return self._logpdf[ix]
+
+
+# class used to define a 2D empirical distribution
+# based on posteriors from another MCMC
+class EmpiricalDistribution2D(object):
+    def __init__(self, param_names, samples, bins):
+        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
+        self.param_names = param_names
+        self._Nbins = [len(b)-1 for b in bins]
+        hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
+        
+        self._edges = np.array([x_bins[:-1], y_bins[:-1]])
+        self._wids = np.diff([x_bins, y_bins])
+        
+        area = np.outer(*self._wids)
+        hist += 1  # add a sample to every bin
+        counts = np.sum(hist)
+        self._pdf = hist / counts / area
+        self._cdf = np.cumsum((self._pdf*area).ravel())
+        
+        self._logpdf = np.log(self._pdf)
+    
+    def draw(self):
+        draw = np.random.rand()
+        draw_bin = np.searchsorted(self._cdf, draw)
+        
+        idx = np.unravel_index(draw_bin, self._Nbins)
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+                for ii in range(2)]
+        return np.array(samp)
+    
+    def prob(self, params):
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
+                      
+        return self._pdf[ix, iy]
+    
+    def logprob(self, params):
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
+                      
+        return self._logpdf[ix, iy]
