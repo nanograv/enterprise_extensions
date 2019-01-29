@@ -513,11 +513,16 @@ def setup_sampler(pta, outdir='chains', resume=False):
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
-    # DM annual prior draw
+    # DM dip prior draw
     if 'dmexp' in jp.snames:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
+    # DM cusp prior draw
+    if 'dm_cusp' in jp.snames:
+        print('Adding DM exponential dip prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
+        
     # DMX prior draw
     if 'dmx_signal' in jp.snames:
         print('Adding DMX prior draws...\n')
@@ -917,11 +922,16 @@ class HyperModel(object):
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
-        # DM annual prior draw
+        # DM dip prior draw
         if 'dmexp' in '\t'.join(jp.snames):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
+        # DM cusp prior draw
+        if 'dm_cusp' in jp.snames:
+            print('Adding DM exponential dip prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
+            
         # DM annual prior draw
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
