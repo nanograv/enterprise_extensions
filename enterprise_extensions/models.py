@@ -1315,15 +1315,15 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dmexp = parameter.Uniform(tmin,tmax)
-    log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
+    t0_dm_cusp = parameter.Uniform(tmin,tmax)
+    log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
+    log10_tau_dm_cusp = parameter.Uniform(np.log10(5), np.log10(100))
     if sign:
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
-        sign_param = -1.0
-    wf = chrom_exp_cusp(log10_Amp=log10_Amp_dmexp,
-                         t0=t0_dmexp, log10_tau=log10_tau_dmexp,
+        sign_param = 1.0
+    wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp,
+                         t0=t0_dm_cusp, log10_tau=log10_tau_dm_cusp,
                          sign_param=sign_param, idx=idx)
     dm_cusp = deterministic_signals.Deterministic(wf, name=name)
 
@@ -1898,7 +1898,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                 tmax = dm_cusp_tmax
             s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
                                         idx=dm_cusp_idx,
-                                        sign=cusp_sign,
+                                        sign=dm_cusp_sign,
                                         name='dm_cusp')
 
     # adding white-noise, and acting on psr objects
