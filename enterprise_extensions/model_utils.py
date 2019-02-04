@@ -77,7 +77,8 @@ def get_tspan(psrs):
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None):
+    def __init__(self, pta, snames=None,
+                 red_posteriors=None, ephem_posteriors=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -110,6 +111,18 @@ class JumpProposal(object):
             for key in self.snames: self.snames[key] = list(set(self.snames[key]))
         else:
             self.snames = snames
+
+        if red_posteriors is not None and os.path.isfile(red_posteriors):
+            with open(red_posteriors) as f:
+                self.red_posteriors = pickle.load(f)
+        else:
+            self.red_posteriors = None
+
+        if ephem_posteriors is not None and os.path.isfile(ephem_posteriors):
+            with open(ephem_posteriors) as f:
+                self.ephem_posteriors = pickle.load(f)
+        else:
+            self.ephem_posteriors = None
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -158,6 +171,36 @@ class JumpProposal(object):
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
 
+        return q, float(lqxy)
+
+    def draw_from_red_posteriors(self, x, iter, beta):
+        
+        q = x.copy()
+        lqxy = 0
+        
+        if self.red_posteriors is not None:
+
+            # randomly choose one of the red noise posteriors
+            rn_idx = np.random.randint(0, len(self.red_posteriors))
+            
+            if self.red_posteriors[rn_idx].ndim == 1:
+            
+                idx = self.pnames.index(self.red_posteriors[rn_idx].param_name)
+                q[idx] = self.red_posteriors[rn_idx].draw()
+            
+                lqxy = self.red_posteriors[rn_idx].logprob(x[idx]) -  self.red_posteriors[rn_idx].logprob(q[idx])
+            
+            else:
+                
+                oldsample = [x[self.pnames.index(p)]
+                             for p in self.red_posteriors[rn_idx].param_names]
+                newsample = self.red_posteriors[rn_idx].draw()
+            
+                for p,n in zip(self.red_posteriors[rn_idx].param_names, newsample):
+                    q[self.pnames.index(p)] = n
+
+                lqxy = self.red_posteriors[rn_idx].logprob(oldsample) - self.red_posteriors[rn_idx].logprob(newsample)
+        
         return q, float(lqxy)
 
     def draw_from_dm_gp_prior(self, x, iter, beta):
@@ -1241,3 +1284,59 @@ class EmpiricalDistribution2D(object):
                       self._Nbins[ii]-1) for ii in range(2)]
                       
         return self._logpdf[ix, iy]
+
+
+def make_empirical_distribtions(paramlist, params, chain,
+                                burn=0, nbins=41, filename='distr.pkl'):
+    """
+        Utility function to construct empirical distributions.
+        :param paramlist: a list of parameter names,
+                          either single parameters or pairs of parameters
+        :param params: list of all parameter names for the MCMC chain
+        :param chain: MCMC chain from a previous run
+        :param burn: desired number of initial samples to discard
+        :param nbins: number of bins to use for the empirical distributions
+        
+        :return distr: list of empirical distributions
+        """
+    
+    distr = []
+
+    for pl in paramlist:
+        
+        if type(pl) is not list:
+            
+            pl = [pl]
+        
+        if len(pl) == 1:
+            
+            # get the parameter index
+            idx = params.index(pl[0])
+            
+            # get the bins for the histogram
+            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+                
+            new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
+                               
+            distr.append(new_distr)
+        
+        elif len(pl) == 2:
+            
+            # get the parameter indices
+            idx = [params.index(pl1) for pl1 in pl]
+            
+            # get the bins for the histogram
+            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+                
+            new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
+                                
+            distr.append(new_distr)
+        
+        else:
+            print 'Warning: only 1D and 2D empirical distributions are currently allowed.'
+
+    # save the list of empirical distributions as a pickle file
+    with open(filename, 'wb') as f:
+        
+        pickle.dump(distr, f)
+        print 'The empirical distributions have been pickled to {0}.'.format(filename)
