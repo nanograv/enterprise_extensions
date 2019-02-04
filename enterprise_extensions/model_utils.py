@@ -77,8 +77,7 @@ def get_tspan(psrs):
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None,
-                 red_posteriors=None, ephem_posteriors=None):
+    def __init__(self, pta, snames=None, empirical_distr=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -112,17 +111,11 @@ class JumpProposal(object):
         else:
             self.snames = snames
 
-        if red_posteriors is not None and os.path.isfile(red_posteriors):
-            with open(red_posteriors) as f:
-                self.red_posteriors = pickle.load(f)
+        if empirical_distr is not None and os.path.isfile(empirical_distr):
+            with open(empirical_distr) as f:
+                self.empirical_distr = pickle.load(f)
         else:
-            self.red_posteriors = None
-
-        if ephem_posteriors is not None and os.path.isfile(ephem_posteriors):
-            with open(ephem_posteriors) as f:
-                self.ephem_posteriors = pickle.load(f)
-        else:
-            self.ephem_posteriors = None
+            self.empirical_distr = None
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -173,17 +166,17 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_red_posteriors(self, x, iter, beta):
+    def draw_from_empirical_distr(self, x, iter, beta):
         
         q = x.copy()
         lqxy = 0
         
-        if self.red_posteriors is not None:
+        if self.empirical_distr is not None:
 
-            # randomly choose one of the red noise posteriors
-            rn_idx = np.random.randint(0, len(self.red_posteriors))
+            # randomly choose one of the empirical distributions
+            ed_idx = np.random.randint(0, len(self.empirical_distr))
             
-            if self.red_posteriors[rn_idx].ndim == 1:
+            if self.empirical_distr[rn_idx].ndim == 1:
             
                 idx = self.pnames.index(self.red_posteriors[rn_idx].param_name)
                 q[idx] = self.red_posteriors[rn_idx].draw()
@@ -1205,6 +1198,7 @@ class EmpiricalDistribution1D(object):
             :param bins: edges to use for hist (left and right)
             make sure bins cover whole prior!
             """
+        self.ndim = 1
         self.param_name = param_name
         self._Nbins = len(bins)-1
         hist, x_bins = np.histogram(samples, bins=bins)
@@ -1249,6 +1243,7 @@ class EmpiricalDistribution2D(object):
             :param bins: edges to use for hist (left and right)
             make sure bins cover whole prior!
             """
+        self.ndim = 2
         self.param_names = param_names
         self._Nbins = [len(b)-1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
