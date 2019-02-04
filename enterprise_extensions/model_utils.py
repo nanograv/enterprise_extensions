@@ -1281,8 +1281,8 @@ class EmpiricalDistribution2D(object):
         return self._logpdf[ix, iy]
 
 
-def make_empirical_distribtions(paramlist, params, chain,
-                                burn=0, nbins=41, filename='distr.pkl'):
+def make_empirical_distributions(paramlist, params, chain,
+                                 burn=0, nbins=41, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
         :param paramlist: a list of parameter names,
