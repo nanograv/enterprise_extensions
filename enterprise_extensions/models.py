@@ -1117,7 +1117,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     if select == 'backend':
         # define selection by observing backend
         selection = selections.Selection(selections.by_backend)
-    elif select == 'band':
+    elif select == 'band' or select == 'band+':
     	# define selection by observing band
         selection = selections.Selection(selections.by_band)
     else:
@@ -1126,6 +1126,10 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients, selection=selection)
+                                   
+    if select == 'band+': #Add on the common component
+    	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                   coefficients=coefficients)
 
     return rn
 
@@ -1756,7 +1760,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          num_dmdips=1, dmdip_seqname=None, coefficients=False, redSelect=None):
+                          num_dmdips=1, dmdip_seqname=None, coefficients=False,
+                          red_select=None):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1802,7 +1807,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
-                            coefficients=coefficients, select=redSelect)
+                            coefficients=coefficients, select=red_select)
     
 
     # DM variations
@@ -2021,7 +2026,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
                   orf=None, components=30, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
                   dm_psd='powerlaw', dm_annual=False, white_vary=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, redSelect=None):
+                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2066,7 +2071,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components, select=redSelect)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components, select=red_select)
 
     # common red noise block
     if orf is None:
