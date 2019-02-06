@@ -1001,7 +1001,8 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'):
+def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
+                      efac1=False, select='backend'):
     """
     Returns the white noise block of the model:
 
@@ -1015,6 +1016,8 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
         with values to be set later.
     :param inc_ecorr:
         include ECORR, needed for NANOGrav channelized TOAs
+    :param gp_ecorr:
+        whether to use the Gaussian process model for ECORR
     :param efac1:
         use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
@@ -1048,7 +1051,10 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
     ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
     eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
     if inc_ecorr:
-        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
+        if gp_ecorr:
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
+        else:
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
@@ -3138,7 +3144,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
 
 
 def model_cw(psrs, upper_limit=False,
-             noisedict=None, rn_psd='powerlaw', components=30,
+             noisedict=None, rn_psd='powerlaw', components=30, 
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
     """
@@ -3210,7 +3216,7 @@ def model_cw(psrs, upper_limit=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True, gp_ecorr=True)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
