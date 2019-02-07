@@ -1065,7 +1065,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False):
+                    components=30, gamma_val=None, coefficients=False, select=None):
     """
     Returns red noise model:
 
@@ -1130,8 +1130,22 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             log10_rho = parameter.Uniform(-10, -4, size=components)
 
         pl = free_spectrum(log10_rho=log10_rho)
+        
+    if select == 'backend':
+        # define selection by observing backend
+        selection = selections.Selection(selections.by_backend)
+    elif select == 'band' or select == 'band+':
+    	# define selection by observing band
+        selection = selections.Selection(selections.by_band)
+    else:
+        # define no selection
+        selection = selections.Selection(selections.no_selection)
 
     rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                   coefficients=coefficients, selection=selection)
+                                   
+    if select == 'band+': #Add the common component as well
+    	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients)
 
     return rn
@@ -1778,7 +1792,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          num_dmdips=1, dmdip_seqname=None, coefficients=False):
+                          num_dmdips=1, dmdip_seqname=None, coefficients=False,
+                          red_select=None):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1824,7 +1839,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
-                            coefficients=coefficients)
+                            coefficients=coefficients, select=red_select)
+    
 
     # DM variations
     if dm_var:
@@ -2041,8 +2057,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
                   orf=None, components=30, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4):
+                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
+                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2087,7 +2103,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components, select=red_select)
 
     # common red noise block
     if orf is None:
@@ -2121,10 +2137,10 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
 
     # set up PTA
@@ -3233,3 +3249,4 @@ def model_cw(psrs, upper_limit=False,
         pta.set_default_params(noisedict)
 
     return pta
+    
