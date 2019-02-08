@@ -112,8 +112,34 @@ class JumpProposal(object):
             self.snames = snames
 
         if empirical_distr is not None and os.path.isfile(empirical_distr):
-            with open(empirical_distr, 'rb') as f:
-                self.empirical_distr = pickle.load(f)
+            
+            try:
+                with open(empirical_distr, 'rb') as f:
+                    pickled_distr = pickle.load(f, encoding='latin1')
+            except:
+                try:
+                    with open(empirical_distr, 'rb') as f:
+                        pickled_distr = pickle.load(f)
+                except:
+                    print('I can\'t open the empirical distribution pickle file!')
+                    pickled_distr = None
+
+            if pickled_distr is None:
+                self.empirical_distr = None
+            else:
+                # only save the empirical distributions for parameters that are in the model
+                mask = []
+                for idx,d in enumerate(pickled_distr):
+                    if d.ndim == 1:
+                        if d.param_name in pta.param_names:
+                            mask.append(idx)
+                    else:
+                        if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                            mask.append(idx)
+                if len(mask) > 1:
+                    self.empirical_distr = [pickled_distr[m] for m in mask]
+                else:
+                    self.empirical_distr = None
         else:
             self.empirical_distr = None
 
@@ -1336,6 +1362,12 @@ def make_empirical_distributions(paramlist, params, chain,
 
     # save the list of empirical distributions as a pickle file
     with open(filename, 'wb') as f:
-        
-        pickle.dump(distr, f)
-        print('The empirical distributions have been pickled to {0}.'.format(filename))
+        try:
+            pickle.dump(distr, f, protocol=2)
+            print('The empirical distributions have been pickled to {0}.'.format(filename))
+        except:
+            try:
+                pickle.dump(distr, f)
+                print('The empirical distributions have been pickled to {0}.'.format(filename))
+            except:
+                print('I couldn\'t pickle the empirical distributions!')
