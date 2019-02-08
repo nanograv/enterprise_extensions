@@ -19,7 +19,7 @@ class FpStat(object):
                  psrTerm=True, bayesephem=True, wideband=False):
         
         # initialize standard model with fixed white noise and powerlaw red noise
-        print 'Initializing the model...'
+        print('Initializing the model...')
         self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
                                    ecc=False, psrTerm=psrTerm,
                                    bayesephem=bayesephem, wideband=wideband)
@@ -88,7 +88,7 @@ class FpStat(object):
             Minv = np.linalg.pinv(M)
             fstat += 0.5 * np.dot(N, np.dot(Minv, N))
     
-    return fstat
+        return fstat
 
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
