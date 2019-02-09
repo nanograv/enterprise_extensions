@@ -115,14 +115,10 @@ class JumpProposal(object):
             
             try:
                 with open(empirical_distr, 'rb') as f:
-                    pickled_distr = pickle.load(f, encoding='latin1')
+                    pickled_distr = pickle.load(f)
             except:
-                try:
-                    with open(empirical_distr, 'rb') as f:
-                        pickled_distr = pickle.load(f)
-                except:
-                    print('I can\'t open the empirical distribution pickle file!')
-                    pickled_distr = None
+                print('I can\'t open the empirical distribution pickle file!')
+                pickled_distr = None
 
             if pickled_distr is None:
                 self.empirical_distr = None
@@ -1362,12 +1358,6 @@ def make_empirical_distributions(paramlist, params, chain,
 
     # save the list of empirical distributions as a pickle file
     with open(filename, 'wb') as f:
-        try:
-            pickle.dump(distr, f, protocol=2)
-            print('The empirical distributions have been pickled to {0}.'.format(filename))
-        except:
-            try:
-                pickle.dump(distr, f)
-                print('The empirical distributions have been pickled to {0}.'.format(filename))
-            except:
-                print('I couldn\'t pickle the empirical distributions!')
+        pickle.dump(distr, f)
+
+    print('The empirical distributions have been pickled to {0}.'.format(filename))
