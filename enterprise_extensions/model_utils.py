@@ -355,7 +355,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -377,7 +378,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -399,7 +401,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -432,7 +435,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -535,7 +539,7 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
                list(map(lambda x: str(x.__repr__()), pta.params)), fmt='%s')
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr)
 
     # always add draw from prior
     sampler.addProposalToCycle(jp.draw_from_prior, 5)
