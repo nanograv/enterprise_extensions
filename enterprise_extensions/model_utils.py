@@ -111,6 +111,7 @@ class JumpProposal(object):
         else:
             self.snames = snames
 
+        # empirical distributions
         if empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 with open(empirical_distr, 'rb') as f:
