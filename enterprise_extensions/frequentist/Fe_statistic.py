@@ -41,7 +41,7 @@ class FeStat(object):
         
         return Nmats
 
-    def compute_Fe(self, f0, gw_theta, gw_phi):
+    def compute_Fe(self, f0, gw_theta, gw_phi, brave=False):
         """
         Computes the Fe-statistic.
         :param f0: GW frequency
@@ -78,17 +78,20 @@ class FeStat(object):
             A[2, :] = F_c / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
             A[3, :] = F_c / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
 
-            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma)
-            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma)
-            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma)
-            ip4 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma)
+            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
+            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
+            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
+            ip4 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
+
+            #print(psr.name)            
+            #print(np.dot(psr.residuals, np.dot(Nmat, psr.residuals)))
             
             N += np.array([ip1, ip2, ip3, ip4])
                                   
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    M[jj, kk] += innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma)
+                    M[jj, kk] += innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
 
         # take inverse of M
         Minv = np.linalg.pinv(M)
@@ -97,7 +100,7 @@ class FeStat(object):
         return fstat
 
 
-def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
+def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
     """
         Compute inner product using rank-reduced
         approximations for red noise/jitter
@@ -122,8 +125,12 @@ def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
         TNx = np.dot(Tmat.T, Nx)
         TNy = np.dot(Tmat.T, Ny)
     
-    cf = sl.cho_factor(Sigma)
-    SigmaTNy = sl.cho_solve(cf, TNy)
+    if brave:
+        cf = sl.cho_factor(Sigma, check_finite=False)
+        SigmaTNy = sl.cho_solve(cf, TNy, check_finite=False)
+    else:
+        cf = sl.cho_factor(Sigma)
+        SigmaTNy = sl.cho_solve(cf, TNy)
 
     ret = xNy - np.dot(TNx, SigmaTNy)
 
