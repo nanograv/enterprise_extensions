@@ -70,8 +70,6 @@ class FeStat(object):
             
             ntoa = len(psr.toas)
             
-            #F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_skyloc[0], gw_skyloc[1])
-            
 
             A = np.zeros((4, ntoa))
             A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
@@ -83,31 +81,19 @@ class FeStat(object):
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip3 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip4 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-
-            #print(psr.name)            
-            #print(np.dot(psr.residuals, np.dot(Nmat, psr.residuals)))
             
             N[idx, :] = np.array([ip1, ip2, ip3, ip4])
                                   
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    #if jj<2 and kk<2:                    
-                    #    antenna_factor = F_p**2
-                    #elif jj>1 and kk>1:
-                    #    antenna_factor = F_c**2
-                    #else:
-                    #    antenna_factor = F_p*F_c
                     M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
 
         fstat = np.zeros(gw_skyloc.shape[1])
-        #print(gw_skyloc)
         for j, gw_pos in enumerate(gw_skyloc.T):
-            #print(gw_pos)
             NN = np.copy(N)
             MM = np.copy(M)
             for idx, psr in enumerate(self.psrs):
-                #print(NN)
                 F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_pos[0], gw_pos[1])
                 NN[idx, :] *= np.array([F_p, F_p, F_c, F_c])
                 MM[idx,:,:] *= np.array([[F_p**2, F_p**2, F_p*F_c, F_p*F_c],
