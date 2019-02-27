@@ -41,12 +41,12 @@ class FeStat(object):
         
         return Nmats
 
-    def compute_Fe(self, f0, gw_theta, gw_phi, brave=False):
+    def compute_Fe(self, f0, gw_skyloc, brave=False):
         """
         Computes the Fe-statistic.
         :param f0: GW frequency
-        :param theta: first sky cordinate (=pi/2-DEC)
-        :param phi: second sky coordinate (=RA)
+        :param gw_skyloc: [theta, phi] or 2x{number of sky locations} array,
+                          where theta=pi/2-DEC, phi=RA
         :returns:
         fstat: value of the Fe-statistic
         """
@@ -59,24 +59,25 @@ class FeStat(object):
             
             self.Nmats = self.get_Nmats()
         
-        N = np.zeros(4)
-        M = np.zeros((4,4))
+        n_psr = len(self.psrs)
+        N = np.zeros((n_psr,4))
+        M = np.zeros((n_psr,4,4))
         
-        for psr, Nmat, TNT, phiinv, T in zip(self.psrs, self.Nmats,
-                                             TNTs, phiinvs, Ts):
+        for idx, (psr, Nmat, TNT, phiinv, T) in enumerate(zip(self.psrs, self.Nmats,
+                                             TNTs, phiinvs, Ts)):
             
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             
             ntoa = len(psr.toas)
             
-            F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_theta, gw_phi)
+            #F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_skyloc[0], gw_skyloc[1])
             
 
             A = np.zeros((4, ntoa))
-            A[0, :] = F_p / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
-            A[1, :] = F_p / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
-            A[2, :] = F_c / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
-            A[3, :] = F_c / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
+            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
+            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
+            A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
+            A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
 
             ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
@@ -86,16 +87,40 @@ class FeStat(object):
             #print(psr.name)            
             #print(np.dot(psr.residuals, np.dot(Nmat, psr.residuals)))
             
-            N += np.array([ip1, ip2, ip3, ip4])
+            N[idx, :] = np.array([ip1, ip2, ip3, ip4])
                                   
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    M[jj, kk] += innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
+                    #if jj<2 and kk<2:                    
+                    #    antenna_factor = F_p**2
+                    #elif jj>1 and kk>1:
+                    #    antenna_factor = F_c**2
+                    #else:
+                    #    antenna_factor = F_p*F_c
+                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
 
-        # take inverse of M
-        Minv = np.linalg.pinv(M)
-        fstat = 0.5 * np.dot(N, np.dot(Minv, N))
+        fstat = np.zeros(gw_skyloc.shape[1])
+        #print(gw_skyloc)
+        for j, gw_pos in enumerate(gw_skyloc.T):
+            #print(gw_pos)
+            NN = np.copy(N)
+            MM = np.copy(M)
+            for idx, psr in enumerate(self.psrs):
+                #print(NN)
+                F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_pos[0], gw_pos[1])
+                NN[idx, :] *= np.array([F_p, F_p, F_c, F_c])
+                MM[idx,:,:] *= np.array([[F_p**2, F_p**2, F_p*F_c, F_p*F_c],
+                                      [F_p**2, F_p**2, F_p*F_c, F_p*F_c],
+                                      [F_p*F_c, F_p*F_c, F_c**2, F_c**2],
+                                      [F_p*F_c, F_p*F_c, F_c**2, F_c**2]])
+                
+
+            N_sum = np.sum(NN,axis=0)
+            M_sum = np.sum(MM,axis=0)
+            # take inverse of M
+            Minv = np.linalg.pinv(M_sum)
+            fstat[j] = 0.5 * np.dot(N_sum, np.dot(Minv, N_sum))
 
         return fstat
 
