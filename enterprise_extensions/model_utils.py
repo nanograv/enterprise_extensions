@@ -1373,6 +1373,5 @@ def make_empirical_distributions(paramlist, params, chain,
 
     # save the list of empirical distributions as a pickle file
     with open(filename, 'wb') as f:
-
-        pickle.dump(distr, f)
-        print('The empirical distributions have been pickled to {0}.'.format(filename))
+        pickle.dump(distr, f, protocol=2)
+    print('The empirical distributions have been pickled to {0}.'.format(filename))
