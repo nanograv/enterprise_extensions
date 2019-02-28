@@ -2138,10 +2138,24 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            models.append(s2(p))
+            if '1713' in p.name:
+                tmin = p.toas.min() / 86400
+                tmax = p.toas.max() / 86400
+                s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                             sign=False, name='dmexp')
+                models.append(s3(p))
+            else:
+                models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            models.append(s3(p))
+            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            if '1713' in p.name:
+                tmin = p.toas.min() / 86400
+                tmax = p.toas.max() / 86400
+                s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                             sign=False, name='dmexp')
+                models.append(s5(p))
+            else:
+                models.append(s4(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
