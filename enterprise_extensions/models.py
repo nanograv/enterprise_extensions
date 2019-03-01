@@ -1138,7 +1138,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients, selection=selection)
 
-    if select == 'band+': #Add the common component as well
+    if select == 'band+': # Add the common component as well
     	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients)
 
