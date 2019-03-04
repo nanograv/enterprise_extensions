@@ -41,12 +41,14 @@ class FeStat(object):
         
         return Nmats
 
-    def compute_Fe(self, f0, gw_skyloc, brave=False):
+    def compute_Fe(self, f0, gw_skyloc, brave=False, maximized_parameters=False):
         """
-        Computes the Fe-statistic.
+        Computes the Fe-statistic (see Ellis, Siemens, Creighton 2012).
         :param f0: GW frequency
         :param gw_skyloc: [theta, phi] or 2x{number of sky locations} array,
                           where theta=pi/2-DEC, phi=RA
+        :param brave: Skip sanity checks in linalg for speedup if True.
+        :param maximized_parameters: Calculate maximized parameters if True.
         :returns:
         fstat: value of the Fe-statistic
         """
@@ -90,6 +92,11 @@ class FeStat(object):
                     M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
 
         fstat = np.zeros(gw_skyloc.shape[1])
+        if maximized_parameters:
+            inc_max = np.zeros(gw_skyloc.shape[1])
+            psi_max = np.zeros(gw_skyloc.shape[1])
+            phase0_max = np.zeros(gw_skyloc.shape[1])
+            h_max = np.zeros(gw_skyloc.shape[1])
         for j, gw_pos in enumerate(gw_skyloc.T):
             NN = np.copy(N)
             MM = np.copy(M)
@@ -107,8 +114,37 @@ class FeStat(object):
             # take inverse of M
             Minv = np.linalg.pinv(M_sum)
             fstat[j] = 0.5 * np.dot(N_sum, np.dot(Minv, N_sum))
+            
+            if maximized_parameters:
+                a_hat = np.dot(Minv, N_sum)
+                
+                A_p = (np.sqrt((a_hat[0]+a_hat[3])**2 + (a_hat[1]-a_hat[2])**2) +
+                       np.sqrt((a_hat[0]-a_hat[3])**2 + (a_hat[1]+a_hat[2])**2))
+                A_c = (np.sqrt((a_hat[0]+a_hat[3])**2 + (a_hat[1]-a_hat[2])**2) -
+                       np.sqrt((a_hat[0]-a_hat[3])**2 + (a_hat[1]+a_hat[2])**2))
+                AA = A_p + np.sqrt(A_p**2 + A_c**2)
 
-        return fstat
+                inc_max[j] = np.arccos(-A_c/AA)
+
+                psi_max[j] = 0.5*np.arctan((A_p*a_hat[3] - A_c*a_hat[0]) /
+                                           (A_c*a_hat[2] + A_p*a_hat[1]))
+                #convert from [-pi/2, pi/2] convention to [0,pi] convention
+                if psi_max[j]<0:
+                    psi_max[j]+=np.pi
+
+                phase0_max[j] = -0.5*np.arctan2(A_p*a_hat[3] - A_c*a_hat[0],
+                                                A_c*a_hat[1] + A_p*a_hat[2])
+                #convert from [-pi, pi] convention to [0,2*pi] convention
+                if phase0_max[j]<0:
+                    phase0_max[j]+=2*np.pi
+                
+                zeta = np.abs(AA)/4 #related to amplitude zeta=M_chirp^(5/3)/D
+                h_max[j] = zeta * 2 * (np.pi*f0)**(2/3)
+
+        if maximized_parameters:
+            return fstat, inc_max, psi_max, phase0_max, h_max
+        else:
+            return fstat
 
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
