@@ -5,7 +5,19 @@ import scipy.linalg as sl
 import json
 
 from enterprise_extensions import models
+#import enterprise_cw_funcs_from_git as models
+
+#import enterprise
+#from enterprise.pulsar import Pulsar
+#import enterprise.signals.parameter as parameter
 from enterprise.signals import utils
+#from enterprise.signals import signal_base
+#from enterprise.signals import selections
+#from enterprise.signals.selections import Selection
+#from enterprise.signals import white_signals
+#from enterprise.signals import gp_signals
+#from enterprise.signals import deterministic_signals
+#ximport enterprise.constants as const
 
 class FeStat(object):
     """
@@ -52,6 +64,8 @@ class FeStat(object):
         :returns:
         fstat: value of the Fe-statistic
         """
+
+        tref=53000*86400
         
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)
         TNTs = self.pta.get_TNT(self.params)
@@ -71,13 +85,12 @@ class FeStat(object):
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             
             ntoa = len(psr.toas)
-            
 
             A = np.zeros((4, ntoa))
-            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
-            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
-            A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
-            A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
+            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
+            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
+            A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
+            A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
 
             ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
@@ -97,6 +110,7 @@ class FeStat(object):
             psi_max = np.zeros(gw_skyloc.shape[1])
             phase0_max = np.zeros(gw_skyloc.shape[1])
             h_max = np.zeros(gw_skyloc.shape[1])
+
         for j, gw_pos in enumerate(gw_skyloc.T):
             NN = np.copy(N)
             MM = np.copy(M)
@@ -111,6 +125,7 @@ class FeStat(object):
 
             N_sum = np.sum(NN,axis=0)
             M_sum = np.sum(MM,axis=0)
+
             # take inverse of M
             Minv = np.linalg.pinv(M_sum)
             fstat[j] = 0.5 * np.dot(N_sum, np.dot(Minv, N_sum))
@@ -122,24 +137,40 @@ class FeStat(object):
                        np.sqrt((a_hat[0]-a_hat[3])**2 + (a_hat[1]+a_hat[2])**2))
                 A_c = (np.sqrt((a_hat[0]+a_hat[3])**2 + (a_hat[1]-a_hat[2])**2) -
                        np.sqrt((a_hat[0]-a_hat[3])**2 + (a_hat[1]+a_hat[2])**2))
-                AA = A_p + np.sqrt(A_p**2 + A_c**2)
+                AA = A_p + np.sqrt(A_p**2 - A_c**2)
+                #AA = A_p + np.sqrt(A_p**2 + A_c**2)
 
-                inc_max[j] = np.arccos(-A_c/AA)
+                #inc_max[j] = np.arccos(-A_c/AA)
+                inc_max[j] = np.arccos(A_c/AA)
 
-                psi_max[j] = 0.5*np.arctan((A_p*a_hat[3] - A_c*a_hat[0]) /
+                two_psi_max = np.arctan2((A_p*a_hat[3] - A_c*a_hat[0]),
                                            (A_c*a_hat[2] + A_p*a_hat[1]))
-                #convert from [-pi/2, pi/2] convention to [0,pi] convention
+
+                psi_max[j]=0.5*np.arctan2(np.sin(two_psi_max),
+                                         -np.cos(two_psi_max))
+
+                #convert from [-pi, pi] convention to [0,2*pi] convention
                 if psi_max[j]<0:
                     psi_max[j]+=np.pi
 
-                phase0_max[j] = -0.5*np.arctan2(A_p*a_hat[3] - A_c*a_hat[0],
+                #correcting weird problem of degeneracy (psi-->pi-psi/2 and phi0-->2pi-phi0 keep everything the same)
+                if psi_max[j]>np.pi/2:
+                    psi_max[j]+= -np.pi/2
+                
+
+                half_phase0 = -0.5*np.arctan2(A_p*a_hat[3] - A_c*a_hat[0],
                                                 A_c*a_hat[1] + A_p*a_hat[2])
+
+                phase0_max[j] = np.arctan2(-np.sin(2*half_phase0),
+                                           np.cos(2*half_phase0))
+                
                 #convert from [-pi, pi] convention to [0,2*pi] convention
                 if phase0_max[j]<0:
                     phase0_max[j]+=2*np.pi
+
                 
-                zeta = np.abs(AA)/4 #related to amplitude zeta=M_chirp^(5/3)/D
-                h_max[j] = zeta * 2 * (np.pi*f0)**(2/3)
+                zeta = np.abs(AA)/4 #related to amplitude, zeta=M_chirp^(5/3)/D
+                h_max[j] = zeta * 2 * (np.pi*f0)**(2/3)*np.pi**(1/3)
 
         if maximized_parameters:
             return fstat, inc_max, psi_max, phase0_max, h_max
