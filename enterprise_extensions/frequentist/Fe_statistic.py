@@ -17,7 +17,7 @@ from enterprise.signals import utils
 #from enterprise.signals import white_signals
 #from enterprise.signals import gp_signals
 #from enterprise.signals import deterministic_signals
-#ximport enterprise.constants as const
+#import enterprise.constants as const
 
 class FeStat(object):
     """
@@ -31,13 +31,12 @@ class FeStat(object):
         print('Initializing the model...')
         self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
                                    ecc=False, psrTerm=False,
-                                   bayesephem=False, wideband=False)        
-            
+                                   bayesephem=False, wideband=False)
+
         self.psrs = psrs
         self.params = params
                                    
         self.Nmats = None
-
 
 
     def get_Nmats(self):
@@ -95,7 +94,7 @@ class FeStat(object):
             ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip3 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-            ip4 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
+            ip4 = innerProduct_rr(A[3, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             
             N[idx, :] = np.array([ip1, ip2, ip3, ip4])
                                   
@@ -121,13 +120,13 @@ class FeStat(object):
                                       [F_p**2, F_p**2, F_p*F_c, F_p*F_c],
                                       [F_p*F_c, F_p*F_c, F_c**2, F_c**2],
                                       [F_p*F_c, F_p*F_c, F_c**2, F_c**2]])
-                
 
             N_sum = np.sum(NN,axis=0)
             M_sum = np.sum(MM,axis=0)
 
             # take inverse of M
             Minv = np.linalg.pinv(M_sum)
+
             fstat[j] = 0.5 * np.dot(N_sum, np.dot(Minv, N_sum))
             
             if maximized_parameters:
@@ -219,7 +218,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)   
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
-    
+
     TtN = Nvec.solve(other = np.eye(Nshape),left_array = T)
     
     #Put pulsar's autoerrors in a diagonal matrix
@@ -230,3 +229,4 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     
     #An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
     return Ndiag - np.dot(TtN.T,expval2)
+
