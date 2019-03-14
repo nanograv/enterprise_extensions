@@ -4,20 +4,20 @@ import numpy as np
 import scipy.linalg as sl
 import json
 
-from enterprise_extensions import models
-#import enterprise_cw_funcs_from_git as models
+#from enterprise_extensions import models
+import enterprise_cw_funcs_from_git as models
 
-#import enterprise
-#from enterprise.pulsar import Pulsar
-#import enterprise.signals.parameter as parameter
+import enterprise
+from enterprise.pulsar import Pulsar
+import enterprise.signals.parameter as parameter
 from enterprise.signals import utils
-#from enterprise.signals import signal_base
-#from enterprise.signals import selections
-#from enterprise.signals.selections import Selection
-#from enterprise.signals import white_signals
-#from enterprise.signals import gp_signals
-#from enterprise.signals import deterministic_signals
-#import enterprise.constants as const
+from enterprise.signals import signal_base
+from enterprise.signals import selections
+from enterprise.signals.selections import Selection
+from enterprise.signals import white_signals
+from enterprise.signals import gp_signals
+from enterprise.signals import deterministic_signals
+import enterprise.constants as const
 
 class FeStat(object):
     """
@@ -29,9 +29,42 @@ class FeStat(object):
         
         # initialize standard model with fixed white noise and powerlaw red noise
         print('Initializing the model...')
-        self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
-                                   ecc=False, psrTerm=False,
-                                   bayesephem=False, wideband=False)
+
+        #TODO: make noise parameters setable from outside and maybe remove the
+        #signal model part alltogether
+        efac = parameter.Constant(1.04) 
+        #efac = parameter.Constant(1.0) 
+        equad = parameter.Constant(-7) 
+        ef = white_signals.MeasurementNoise(efac=efac)
+        eq = white_signals.EquadNoise(log10_equad=equad)
+        log10_fgw = parameter.Uniform(np.log10(3.5e-9), -7)('log10_fgw')
+
+
+        log10_mc = parameter.Constant(np.log10(5e9))('log10_mc')
+        cos_gwtheta = parameter.Uniform(-1, 1)('cos_gwtheta')
+        gwphi = parameter.Uniform(0, 2*np.pi)('gwphi')
+        phase0 = parameter.Uniform(0, 2*np.pi)('phase0')
+        psi = parameter.Uniform(0, np.pi)('psi')
+        cos_inc = parameter.Uniform(-1, 1)('cos_inc')
+        log10_h = parameter.LinearExp(-18, -11)('log10_h')
+        cw_wf = models.cw_delay(cos_gwtheta=cos_gwtheta, gwphi=gwphi, log10_mc=log10_mc,
+                             log10_h=log10_h, log10_fgw=log10_fgw, phase0=phase0,
+                             psi=psi, cos_inc=cos_inc, tref=53000*86400)
+        cw = models.CWSignal(cw_wf, psrTerm=False)
+
+        tm = gp_signals.TimingModel(use_svd=True)
+
+        s = eq + ef + tm + cw
+        #s = ef + eq + cw
+
+        #number of pulsars to use
+        n_psr = 19
+        #n_psr = 3
+
+        model = []
+        for p in psrs[:n_psr]:
+            model.append(s(p))
+        self.pta = signal_base.PTA(model)  
 
         self.psrs = psrs
         self.params = params
