@@ -1453,7 +1453,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                         components=components, Tspan=Tspan,
                                         name=name)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
+        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components, Tspan=Tspan,
                                               name=name)
     else:
@@ -2025,7 +2025,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
                   orf=None, components=30, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
+                  dm_psd='powerlaw', dm_annual=False, white_vary=False, inc_saturn_orb=False,
                   dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -2082,6 +2082,10 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, gamma_val=gamma_common,
                                     orf='hd', name='gw')
+    elif orf == 'dipole':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='dipole', name='dipole')
 
     # DM variations
     if dm_var:
@@ -2096,7 +2100,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, inc_saturn_orb=inc_saturn_orb)
 
     # timing model
     s += gp_signals.TimingModel(use_svd=tm_svd)
