@@ -1774,7 +1774,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None, coefficients=False,
-                          red_select=None):
+                          red_select=None, red_select_val=None, red_common=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1820,7 +1820,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
-                            coefficients=coefficients, select=red_select)
+                            coefficients=coefficients, select=red_select,
+                            select_val=red_select_val, common=red_common)
 
 
     # DM variations
