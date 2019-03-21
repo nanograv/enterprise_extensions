@@ -74,8 +74,6 @@ class OptimalStatistic(object):
         .. note:: SNR is computed as OS / OS_sig.
 
         """
-        if params is None:
-            params = self.
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
