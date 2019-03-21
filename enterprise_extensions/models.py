@@ -588,11 +588,11 @@ def Dropout_PhysicalEphemerisSignal(
     return Dropout_PhysicalEphemerisSignal
 
 @signal_base.function
-def cw_delay(toas, theta, phi,
+def cw_delay(toas, pos, pdist,
              cos_gwtheta=0, gwphi=0, cos_inc=0,
              log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
              phase0=0, psi=0,
-             psrTerm=False, pdist=1, p_phase=None,
+             psrTerm=False, p_dist=1, p_phase=None,
              evolve=False, phase_approx=False, check=False,
              tref=0):
     """
@@ -600,10 +600,10 @@ def cw_delay(toas, theta, phi,
     defined in Ellis et. al 2012,2013.
     :param toas:
         Pular toas in seconds
-    :param theta:
-        Polar angle of pulsar location.
-    :param phi:
-        Azimuthal angle of pulsar location.
+    :param pos:
+        Unit vector from the Earth to the pulsar
+    :param pdist:
+        Pulsar distance (mean and uncertainty) [kpc]
     :param cos_gwtheta:
         Cosine of Polar angle of GW source in celestial coords [radians]
     :param gwphi:
@@ -626,8 +626,8 @@ def cw_delay(toas, theta, phi,
         Polarization angle of GW source [radians]
     :param psrTerm:
         Option to include pulsar term [boolean]
-    :param pdist:
-        Pulsar distance to use other than those in psr [kpc]
+    :param p_dist:
+        Pulsar distance parameter
     :param p_phase:
         Use pulsar phase to determine distance [radian]
     :param evolve:
@@ -641,6 +641,14 @@ def cw_delay(toas, theta, phi,
         Reference time for phase and frequency [s]
     :return: Vector of induced residuals
     """
+
+    # convert units to time
+    mc = 10**log10_mc * const.Tsun
+    fgw = 10**log10_fgw
+    gwtheta = np.arccos(cos_gwtheta)
+    inc = np.arccos(cos_inc)
+    p_dist = (pdist[0] + pdist[1]*p_dist)*const.kpc/const.c
+
     if log10_h is None and log10_dist is None:
         raise ValueError("one of log10_dist or log10_h must be non-None")
     elif log10_h is not  None and log10_dist is not None:
@@ -649,13 +657,6 @@ def cw_delay(toas, theta, phi,
         dist = 10**log10_dist * const.Mpc / const.c
     else:
         dist = 2 * mc**(5/3) * (np.pi*fgw)**(2/3) / 10**log10_h
-
-    # convert units to time
-    mc = 10**log10_mc * const.Tsun
-    fgw = 10**log10_fgw
-    pdist *= const.kpc / const.c
-    gwtheta = np.arccos(cos_gwtheta)
-    inc = np.arccos(cos_inc)
 
     if check:
         # check that frequency is not evolving significantly over obs. time
@@ -675,12 +676,15 @@ def cw_delay(toas, theta, phi,
             return np.ones(len(toas)) * np.nan
 
     # get antenna pattern funcs and cosMu
-    fplus, fcross, cosMu = utils.create_gw_antenna_pattern(theta, phi,
-                                                           gwtheta, gwphi)
+    # write function to get pos from theta,phi
+    fplus, fcross, cosMu = utils.create_gw_antenna_pattern(pos, gwtheta, gwphi)
 
     # get pulsar time
     toas -= tref
-    tp = toas-pdist*(1-cosMu)
+    if p_dist > 0:
+        tp = toas-p_dist*(1-cosMu)
+    else:
+        tp = toas
 
     # orbital frequency
     w0 = np.pi * fgw
@@ -693,15 +697,29 @@ def cw_delay(toas, theta, phi,
         omega = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * toas)**(-3/8)
         omega_p = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * tp)**(-3/8)
 
+        if p_dist > 0:
+            omega_p0 = w0 * (1 + 256/5
+                             * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+        else:
+            omega_p0 = w0
+
         # calculate time dependent phase
         phase = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega**(-5/3))
-        phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+
+        if p_phase is None:
+            phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+        else:
+            phase_p = (phase0 + p_phase
+                       + 1/32*mc**(-5/3) * (omega_p0**(-5/3) - omega_p**(-5/3)))
 
     elif phase_approx:
         # monochromatic
         omega = w0
-        omega_p = w0 * (1 + 256/5
-                        * mc**(5/3) * w0**(8/3) * pdist*(1-cosMu))**(-3/8)
+        if p_dist > 0:
+            omega_p = w0 * (1 + 256/5
+                            * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+        else:
+            omega_p = w0
 
         # phases
         phase = phase0 + omega * toas
@@ -738,7 +756,7 @@ def cw_delay(toas, theta, phi,
     rcross_p = alpha_p*(At_p*np.sin(2*psi)+Bt_p*np.cos(2*psi))
 
     # residuals
-    if inc_psr_term:
+    if psrTerm:
         res = fplus*(rplus_p-rplus)+fcross*(rcross_p-rcross)
     else:
         res = -fplus*rplus - fcross*rcross
@@ -926,17 +944,10 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
         def __init__(self, psr):
             super(CWSignal, self).__init__(psr)
             self._wf[''].add_kwarg(psrTerm=psrTerm)
-            if psrTerm:
-                pdist = parameter.Normal(psr.pdist[0], psr.pdist[1])('_'.join([psr.name, 'pdist', 'cw']))
-                pphase = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pphase', 'cw']))
-                self._params['pdist'] = pdist
-                self._params['pphase'] = pphase
-                self._wf['']._params['pdist'] = pdist
-                self._wf['']._params['pphase'] = pphase
-                if ecc:
-                    pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
-                    self._params['pgam'] = pgam
-                    self._wf['']._params['pgam'] = pgam
+            if ecc:
+                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
+                self._params['pgam'] = pgam
+                self._wf['']._params['pgam'] = pgam
 
     return CWSignal
 
@@ -1012,7 +1023,8 @@ def deterministic_solar_dm(toas, freqs, planetssb, pos_t,
 
 #### Model component building blocks ####
 
-def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'):
+def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
+                      efac1=False, select='backend'):
     """
     Returns the white noise block of the model:
 
@@ -1026,6 +1038,8 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
         with values to be set later.
     :param inc_ecorr:
         include ECORR, needed for NANOGrav channelized TOAs
+    :param gp_ecorr:
+        whether to use the Gaussian process model for ECORR
     :param efac1:
         use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
@@ -1059,7 +1073,10 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
     ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
     eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
     if inc_ecorr:
-        ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
+        if gp_ecorr:
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
+        else:
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
@@ -1070,7 +1087,7 @@ def white_noise_block(vary=False, inc_ecorr=False, efac1=False, select='backend'
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False):
+                    components=30, gamma_val=None, coefficients=False, select=None):
     """
     Returns red noise model:
 
@@ -1136,7 +1153,21 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
         pl = free_spectrum(log10_rho=log10_rho)
 
+    if select == 'backend':
+        # define selection by observing backend
+        selection = selections.Selection(selections.by_backend)
+    elif select == 'band' or select == 'band+':
+    	# define selection by observing band
+        selection = selections.Selection(selections.by_band)
+    else:
+        # define no selection
+        selection = selections.Selection(selections.no_selection)
+
     rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                   coefficients=coefficients, selection=selection)
+
+    if select == 'band+': # Add the common component as well
+    	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients)
 
     return rn
@@ -1554,15 +1585,19 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
     return bwm
 
-def cw_block_circ(amp_prior='log-uniform',
-                  skyloc=None, log10_fgw=None, log10_dist=None,
+def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
+                  skyloc=None, log10_fgw=None,
                   psrTerm=False, tref=0, name='cw'):
     """
     Returns deterministic, cirular orbit continuous GW model:
     :param amp_prior:
-        Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
-        log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
-        log10_h searched over.
+        Prior on log10_h. Default is "log-uniform."
+        Use "uniform" for upper limits, or "None" to search over
+        log10_dist instead.
+    :param dist_prior:
+        Prior on log10_dist. Default is "None," meaning that the
+        search is over log10_h instead of log10_dist. Use "log-uniform"
+        to search over log10_h with a log-uniform prior.
     :param skyloc:
         Fixed sky location of CW signal search as [cos(theta), phi].
         Search over sky location if ``None`` given.
@@ -1578,13 +1613,17 @@ def cw_block_circ(amp_prior='log-uniform',
         Name of CW signal.
     """
 
-    if amp_prior == 'uniform':
-        # search log10_h for upper limits
-        log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
+    if dist_prior == None:
         log10_dist = None
-    elif amp_prior == 'log-uniform':
+
+        if amp_prior == 'uniform':
+            log10_h = parameter.LinearExp(-18.0, -11.0)('{}_log10_h'.format(name))
+        elif amp_prior == 'log-uniform':
+            log10_h = parameter.Uniform(-18.0, -11.0)('{}_log10_h'.format(name))
+
+    elif dist_prior == 'log-uniform':
+        log10_dist = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
         log10_h = None
-        log10_dL = parameter.Uniform(-2.0, 4.0)('{}_log10_dL'.format(name))
 
     # chirp mass [Msol]
     log10_Mc = parameter.Uniform(6.0, 10.0)('{}_log10_Mc'.format(name))
@@ -1613,12 +1652,19 @@ def cw_block_circ(amp_prior='log-uniform',
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
 
+    if psrTerm:
+        p_phase = parameter.Uniform(0, 2*np.pi)
+        p_dist = parameter.Normal(0, 1)
+    else:
+        p_phase = None
+        p_dist = 0
+
     # continuous wave signal
     wf = cw_delay(cos_gwtheta=costh, gwphi=phi, cos_inc=cosinc,
-                  log10_mc=log10_Mc, log10_F=log10_fgw,
+                  log10_mc=log10_Mc, log10_fgw=log10_fgw,
                   log10_h=log10_h, log10_dist=log10_dist,
                   phase0=phase0, psi=psi,
-                  psrTerm=True, pdist=None, pphase=None,
+                  psrTerm=True, p_dist=p_dist, p_phase=p_phase,
                   phase_approx=True, check=False,
                   tref=tref)
     cw = CWSignal(wf, ecc=False, psrTerm=psrTerm)
@@ -1851,7 +1897,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
-                            coefficients=coefficients)
+                            coefficients=coefficients, select=red_select)
+
 
     # DM variations
     if dm_var:
@@ -2076,11 +2123,12 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
+def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=True,
                   orf=None, components=30, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4):
+                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
+                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  red_select=None, coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2121,59 +2169,79 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False,
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
+    # timing model
+    s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
+                                coefficients=coefficients)
+
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                        components=components, coefficients=coefficients,
+                        select=red_select)
 
     # common red noise block
     if orf is None:
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, gamma_val=gamma_common,
-                                    name='gw')
+                                    components=components, coefficients=coefficients,
+                                    gamma_val=gamma_common, name='gw')
     elif orf == 'hd':
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, gamma_val=gamma_common,
-                                    orf='hd', name='gw')
+                                    components=components, coefficients=coefficients,
+                                    gamma_val=gamma_common, orf='hd', name='gw')
 
     # DM variations
     if dm_var:
         if dm_type == 'gp':
-            s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                                gamma_val=None)
+            s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior,
+                                components=components, gamma_val=None,
+                                coefficients=coefficients)
         if dm_annual:
             s += dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=components)
+                                       name='chromatic', components=components,
+                                       coefficients=coefficients)
 
     # ephemeris model
     if bayesephem:
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
-    # timing model
-    s += gp_signals.TimingModel(use_svd=tm_svd)
-
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            models.append(s2(p))
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            if '1713' in p.name:
+                tmin = p.toas.min() / 86400
+                tmax = p.toas.max() / 86400
+                s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                             sign=False, name='dmexp')
+                models.append(s3(p))
+            else:
+                models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-            models.append(s3(p))
+            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            if '1713' in p.name:
+                tmin = p.toas.min() / 86400
+                tmax = p.toas.max() / 86400
+                s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                             sign=False, name='dmexp')
+                models.append(s5(p))
+            else:
+                models.append(s4(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary:
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3182,7 +3250,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
 
 
 def model_cw(psrs, upper_limit=False,
-             noisedict=None, rn_psd='powerlaw', components=30,
+             noisedict=None, rn_psd='powerlaw', components=30, 
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
     """
@@ -3254,7 +3322,7 @@ def model_cw(psrs, upper_limit=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True, gp_ecorr=True)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
