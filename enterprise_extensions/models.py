@@ -154,6 +154,28 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
         np.exp(- (toas - t0) / tau)
 
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
+  
+@signal_base.function
+def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
+                    t0=54000, log10_tau=1.7, idx=2):
+    """
+    Chromatic exponential-cusp delay term in TOAs.
+
+    :param t0: time of exponential minimum [MJD]
+    :param tau: 1/e time of exponential [s]
+    :param log10_Amp: amplitude of cusp
+    :param sign_param: sign of waveform
+    :param idx: index of chromatic dependence
+
+    :return wf: delay time-series [s]
+    """
+    t0 *= const.day
+    tau = 10**log10_tau * const.day
+    wf = (10**log10_Amp * np.heaviside(toas - t0, 1) * \
+        np.exp(- (toas - t0) / tau)) + (10**log10_Amp * \
+        (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
+    
+    return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
@@ -330,19 +352,19 @@ def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
 
-def InvGammaPrior(value, gamma=1):
+def InvGammaPrior(value, alpha=1, gamma=1):
     """Prior function for InvGamma parameters."""
-    return scipy.stats.invgamma.pdf(value, scale=gamma)
+    return scipy.stats.invgamma.pdf(value, alpha, scale=gamma)
 
-def InvGammaSampler(gamma=1, size=None):
+def InvGammaSampler(alpha=1, gamma=1, size=None):
     """Sampling function for Uniform parameters."""
-    return scipy.stats.invgamma.rvs(scale=gamma, size=size)
+    return scipy.stats.invgamma.rvs(alpha, scale=gamma, size=size)
 
 def InvGamma(alpha=1, gamma=1, size=None):
     """Class factory for Inverse Gamma parameters."""
     class InvGamma(parameter.Parameter):
         _size = size
-        _prior = parameter.Function(InvGammaPrior, gamma=gamma)
+        _prior = parameter.Function(InvGammaPrior, alpha=alpha, gamma=gamma)
         _sampler = staticmethod(InvGammaSampler)
         _alpha = alpha
         _gamma = gamma
@@ -1307,6 +1329,36 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
+  
+def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
+    """
+    Returns chromatic exponential cusp (i.e. TOA advance):
+
+    :param tmin, tmax:
+        search window for exponential cusp time.
+    :param idx:
+        index of radio frequency dependence (i.e. DM is 2). If this is set
+        to 'vary' then the index will vary from 1 - 6
+    :param sign:
+        [boolean] allow for positive or negative exponential features.
+    :param name: Name of signal
+
+    :return dmexp:
+        chromatic exponential dip waveform.
+    """
+    t0_dm_cusp = parameter.Uniform(tmin,tmax)
+    log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
+    log10_tau_dm_cusp = parameter.Uniform(np.log10(5), np.log10(100))
+    if sign:
+        sign_param = parameter.Uniform(-1.0, 1.0)
+    else:
+        sign_param = 1.0
+    wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp,
+                         t0=t0_dm_cusp, log10_tau=log10_tau_dm_cusp,
+                         sign_param=sign_param, idx=idx)
+    dm_cusp = deterministic_signals.Deterministic(wf, name=name)
+
+    return dm_cusp
 
 def dmx_signal(dmx_data, name='dmx_signal'):
     """
@@ -1792,8 +1844,9 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          num_dmdips=1, dmdip_seqname=None, coefficients=False,
-                          red_select=None):
+                          num_dmdips=1, dmdip_seqname=None,
+                          dm_cusp=False, dm_cusp_sign=False, dm_cusp_idx=2,
+                          dm_cusp_tmin=None, dm_cusp_tmax=None, coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1825,6 +1878,11 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
     :param num_dmdips: number of dm exponential dips
     :param dmdip_seqname: name of dip sequence
+    :param dm_cusp: inclue a DM exponential cusp
+    :param dm_cusp_sign: include a sign parameter for cusp
+    :param dm_cusp_idx: chromatic index of exponential cusp
+    :param dm_cusp_tmin: sampling minimum of DM cusp epoch
+    :param dm_cusp_tmax: sampling maximum of DM cusp epoch
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -1878,6 +1936,17 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                                         idx=dm_expdip_idx,
                                         sign=dmexp_sign,
                                         name=dmdipname_base+str(dd))
+        if dm_cusp:
+            if dm_cusp_tmin is None and dm_cusp_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_cusp_tmin
+                tmax = dm_cusp_tmax
+            s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
+                                        idx=dm_cusp_idx,
+                                        sign=dm_cusp_sign,
+                                        name='dm_cusp')
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
