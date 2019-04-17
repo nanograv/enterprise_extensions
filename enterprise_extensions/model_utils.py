@@ -467,7 +467,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = 'dm_sw'
+        signal_name = 'gp_sw'
 
         # draw parameter from signal model
         param = np.random.choice(self.snames[signal_name])
@@ -485,12 +485,25 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_signal_prior(self, x, iter, beta, signal_name):
+    def draw_from_signal_prior(self, x, iter, beta):
 
         q = x.copy()
         lqxy = 0
-
+        std = ['linear timing model',
+               'red noise',
+               'phys_ephem',
+               'gw',
+               'cw',
+               'bwm',
+               'gp_sw',
+               'ecorr_sherman-morrison',
+               'ecorr',
+               'efac',
+               'equad',
+               ]
+        non_std = [nm for nm in self.snames.keys() if nm not in std]
         # draw parameter from signal model
+        signal_name = np.random.choice(non_std)
         param = np.random.choice(self.snames[signal_name])
         if param.size:
             idx2 = np.random.randint(0, param.size)
