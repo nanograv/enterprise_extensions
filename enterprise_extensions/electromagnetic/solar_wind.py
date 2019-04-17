@@ -228,15 +228,43 @@ def dm_solar(n_earth,theta_impact,r_earth):
                     _dm_solar(n_earth, theta_impact, r_earth),
                     _dm_solar_close(n_earth, r_earth))
 
-def solar_wind(psr, n_earth=8.7):
+@signal_base.function
+def solar_wind(toas, freqs, planetssb, pos_t, n_mean=5.0):
+
+    """
+    Construct DM-Solar Model fourier design matrix.
+
+    :param toas: vector of time series in seconds
+    :param planetssb: solar system bayrcenter positions
+    :param pos_t: pulsar position as 3-vector
+    :param freqs: radio frequencies of observations [MHz]
+    :param n_mean: electron density from the solar wind
+                at 1 AU.
+
+
+    :return dt_DM: DM due to solar wind
+    """
+
+    earth = planetssb[:, 2, :3]
+    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+
+    theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
+    dm_sol_wind = dm_solar(n_mean,theta_impact,R_earth)
+
+    dt_sw = dm_sol_wind * 4.148808e3 / freqs**2
+
+    return dt_sw
+
+
+def theta_impact(psr):
     """
     Use the attributes of an enterprise Pulsar object to calculate the
-    dispersion measure due to the solar wind and solar impact angle.
+    solar impact angle.
 
     param:: psr enterprise Pulsar objects
-    param:: n_earth, proton density at 1 Au
 
-    returns: DM due to solar wind (pc/cm^3) and solar impact angle (rad)
+    returns: Solar impact angle (rad)
     """
     earth = psr.planetssb[:, 2, :3]
     R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
@@ -244,38 +272,23 @@ def solar_wind(psr, n_earth=8.7):
 
     theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
 
-    dm_sol_wind = dm_solar(n_earth, theta_impact, R_earth)
-
-    return dm_sol_wind, theta_impact
+    return theta_impact
 
 
-def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
+def solar_wind_mask(psrs, angle_cutoff=None):
     """
-    Convenience function for masking TOAs lower than a certain solar impact.
-    Alternatively one can set a standard deviation limit, so that all TOAs above
-        a certain st dev away from the solar wind DM average for a given pulsar
-        can be excised.
+    Convenience function for masking TOAs lower than a certain solar impact
+        angle.
     param:: psrs list of enterprise Pulsar objects
     param:: angle_cutoff (degrees) Mask TOAs within this angle
-    param:: std_cutoff (float number) Number of St. Devs above average to excise
 
-    returns:: dictionary of maskes for each pulsar
+    returns:: dictionary of masks for each pulsar
     """
     solar_wind_mask = {}
-    if std_cutoff and angle_cutoff:
-        raise ValueError('Can not make mask using St Dev and Angular Cutoff!!')
-    if std_cutoff:
-        for ii,p in enumerate(psrs):
-            dm_sw, _ = solar_wind(p)
-            std = np.std(dm_sw)
-            mean = np.mean(dm_sw)
-            solar_wind_mask[p.name] = np.where(dm_sw < (mean + std_cutoff * std),
-                                               True, False)
-    elif angle_cutoff:
-        angle_cutoff = np.deg2rad(angle_cutoff)
-        for ii,p in enumerate(psrs):
-            _, impact_ang = solar_wind(p)
-            solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
+    angle_cutoff = np.deg2rad(angle_cutoff)
+    for ii,p in enumerate(psrs):
+        _, impact_ang = solar_wind(p)
+        solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
                                                True, False)
 
     return solar_wind_mask
