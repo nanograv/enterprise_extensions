@@ -80,7 +80,7 @@ class OptimalStatistic(object):
         .. note:: SNR is computed as OS / OS_sig.
 
         """
-        
+
         if params is None:
             params = {name: par.sample() for name, par
                       in zip(self.pta.param_names, self.pta.params)}
