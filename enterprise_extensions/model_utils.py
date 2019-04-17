@@ -77,7 +77,7 @@ def get_tspan(psrs):
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None):
+    def __init__(self, pta, snames=None, empirical_distr=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -111,6 +111,38 @@ class JumpProposal(object):
         else:
             self.snames = snames
 
+        # empirical distributions
+        if empirical_distr is not None and os.path.isfile(empirical_distr):
+            try:
+                with open(empirical_distr, 'rb') as f:
+                    pickled_distr = pickle.load(f, encoding='latin1')
+            except:
+                try:
+                    with open(empirical_distr, 'rb') as f:
+                        pickled_distr = pickle.load(f)
+                except:
+                    print('I can\'t open the empirical distribution pickle file!')
+                    pickled_distr = None
+
+            if pickled_distr is None:
+                self.empirical_distr = None
+            else:
+                # only save the empirical distributions for parameters that are in the model
+                mask = []
+                for idx,d in enumerate(pickled_distr):
+                    if d.ndim == 1:
+                        if d.param_name in pta.param_names:
+                            mask.append(idx)
+                    else:
+                        if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                            mask.append(idx)
+                if len(mask) > 1:
+                    self.empirical_distr = [pickled_distr[m] for m in mask]
+                else:
+                    self.empirical_distr = None
+        else:
+            self.empirical_distr = None
+
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
 
@@ -134,7 +166,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -156,7 +189,40 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_empirical_distr(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        if self.empirical_distr is not None:
+
+            # randomly choose one of the empirical distributions
+            distr_idx = np.random.randint(0, len(self.empirical_distr))
+
+            if self.empirical_distr[distr_idx].ndim == 1:
+
+                idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
+                q[idx] = self.empirical_distr[distr_idx].draw()
+
+                lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
+                        self.empirical_distr[distr_idx].logprob(q[idx]))
+
+            else:
+
+                oldsample = [x[self.pnames.index(p)]
+                             for p in self.empirical_distr[distr_idx].param_names]
+                newsample = self.empirical_distr[distr_idx].draw()
+
+                for p,n in zip(self.empirical_distr[distr_idx].param_names, newsample):
+                    q[self.pnames.index(p)] = n
+
+                lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
+                        self.empirical_distr[distr_idx].logprob(newsample))
 
         return q, float(lqxy)
 
@@ -178,7 +244,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -215,6 +282,25 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(-1.0, 1.0)
 
         return q, 0
+      
+    def draw_from_dmexpcusp_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        dmexp_names = [dmname for dmname in self.pnames if 'dm_cusp' in dmname]
+        dmname = np.random.choice(dmexp_names)
+        idx = self.pnames.index(dmname)
+        if 'log10_Amp' in dmname:
+            q[idx] = np.random.uniform(-10, -2)
+        elif 'log10_tau' in dmname:
+            q[idx] = np.random.uniform(np.log10(5), np.log10(100))
+        elif 't0' in dmname:
+            q[idx] = np.random.uniform(53393.0, 57388.0)
+        elif 'sign_param' in dmname:
+            q[idx] = np.random.uniform(-1.0, 1.0)
+
+        return q, 0
 
     def draw_from_dmx_prior(self, x, iter, beta):
 
@@ -234,7 +320,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -313,7 +400,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -335,7 +423,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -357,7 +446,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -390,7 +480,8 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(q[self.pmap[str(param)]])
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
 
@@ -455,7 +546,7 @@ def group_from_params(pta, params):
     return gr
 
 
-def setup_sampler(pta, outdir='chains', resume=False):
+def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -493,10 +584,15 @@ def setup_sampler(pta, outdir='chains', resume=False):
                list(map(lambda x: str(x.__repr__()), pta.params)), fmt='%s')
 
     # additional jump proposals
-    jp = JumpProposal(pta)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr)
 
     # always add draw from prior
     sampler.addProposalToCycle(jp.draw_from_prior, 5)
+
+    # try adding empirical proposals
+    if empirical_distr is not None:
+        print('Adding empirical proposals...\n')
+        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
 
     # Red noise prior draw
     if 'red noise' in jp.snames:
@@ -513,11 +609,16 @@ def setup_sampler(pta, outdir='chains', resume=False):
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
-    # DM annual prior draw
+    # DM dip prior draw
     if 'dmexp' in jp.snames:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
+    # DM cusp prior draw
+    if 'dm_cusp' in jp.snames:
+        print('Adding DM exponential cusp prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
+        
     # DMX prior draw
     if 'dmx_signal' in jp.snames:
         print('Adding DMX prior draws...\n')
@@ -917,11 +1018,16 @@ class HyperModel(object):
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
-        # DM annual prior draw
+        # DM dip prior draw
         if 'dmexp' in '\t'.join(jp.snames):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
+        # DM cusp prior draw
+        if 'dm_cusp' in jp.snames:
+            print('Adding DM exponential cusp prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
+            
         # DM annual prior draw
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
@@ -1149,3 +1255,153 @@ def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
                                                True, False)
 
     return solar_wind_mask
+
+#########Empirical Distributions########
+
+# class used to define a 1D empirical distribution
+# based on posterior from another MCMC
+class EmpiricalDistribution1D(object):
+
+    def __init__(self, param_name, samples, bins):
+        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
+        self.ndim = 1
+        self.param_name = param_name
+        self._Nbins = len(bins)-1
+        hist, x_bins = np.histogram(samples, bins=bins)
+
+        self._edges = x_bins[:-1]
+        self._wids = np.diff(x_bins)
+
+        hist += 1  # add a sample to every bin
+        counts = np.sum(hist)
+        self._pdf = hist / float(counts) / self._wids
+        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
+
+        self._logpdf = np.log(self._pdf)
+
+    def draw(self):
+        draw = np.random.rand()
+        draw_bin = np.searchsorted(self._cdf, draw)
+
+        idx = np.unravel_index(draw_bin, self._Nbins)
+        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
+        return np.array(samp)
+
+    def prob(self, params):
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
+
+        return self._pdf[ix]
+
+    def logprob(self, params):
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
+
+        return self._logpdf[ix]
+
+
+# class used to define a 2D empirical distribution
+# based on posteriors from another MCMC
+class EmpiricalDistribution2D(object):
+    def __init__(self, param_names, samples, bins):
+        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
+        self.ndim = 2
+        self.param_names = param_names
+        self._Nbins = [len(b)-1 for b in bins]
+        hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
+
+        self._edges = np.array([x_bins[:-1], y_bins[:-1]])
+        self._wids = np.diff([x_bins, y_bins])
+
+        area = np.outer(*self._wids)
+        hist += 1  # add a sample to every bin
+        counts = np.sum(hist)
+        self._pdf = hist / counts / area
+        self._cdf = np.cumsum((self._pdf*area).ravel())
+
+        self._logpdf = np.log(self._pdf)
+
+    def draw(self):
+        draw = np.random.rand()
+        draw_bin = np.searchsorted(self._cdf, draw)
+
+        idx = np.unravel_index(draw_bin, self._Nbins)
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+                for ii in range(2)]
+        return np.array(samp)
+
+    def prob(self, params):
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
+
+        return self._pdf[ix, iy]
+
+    def logprob(self, params):
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
+
+        return self._logpdf[ix, iy]
+
+
+def make_empirical_distributions(paramlist, params, chain,
+                                 burn=0, nbins=41, filename='distr.pkl'):
+    """
+        Utility function to construct empirical distributions.
+        :param paramlist: a list of parameter names,
+                          either single parameters or pairs of parameters
+        :param params: list of all parameter names for the MCMC chain
+        :param chain: MCMC chain from a previous run
+        :param burn: desired number of initial samples to discard
+        :param nbins: number of bins to use for the empirical distributions
+
+        :return distr: list of empirical distributions
+        """
+
+    distr = []
+
+    for pl in paramlist:
+
+        if type(pl) is not list:
+
+            pl = [pl]
+
+        if len(pl) == 1:
+
+            # get the parameter index
+            idx = params.index(pl[0])
+
+            # get the bins for the histogram
+            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+
+            new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
+
+            distr.append(new_distr)
+
+        elif len(pl) == 2:
+
+            # get the parameter indices
+            idx = [params.index(pl1) for pl1 in pl]
+
+            # get the bins for the histogram
+            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+
+            new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
+
+            distr.append(new_distr)
+
+        else:
+            print('Warning: only 1D and 2D empirical distributions are currently allowed.')
+
+    # save the list of empirical distributions as a pickle file
+    with open(filename, 'wb') as f:
+        pickle.dump(distr, f, protocol=2)
+        
+    print('The empirical distributions have been pickled to {0}.'.format(filename))
