@@ -2,10 +2,13 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import scipy.stats as sps
+import os
 from enterprise import constants as const
 from enterprise.signals import signal_base
 from enterprise.signals import utils
 import enterprise.signals.parameter as parameter
+
+defpath = os.path.dirname(__file__)
 
 @signal_base.function
 def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
@@ -139,12 +142,12 @@ def solar_dm_block(psd='powerlaw', ACE_prior=False, Tspan=None,
     # dm noise parameters that are common
     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
-        log10_A_sw = parameter.Uniform(-20,4)('log10_A_sw')
+        log10_A_sw = parameter.Uniform(-10,1)('log10_A_sw')
 
         if gamma_val is not None:
-            gamma_sw = parameter.Constant(gamma_val)('gamma_sol')
+            gamma_sw = parameter.Constant(gamma_val)('gamma_sw')
         else:
-            gamma_sw = parameter.Uniform(-7,7)('gamma_sol')
+            gamma_sw = parameter.Uniform(-2,1)('gamma_sw')
 
 
         # different PSD function parameters
@@ -158,7 +161,8 @@ def solar_dm_block(psd='powerlaw', ACE_prior=False, Tspan=None,
         elif psd == 'tprocess':
             df = 2
             alphas_dm = InvGamma(df/2, df/2, size=components)
-            dm_sw_prior = t_process(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw, alphas=alphas_dm)
+            dm_sw_prior = t_process(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
+                                    alphas=alphas_dm)
         elif psd == 'tprocess_adapt':
             df = 2
             alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
@@ -245,11 +249,11 @@ def sw_mask(psrs, angle_cutoff=None):
 #TODO Change these to the correct prior from ACE data.
 def ACE_SWEPAM_Prior(value):
     """Prior function for ACE SWEPAM parameters."""
-    return ACE_RV().pdf(value)
+    return ACE_RV.pdf(value)
 
 def ACE_SWEPAM_Sampler(size=None):
     """Sampling function for Uniform parameters."""
-    return ACE_RV().rvs(size=size)
+    return ACE_RV.rvs(size=size)
 
 def ACE_SWEPAM_Parameter(size=None):
     """Class factory for ACE SWEPAM parameters."""
@@ -258,18 +262,14 @@ def ACE_SWEPAM_Parameter(size=None):
         _typename = parameter._argrepr('ACE_SWEPAM')
         _prior = parameter.Function(ACE_SWEPAM_Prior)
         _sampler = staticmethod(ACE_SWEPAM_Sampler)
-        # _nbins = nbins
-
-        # def __repr__(self):
-        #     return '"{}": ACE_SWEPAM({},{})'.format(self.name, nbins) \
-        #         + ('' if self._size is None else '[{}]'.format(self._size))
 
     return ACE_SWEPAM_Parameter
 
-def ACE_RV(data_file=None):
-    """Scipy defined RV for ACE SWEPAM proton density data."""
-    if data_file is None:
-        data_file = 'ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt'
-    proton_density = np.loadtxt(data_file)
-    ne_hist = np.histogram(proton_density[:,1], bins=100, density=True)
-    return sps.rv_histogram(ne_hist)
+######## Scipy defined RV for ACE SWEPAM proton density data. ########
+
+
+
+data_file = defpath + '/ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt'
+proton_density = np.loadtxt(data_file)
+ne_hist = np.histogram(proton_density[:,1], bins=100, density=True)
+ACE_RV = sps.rv_histogram(ne_hist)
