@@ -5,8 +5,11 @@ import scipy.stats as sps
 import os
 from enterprise import constants as const
 from enterprise.signals import signal_base
+from enterprise.signals import gp_signals
+from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 import enterprise.signals.parameter as parameter
+from .. import models, model_utils
 
 defpath = os.path.dirname(__file__)
 
@@ -96,93 +99,88 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
     :param pos_t: pulsar position as 3-vector
     :param nmodes: number of fourier coefficients to use
     :param freqs: radio frequencies of observations [MHz]
-    :param freq: option to output frequencies
     :param Tspan: option to some other Tspan
     :param logf: use log frequency spacing
     :param fmin: lower sampling frequency
     :param fmax: upper sampling frequency
 
-    :return: F: DM-variation fourier design matrix
+    :return: F: SW DM-variation fourier design matrix
     :return: f: Sampling frequencies
     """
 
     # get base fourier design matrix and frequencies
-    F, Ffreqs = utils.createfourierdesignmatrix_red(
-        toas, nmodes=nmodes, Tspan=Tspan, logf=logf,
-        fmin=fmin, fmax=fmax)
-
+    F, Ffreqs = utils.createfourierdesignmatrix_red(toas, nmodes=nmodes,
+                                                    Tspan=Tspan, logf=logf,
+                                                    fmin=fmin, fmax=fmax)
     theta, R_earth = theta_impact(planetssb,pos_t)
-
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
-
     dt_DM = dm_sol_wind * 4.148808e3 /(freqs**2)
-
 
     return F * dt_DM[:, None], Ffreqs
 
 
-def solar_dm_block(psd='powerlaw', ACE_prior=False, Tspan=None,
-                   components=30, gamma_val=None):
+def solar_wind_block(n_earth=None, ACE_prior=False, include_dmgp=False,
+                     sw_prior=None, sw_basis=None, Tspan=None):
     """
-    Returns Solar Wind DM noise model:
+    Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
+        Contains a single mean electron density with an auxiliary perturbation
+        modeled using a gaussian process. The GP has common prior parameters
+        between all pulsars, but the realizations are different for all pulsars.
 
-        1. Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
+    Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
 
-    :param psd:
-        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+    :param n_earth:
+        Solar electron density at 1 AU.
+    :param ACE_prior:
+        Whether to use the ACE SWEPAM data as an astrophysical prior.
+    :param include_dmgp:
+        Boolean flag to add in a simple power-law DM GP automatically.
+    :param sw_prior:
+        Prior function for solar wind Gaussian process. Default is a power law.
+    :param sw_basis:
+        Basis to be used for solar wind Gaussian process. Default is to use the
+        built in function to creat a GP with 15 frequencies (1/Tspan,15/Tspan).
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
-        use overall time span for individual pulsar.
-    :param components:
-        Number of frequencies in sampling of DM-variations.
-    :param gamma_val:
-        If given, this is the fixed slope of a power-law
-        DM-variation spectrum for the solar wind.
+        use overall time span for indivicual pulsar.
+
     """
     # dm noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
-        # parameters shared by PSD functions
+    if sw_prior is None:
         log10_A_sw = parameter.Uniform(-10,1)('log10_A_sw')
+        gamma_sw = parameter.Uniform(-2,1)('gamma_sw')
+        sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
 
-        if gamma_val is not None:
-            gamma_sw = parameter.Constant(gamma_val)('gamma_sw')
-        else:
-            gamma_sw = parameter.Uniform(-2,1)('gamma_sw')
+    if n_earth is None and ACE_prior:
+        n_earth = parameter.Uniform(0,30)('n_earth')
+    elif n_earth is None and not ACE_prior:
+        n_earth = ACE_SWEPAM_Parameter()('n_earth')
+    else:
+        pass
 
+    if sw_basis is None:
+        sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15, Tspan=Tspan)
+    else:
+        pass
 
-        # different PSD function parameters
-        if psd == 'powerlaw':
-            dm_sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
-        elif psd == 'turnover':
-            kappa_dm = parameter.Uniform(0, 7)
-            lf0_dm = parameter.Uniform(-9, -7)
-            dm_sw_prior = utils.turnover(log10_A=log10_A_sw, gamma=gamma_sw,
-                                         lf0=lf0_dm, kappa=kappa_dm)
-        elif psd == 'tprocess':
-            df = 2
-            alphas_dm = InvGamma(df/2, df/2, size=components)
-            dm_sw_prior = t_process(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
-                                    alphas=alphas_dm)
-        elif psd == 'tprocess_adapt':
-            df = 2
-            alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
-            nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
-            dm_sw_prior = t_process_adapt(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
-                                 alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
+    gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
 
-    if psd == 'spectrum':
-        log10_rho_sw = parameter.Uniform(-6, 8, size=components)('log10_rho_sw')
+    deter_sw = solar_wind(n_earth=n_earth)
+    mean_sw = deterministic_signals.Deterministic(deter_sw, name='n_earth')
 
-        gp_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
+    sw_model = mean_sw + gp_sw
 
+    if include_dmgp:
+        # DM GP signals
+        log10_A_dm = parameter.Uniform(-20,-12)
+        gamma_dm = parameter.Uniform(0,7)
+        dm_basis = utils.createfourierdesignmatrix_dm(nmodes=10, Tspan=Tspan,
+                                                      logf=True)
+        dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp')
+        sw_model += dmgp
 
-    log10_n_earth = parameter.Uniform(0,30)('n_earth')
-
-    sw_basis = createfourierdesignmatrix_solar_dm(log10_n_earth=log10_n_earth,nmodes=components)
-
-    gp_sw = gp_signals.BasisGP(gp_sw_prior, sw_basis, name='gp_sw')
-
-    return gp_sw
+    return sw_model
 
 ##### Utility Functions #########
 
@@ -202,7 +200,7 @@ def dm_solar(n_earth,theta,r_earth):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
     ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
-    ::param :theta_impact: angle between sun and line-of-sight to pulsar (rad)
+    ::param :theta: angle between sun and line-of-sight to pulsar (rad)
     ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 20007 for more details.
     """
@@ -215,7 +213,10 @@ def theta_impact(planetssb,pos_t):
     Use the attributes of an enterprise Pulsar object to calculate the
     solar impact angle.
 
-    param:: psr enterprise Pulsar objects
+    ::param :planetssb Solar system barycenter timeseries supplied with
+        enterprise.Pulsar objects.
+    ::param :pos_t Unit vector to pulsar position over time in ecliptic
+        coordinates. Supplied with enterprise.Pulsar objects.
 
     returns: Solar impact angle (rad), Distance to Earth
     """
@@ -232,8 +233,8 @@ def sw_mask(psrs, angle_cutoff=None):
     """
     Convenience function for masking TOAs lower than a certain solar impact
         angle.
-    param:: psrs list of enterprise Pulsar objects
-    param:: angle_cutoff (degrees) Mask TOAs within this angle
+    param:: :psrs list of enterprise.Pulsar objects
+    param:: :angle_cutoff (degrees) Mask TOAs within this angle
 
     returns:: dictionary of masks for each pulsar
     """
@@ -246,7 +247,8 @@ def sw_mask(psrs, angle_cutoff=None):
 
     return solar_wind_mask
 
-#TODO Change these to the correct prior from ACE data.
+#ACE Solar Wind Monitoring data prior for SW electron data.
+#Using proton density as a stand in.
 def ACE_SWEPAM_Prior(value):
     """Prior function for ACE SWEPAM parameters."""
     return ACE_RV.pdf(value)
@@ -266,8 +268,6 @@ def ACE_SWEPAM_Parameter(size=None):
     return ACE_SWEPAM_Parameter
 
 ######## Scipy defined RV for ACE SWEPAM proton density data. ########
-
-
 
 data_file = defpath + '/ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt'
 proton_density = np.loadtxt(data_file)
