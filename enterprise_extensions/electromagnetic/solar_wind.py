@@ -27,15 +27,10 @@ def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
     :param t_final: Final time of last TOA in entire dataset, including all
                 pulsars.
 
-    :return dt_DM: DM due to solar wind
+    :return dt_DM: Chromatic time delay due to solar wind
     """
 
     if n_earth_bins is None:
-        # earth = planetssb[:, 2, :3]
-        # R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-        # Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
-        #
-        # theta_impact = np.arccos(-Re_cos_theta_impact/R_earth)
         theta, R_earth = theta_impact(planetssb,pos_t)
         dm_sol_wind = dm_solar(n_earth,theta,R_earth)
         dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
@@ -115,83 +110,67 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
     return F * dt_DM[:, None], Ffreqs
 
 
-# def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-#                    components=30, gamma_val=None):
-#     """
-#     Returns Solar Wind DM noise model:
-#
-#         1. Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
-#
-#     :param psd:
-#         PSD function [e.g. powerlaw (default), spectrum, tprocess]
-#     :param prior:
-#         Prior on log10_A. Default if "log-uniform". Use "uniform" for
-#         upper limits.
-#     :param Tspan:
-#         Sets frequency sampling f_i = i / Tspan. Default will
-#         use overall time span for indivicual pulsar.
-#     :param components:
-#         Number of frequencies in sampling of DM-variations.
-#     :param gamma_val:
-#         If given, this is the fixed slope of a power-law
-#         DM-variation spectrum for the solar wind.
-#     """
-#     # dm noise parameters that are common
-#     if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
-#         # parameters shared by PSD functions
-#         if prior == 'uniform':
-#             log10_A_dm_sw = parameter.LinearExp(-20,4)('log10_A_sol')
-#         elif prior == 'log-uniform' and gamma_val is not None:
-#             if np.abs(gamma_val - 4.33) < 0.1:
-#                 log10_A_dm_sw = parameter.Uniform(-20,4)('log10_A_sol')
-#             else:
-#                 log10_A_dm_sw = parameter.Uniform(-20,4)('log10_A_sol')
-#         else:
-#             log10_A_dm_sw = parameter.Uniform(-20,4)('log10_A_sol')
-#
-#         if gamma_val is not None:
-#             gamma_dm_sw = parameter.Constant(gamma_val)('gamma_sol')
-#         else:
-#             gamma_dm_sw = parameter.Uniform(-7,7)('gamma_sol')
-#
-#
-#         # different PSD function parameters
-#         if psd == 'powerlaw':
-#             dm_sw_prior = utils.powerlaw(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw)
-#         elif psd == 'turnover':
-#             kappa_dm = parameter.Uniform(0, 7)
-#             lf0_dm = parameter.Uniform(-9, -7)
-#             dm_sw_prior = utils.turnover(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
-#                                  lf0=lf0_dm, kappa=kappa_dm)
-#         elif psd == 'tprocess':
-#             df = 2
-#             alphas_dm = InvGamma(df/2, df/2, size=components)
-#             dm_sw_prior = t_process(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw, alphas=alphas_dm)
-#         elif psd == 'tprocess_adapt':
-#             df = 2
-#             alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
-#             nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
-#             dm_sw_prior = t_process_adapt(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
-#                                  alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
-#
-#     if psd == 'spectrum':
-#         if prior == 'uniform':
-#             log10_rho_dm_sw = parameter.LinearExp(-6, 8, size=components)('log10_rho_sol')
-#
-#         elif prior == 'log-uniform':
-#             log10_rho_dm_sw = parameter.Uniform(-6, 8, size=components)('log10_rho_sol')
-#
-#
-#         dm_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
-#
-#
-#     log10_n_earth = parameter.Uniform(np.log10(0.01),np.log10(50))('n_earth')
-#
-#     dm_sw_basis = createfourierdesignmatrix_solar_dm(log10_n_earth=log10_n_earth,nmodes=components)
-#
-#     dm_sw = gp_signals.BasisGP(dm_sw_prior, dm_sw_basis, name='dm_sw')
-#
-#     return dm_sw
+def solar_dm_block(psd='powerlaw', Tspan=None,
+                   components=30, gamma_val=None):
+    """
+    Returns Solar Wind DM noise model:
+
+        1. Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
+
+    :param psd:
+        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+    :param Tspan:
+        Sets frequency sampling f_i = i / Tspan. Default will
+        use overall time span for individual pulsar.
+    :param components:
+        Number of frequencies in sampling of DM-variations.
+    :param gamma_val:
+        If given, this is the fixed slope of a power-law
+        DM-variation spectrum for the solar wind.
+    """
+    # dm noise parameters that are common
+    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+        # parameters shared by PSD functions
+          log10_A_sw = parameter.Uniform(-20,4)('log10_A_sw')
+
+        if gamma_val is not None:
+            gamma_sw = parameter.Constant(gamma_val)('gamma_sol')
+        else:
+            gamma_sw = parameter.Uniform(-7,7)('gamma_sol')
+
+
+        # different PSD function parameters
+        if psd == 'powerlaw':
+            dm_sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
+        elif psd == 'turnover':
+            kappa_dm = parameter.Uniform(0, 7)
+            lf0_dm = parameter.Uniform(-9, -7)
+            dm_sw_prior = utils.turnover(log10_A=log10_A_sw, gamma=gamma_sw,
+                                         lf0=lf0_dm, kappa=kappa_dm)
+        elif psd == 'tprocess':
+            df = 2
+            alphas_dm = InvGamma(df/2, df/2, size=components)
+            dm_sw_prior = t_process(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw, alphas=alphas_dm)
+        elif psd == 'tprocess_adapt':
+            df = 2
+            alpha_adapt_dm = InvGamma(df/2, df/2, size=1)
+            nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
+            dm_sw_prior = t_process_adapt(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw,
+                                 alphas_adapt=alpha_adapt_dm, nfreq=nfreq_dm)
+
+    if psd == 'spectrum':
+        log10_rho_sw = parameter.Uniform(-6, 8, size=components)('log10_rho_sw')
+
+        gp_sw_prior = free_spectrum(log10_rho=log10_rho_dm_sw)
+
+
+    log10_n_earth = parameter.Uniform(0,30)('n_earth')
+
+    sw_basis = createfourierdesignmatrix_solar_dm(log10_n_earth=log10_n_earth,nmodes=components)
+
+    gp_sw = gp_signals.BasisGP(gp_sw_prior, sw_basis, name='gp_sw')
+
+    return gp_sw
 
 ##### Utility Functions #########
 
