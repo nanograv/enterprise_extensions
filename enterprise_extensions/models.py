@@ -305,14 +305,7 @@ def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
             alpha_model[2*int(np.rint(nfreq))+1] = alphas_adapt
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
-def InvGammaPrior(value, gamma=1):
-    """Prior function for InvGamma parameters."""
-    return scipy.stats.invgamma.pdf(value, scale=gamma)
-
-def InvGammaSampler(gamma=1, size=None):
-    """Sampling function for Uniform parameters."""
-    return scipy.stats.invgamma.rvs(scale=gamma, size=size)
-
+    
 def InvGammaPrior(value, alpha=1, gamma=1):
     """Prior function for InvGamma parameters."""
     return scipy.stats.invgamma.pdf(value, alpha, scale=gamma)
@@ -350,7 +343,7 @@ def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
     """
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
     hcf = (10**log10_A * (f / const.fyr) ** ((3-gamma) / 2) *
-           (1.0 + (f / 10**lfk)) ** delta / np.sqrt(1 + (10**lfb / f) ** kappa))
+            (1.0 + (f / 10**lfk)) ** delta / np.sqrt(1 + (10**lfb / f) ** kappa))
     return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
 
 @signal_base.function
