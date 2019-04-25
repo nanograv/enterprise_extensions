@@ -80,7 +80,7 @@ class OptimalStatistic(object):
         .. note:: SNR is computed as OS / OS_sig.
 
         """
-        
+
         if params is None:
             params = {name: par.sample() for name, par
                       in zip(self.pta.param_names, self.pta.params)}
@@ -96,7 +96,7 @@ class OptimalStatistic(object):
 
         X, Z = [], []
         for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
-            Sigma = TNT + np.diag(phiinv)
+            Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
 
             cf = sl.cho_factor(Sigma)
             SigmaTNr = sl.cho_solve(cf, TNr)
