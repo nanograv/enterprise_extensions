@@ -154,7 +154,7 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
         np.exp(- (toas - t0) / tau)
 
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
-  
+
 @signal_base.function
 def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
                     t0=54000, log10_tau=1.7, idx=2):
@@ -174,7 +174,7 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     wf = (10**log10_Amp * np.heaviside(toas - t0, 1) * \
         np.exp(- (toas - t0) / tau)) + (10**log10_Amp * \
         (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
-    
+
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
@@ -1329,7 +1329,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
-  
+
 def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
@@ -2127,7 +2127,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                   orf=None, components=30, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
                   dm_psd='powerlaw', dm_annual=False, white_vary=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  gefac=False, dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -2213,7 +2213,10 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if '1713' in p.name:
+            if gefac:
+                s2 += white_noise_block(vary=True, inc_ecorr=True,
+                                        select='none')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
@@ -2223,7 +2226,10 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                 models.append(s2(p))
         else:
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if '1713' in p.name:
+            if gefac:
+                s4 += white_noise_block(vary=True, inc_ecorr=False,
+                                        select='none')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
@@ -3250,7 +3256,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
 
 
 def model_cw(psrs, upper_limit=False,
-             noisedict=None, rn_psd='powerlaw', components=30, 
+             noisedict=None, rn_psd='powerlaw', components=30,
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
     """
