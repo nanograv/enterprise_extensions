@@ -27,8 +27,8 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33,
-                 orf='hd', wideband=False, select=None, pta=None):
+    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd',
+                 wideband=False, select=None, noisedict=None, pta=None):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
@@ -38,7 +38,7 @@ class OptimalStatistic(object):
                                        bayesephem=bayesephem,
                                        gamma_common=gamma_common,
                                        wideband=wideband,
-                                       select=select)
+                                       select=select, noisedict=noisedict)
         else:
             self.pta = pta
 
