@@ -305,7 +305,7 @@ def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
             alpha_model[2*int(np.rint(nfreq))+1] = alphas_adapt
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
-    
+
 def InvGammaPrior(value, alpha=1, gamma=1):
     """Prior function for InvGamma parameters."""
     return scipy.stats.invgamma.pdf(value, alpha, scale=gamma)
@@ -909,7 +909,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 #### Model component building blocks ####
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend'):
+                      efac1=False, select='backend', name=None):
     """
     Returns the white noise block of the model:
 
@@ -955,13 +955,17 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             ecorr = parameter.Constant()
 
     # white noise signals
-    ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
-    eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
+    ef = white_signals.MeasurementNoise(efac=efac,
+                                        selection=backend, name=name)
+    eq = white_signals.EquadNoise(log10_equad=equad,
+                                  selection=backend, name=name)
     if inc_ecorr:
         if gp_ecorr:
-            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                            selection=backend_ng, name=name)
         else:
-            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                selection=backend_ng, name=name)
 
     # combine signals
     if inc_ecorr:
@@ -2020,7 +2024,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             if gefac:
                 s2 += white_noise_block(vary=True, inc_ecorr=True,
-                                        select='none')
+                                        select='none', name='gefac')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
@@ -2033,7 +2037,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             if gefac:
                 s4 += white_noise_block(vary=True, inc_ecorr=False,
-                                        select='none')
+                                        select='none', name='gefac')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
