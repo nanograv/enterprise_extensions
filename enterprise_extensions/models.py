@@ -1411,7 +1411,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                         components=components, Tspan=Tspan,
                                         name=name)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
+        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], #coefficients=coefficients,
                                               components=components, Tspan=Tspan,
                                               name=name)
     else:
