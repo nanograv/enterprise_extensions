@@ -280,6 +280,11 @@ def free_spectrum(f, log10_rho=None):
     return np.repeat(10**(2*np.array(log10_rho)), 2)
 
 @signal_base.function
+def flat(f, sigma=-7, cadence=14.0, components=2):
+    df = np.diff(np.concatenate((np.array([0]), f[::components])))
+    return (10.0**sigma)**2.0 * np.repeat(df, components)) /
+
+@signal_base.function
 def t_process(f, log10_A=-15, gamma=4.33, alphas=None):
     """
     t-process model. PSD  amplitude at each frequency
@@ -976,7 +981,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False, select=None):
+                    components=30, gamma_val=None, coefficients=False,
+                    select=None, break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
 
@@ -1052,8 +1058,26 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # define no selection
         selection = selections.Selection(selections.no_selection)
 
-    rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                   coefficients=coefficients, selection=selection)
+    if break_flat:
+        log10_A_flat = parameter.Uniform(-20, -11)
+        gamma_flat = parameter.Constant(0)
+        pl_flat = utils.powerlaw(log10_A=log10_A_flat, gamma=gamma_flat)
+
+        freqs = 1.0 * np.arange(1, components+1) / Tspan
+        components_low = sum(f < break_flat_fq for f in freqs)
+        if components_low < 1.5:
+            components_low = 2
+
+        rn = gp_signals.FourierBasisGP(pl, components=components_low, Tspan=Tspan,
+                                       coefficients=coefficients, selection=selection)
+
+        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs[components_low:],
+                                            coefficients=coefficients, selection=selection,
+                                            name='red_noise_hf')
+        rn = rn + rn_flat
+    else:
+        rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                    coefficients=coefficients, selection=selection)
 
     if select == 'band+': # Add the common component as well
     	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
@@ -1932,11 +1956,13 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=True,
-                  orf=None, components=30, gamma_common=None, upper_limit=False,
-                  bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
-                  gefac=False, dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
+def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
+                  common_components=30, red_components=30, dm_components=30,
+                  noisedict=None, tm_svd=False, tm_norm=True, gamma_common=None,
+                  upper_limit=False, bayesephem=False, wideband=False,
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  white_vary=False, gefac=False, dm_chrom=False,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1986,25 +2012,25 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                        components=components, coefficients=coefficients,
+    s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
+                        components=red_components, coefficients=coefficients,
                         select=red_select)
 
     # common red noise block
     if orf is None:
-        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, coefficients=coefficients,
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=common_components, coefficients=coefficients,
                                     gamma_val=gamma_common, name='gw')
     elif orf == 'hd':
-        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, coefficients=coefficients,
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=common_components, coefficients=coefficients,
                                     gamma_val=gamma_common, orf='hd', name='gw')
 
     # DM variations
     if dm_var:
         if dm_type == 'gp':
             s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior,
-                                components=components, gamma_val=None,
+                                components=dm_components, gamma_val=None,
                                 coefficients=coefficients)
         if dm_annual:
             s += dm_annual_signal()
