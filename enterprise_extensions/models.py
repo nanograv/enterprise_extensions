@@ -280,11 +280,6 @@ def free_spectrum(f, log10_rho=None):
     return np.repeat(10**(2*np.array(log10_rho)), 2)
 
 @signal_base.function
-def flat(f, sigma=-7, cadence=14.0, components=2):
-    df = np.diff(np.concatenate((np.array([0]), f[::components])))
-    return (10.0**sigma)**2.0 * np.repeat(df, components)) /
-
-@signal_base.function
 def t_process(f, log10_A=-15, gamma=4.33, alphas=None):
     """
     t-process model. PSD  amplitude at each frequency
@@ -1961,7 +1956,7 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   noisedict=None, tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, bayesephem=False, wideband=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
-                  white_vary=False, gefac=False, dm_chrom=False,
+                  white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   coefficients=False,):
@@ -2050,9 +2045,9 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if gefac:
-                s2 += white_noise_block(vary=True, inc_ecorr=True,
-                                        select='none', name='gefac')
+            if gequad:
+                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection='none', name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
@@ -2063,9 +2058,9 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                 models.append(s2(p))
         else:
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if gefac:
-                s4 += white_noise_block(vary=True, inc_ecorr=False,
-                                        select='none', name='gefac')
+            if gequad:
+                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection='none', name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
