@@ -1963,7 +1963,8 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gefac=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
-                  red_select=None, coefficients=False,):
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
+                  coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2014,7 +2015,8 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
     # red noise
     s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
                         components=red_components, coefficients=coefficients,
-                        select=red_select)
+                        select=red_select, break_flat=red_breakflat,
+                        break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     if orf is None:
