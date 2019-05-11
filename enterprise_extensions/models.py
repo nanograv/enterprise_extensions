@@ -196,10 +196,10 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
         tau = 10**log10_tau_pre * const.day
         ind_pre = np.where(toas < t0)[0]
         ind_post = np.where(toas > t0)[0]
-        wf_pre = (10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
-        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau))
-        wf_post = (10**log10_Amp * np.heaviside(toas - t0, 1) 
-        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau)) 
+        wf_pre = 10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
+        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau)
+        wf_post = 10**log10_Amp * np.heaviside(toas - t0, 1) 
+        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau) 
         wf = wf_pre + wf_post
         
     else:
@@ -207,10 +207,10 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
         tau_post = 10**log10_tau_post * const.day
         ind_pre = np.where(toas < t0)[0]
         ind_post = np.where(toas > t0)[0]
-        wf_pre = (10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
-        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_pre))
-        wf_post = (10**log10_Amp * np.heaviside(toas - t0, 1) 
-        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_post)) 
+        wf_pre = 10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
+        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_pre)
+        wf_post = 10**log10_Amp * np.heaviside(toas - t0, 1) 
+        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_post) 
         wf = wf_pre + wf_post
         
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
@@ -238,34 +238,34 @@ def chrom_dual_exp_cusp(toas, freqs, t0=54000, sign_param=-1.0,
     ind_post = np.where(toas > t0)[0]
     if symmetric:
         tau_1 = 10**log10_tau_pre_1 * const.day
-        wf_1_pre = (10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
-        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1))
-        wf_1_post = (10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
-        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1)) 
+        wf_1_pre = 10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
+        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1)
+        wf_1_post = 10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
+        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1) 
         wf_1 = wf_1_pre + wf_1_post
         
         tau_2 = 10**log10_tau_pre_2 * const.day
-        wf_2_pre = (10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
-        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2))
-        wf_2_post = (10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
-        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2)) 
+        wf_2_pre = 10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
+        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2)
+        wf_2_post = 10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
+        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2) 
         wf_2 = wf_2_pre + wf_2_post
         
     else:
         tau_1_pre = 10**log10_tau_pre_1 * const.day
         tau_1_post = 10**log10_tau_post_1 * const.day
-        wf_1_pre = (10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
-        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1_pre))
-        wf_1_post = (10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
-        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1_post)) 
+        wf_1_pre = 10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
+        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1_pre)
+        wf_1_post = 10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
+        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1_post) 
         wf_1 = wf_1_pre + wf_1_post
         
         tau_2_pre = 10**log10_tau_pre_2 * const.day
         tau_2_post = 10**log10_tau_post_2 * const.day
-        wf_2_pre = (10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
-        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2_pre))
-        wf_2_post = (10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
-        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2_post)) 
+        wf_2_pre = 10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
+        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2_pre)
+        wf_2_post = 10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
+        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2_post) 
         wf_2 = wf_2_pre + wf_2_post
         
     return np.sign(sign_param) * ( wf_1 * (1400 / freqs) ** idx_1 + wf_2 * (1400 / freqs) ** idx_2)
@@ -1308,36 +1308,36 @@ def scattering_noise_block(kernel='periodic', coefficients=False):
         powerlaw, turnover, or tprocess DM-variations
     """
     #gp_kernel == 'nondiag':
-        if kernel == 'periodic':
-            # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+    if kernel == 'periodic':
+        # Periodic GP kernel for DM
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_ell = parameter.Uniform(1, 4)
+        log10_p = parameter.Uniform(-4, 1)
+        log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = linear_interp_basis_scattering(dt=15*86400)
-            dm_prior = periodic_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell, 
-                                       log10_gam_p=log10_gam_p, log10_p=log10_p)
-        elif kernel == 'periodic_rfband':
-            # Periodic GP kernel for DM with RQ radio-frequency dependence
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_ell2 = parameter.Uniform(2, 7)
-            log10_alpha_wgt = parameter.Uniform(-4, 1)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
-            
-            dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True, idx=4)
-            dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
-                                 log10_gam_p=log10_gam_p, log10_p=log10_p, 
-                                 log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
-        elif kernel == 'sq_exp':
-            # squared-exponential kernel for FD
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_lam = parameter.Uniform(1, 4)
-            
-            dm_basis = linear_interp_basis_scattering(dt=15*86400)
-            dm_prior = se_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+        dm_basis = linear_interp_basis_scattering(dt=15*86400)
+        dm_prior = periodic_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell, 
+                                   log10_gam_p=log10_gam_p, log10_p=log10_p)
+    elif kernel == 'periodic_rfband':
+        # Periodic GP kernel for DM with RQ radio-frequency dependence
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_ell = parameter.Uniform(1, 4)
+        log10_ell2 = parameter.Uniform(2, 7)
+        log10_alpha_wgt = parameter.Uniform(-4, 1)
+        log10_p = parameter.Uniform(-4, 1)
+        log10_gam_p = parameter.Uniform(-3, 2)
+
+        dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True, idx=4)
+        dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
+                             log10_gam_p=log10_gam_p, log10_p=log10_p, 
+                             log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
+    elif kernel == 'sq_exp':
+        # squared-exponential kernel for DM
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_lam = parameter.Uniform(1, 4)
+
+        dm_basis = linear_interp_basis_scattering(dt=15*86400)
+        dm_prior = se_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='scattering_gp',
                               coefficients=coefficients)
@@ -1991,7 +1991,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                 s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
                                          idx=dm_cusp_idx,
                                          sign=dm_cusp_sign,
-                                         symmetric=dm_cusp_sym
+                                         symmetric=dm_cusp_sym,
                                          name=cusp_name_base+str(dd))
 
     # adding white-noise, and acting on psr objects
