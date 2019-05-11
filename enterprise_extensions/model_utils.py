@@ -275,9 +275,9 @@ class JumpProposal(object):
         if 'log10_Amp' in dmname:
             q[idx] = np.random.uniform(-10, -2)
         elif 'log10_tau' in dmname:
-            q[idx] = np.random.uniform(np.log10(5), np.log10(100))
-        elif 't0' in dmname:
-            q[idx] = np.random.uniform(53393.0, 57388.0)
+            q[idx] = np.random.uniform(0, 2.5)
+        #elif 't0' in dmname:
+        #    q[idx] = np.random.uniform(53393.0, 57388.0)
         elif 'sign_param' in dmname:
             q[idx] = np.random.uniform(-1.0, 1.0)
 
@@ -294,9 +294,9 @@ class JumpProposal(object):
         if 'log10_Amp' in dmname:
             q[idx] = np.random.uniform(-10, -2)
         elif 'log10_tau' in dmname:
-            q[idx] = np.random.uniform(np.log10(5), np.log10(100))
-        elif 't0' in dmname:
-            q[idx] = np.random.uniform(53393.0, 57388.0)
+            q[idx] = np.random.uniform(0, 2.5)
+        #elif 't0' in dmname:
+        #    q[idx] = np.random.uniform(53393.0, 57388.0)
         elif 'sign_param' in dmname:
             q[idx] = np.random.uniform(-1.0, 1.0)
 
@@ -997,7 +997,7 @@ class HyperModel(object):
 
         return q, float(lqxy)
 
-    def setup_sampler(self, outdir='chains', resume=False):
+    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True, empirical_distr=None):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -1021,7 +1021,7 @@ class HyperModel(object):
         ndim = len(self.param_names)
 
         # initial jump covariance matrix
-        cov = np.diag(np.ones(ndim) * 0.1**2)
+        cov = np.diag(np.ones(ndim) * 1**2) ## used to be 0.1
 
         # parameter groupings
         groups = self.get_parameter_groups()
@@ -1037,6 +1037,11 @@ class HyperModel(object):
         # always add draw from prior
         sampler.addProposalToCycle(jp.draw_from_prior, 5)
 
+        # try adding empirical proposals
+        if empirical_distr is not None:
+            print('Adding empirical proposals...\n')
+            sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+        
         # Red noise prior draw
         if 'red noise' in self.snames:
             print('Adding red noise prior draws...\n')
@@ -1098,9 +1103,10 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
         # Model index distribution draw
-        if 'nmodel' in self.param_names:
-            print('Adding nmodel uniform distribution draws...\n')
-            sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
+        if sample_nmodel:
+            if 'nmodel' in self.param_names:
+                print('Adding nmodel uniform distribution draws...\n')
+                sampler.addProposalToCycle(self.draw_from_nmodel_prior, 25)
 
         return sampler
 
