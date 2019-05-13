@@ -1533,9 +1533,9 @@ def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4,
 
     if psd == 'spectrum':
         if prior == 'uniform':
-            log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+            log10_rho = parameter.LinearExp(-10, -4, size=components)
         elif prior == 'log-uniform':
-            log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+            log10_rho = parameter.Uniform(-10, -4, size=components)
         cpl = free_spectrum(log10_rho=log10_rho)
 
     # set up signal
