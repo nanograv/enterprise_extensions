@@ -2265,7 +2265,8 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             if gequad:
                 s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
-                                               selection='none', name='gequad')
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
@@ -2278,7 +2279,8 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             if gequad:
                 s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
-                                               selection='none', name='gequad')
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
