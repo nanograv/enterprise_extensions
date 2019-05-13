@@ -1140,7 +1140,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # define selection by observing backend
         selection = selections.Selection(selections.by_backend)
     elif select == 'band' or select == 'band+':
-    	# define selection by observing band
+        # define selection by observing band
         selection = selections.Selection(selections.by_band)
     else:
         # define no selection
@@ -1159,7 +1159,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         rn = gp_signals.FourierBasisGP(pl, components=components_low, Tspan=Tspan,
                                        coefficients=coefficients, selection=selection)
 
-        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs, #[components_low:], JS: let's try all frequencies
+        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs[components_low:],
                                             coefficients=coefficients, selection=selection,
                                             name='red_noise_hf')
         rn = rn + rn_flat
@@ -1496,8 +1496,8 @@ def dmx_signal(dmx_data, name='dmx_signal'):
 
     return dmx_sig
 
-def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
-                          name='chromatic', components=30,
+def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4, 
+                          Tspan=None, name='chromatic', components=30,
                           coefficients=False):
     """
     Returns GP chromatic noise model :
@@ -1516,7 +1516,10 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
 
     """
     if psd in ['powerlaw', 'turnover']:
-        log10_A = parameter.Uniform(-18, -11)
+        if prior == 'uniform':
+            log10_A = parameter.LinearExp(-18, -11)
+        elif prior == 'log-uniform':
+            log10_A = parameter.Uniform(-18, -11)
         gamma = parameter.Uniform(0, 7)
 
         # PSD
@@ -1529,12 +1532,16 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
                                  lf0=lf0, kappa=kappa)
 
     if psd == 'spectrum':
-        log10_rho = parameter.LinearExp(-9, -4, size=components)
+        if prior == 'uniform':
+            log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+        elif prior == 'log-uniform':
+            log10_rho_dm = parameter.Uniform(-10, -4, size=components)
         cpl = free_spectrum(log10_rho=log10_rho)
 
     # set up signal
-    if idx == 'vary':
-        c_idx = parameter.Uniform(0, 6)
+    # JS: This does not work with basis_quad function below
+    #if idx == 'vary':
+    #    c_idx = parameter.Uniform(0, 6)
 
     # quadratic piece
     basis_quad = chromatic_quad_basis(idx=idx)
