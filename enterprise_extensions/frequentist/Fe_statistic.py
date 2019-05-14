@@ -23,48 +23,32 @@ class FeStat(object):
     """
     Class for the Fe-statistic.
     :param psrs: List of `enterprise` Pulsar instances.
+    :param params: Dictionary of noise parameters.
     """
     
     def __init__(self, psrs, params=None):
         
-        # initialize standard model with fixed white noise and powerlaw red noise
         print('Initializing the model...')
 
-        #TODO: make noise parameters setable from outside and maybe remove the
-        #signal model part alltogether
-        efac = parameter.Constant(1.04) 
-        #efac = parameter.Constant(1.0) 
-        equad = parameter.Constant(-7) 
+        efac = parameter.Constant() 
+        equad = parameter.Constant() 
         ef = white_signals.MeasurementNoise(efac=efac)
         eq = white_signals.EquadNoise(log10_equad=equad)
-        log10_fgw = parameter.Uniform(np.log10(3.5e-9), -7)('log10_fgw')
-
-
-        log10_mc = parameter.Constant(np.log10(5e9))('log10_mc')
-        cos_gwtheta = parameter.Uniform(-1, 1)('cos_gwtheta')
-        gwphi = parameter.Uniform(0, 2*np.pi)('gwphi')
-        phase0 = parameter.Uniform(0, 2*np.pi)('phase0')
-        psi = parameter.Uniform(0, np.pi)('psi')
-        cos_inc = parameter.Uniform(-1, 1)('cos_inc')
-        log10_h = parameter.LinearExp(-18, -11)('log10_h')
-        cw_wf = models.cw_delay(cos_gwtheta=cos_gwtheta, gwphi=gwphi, log10_mc=log10_mc,
-                             log10_h=log10_h, log10_fgw=log10_fgw, phase0=phase0,
-                             psi=psi, cos_inc=cos_inc, tref=53000*86400)
-        cw = models.CWSignal(cw_wf, psrTerm=False)
 
         tm = gp_signals.TimingModel(use_svd=True)
 
-        s = eq + ef + tm + cw
-        #s = ef + eq + cw
-
-        #number of pulsars to use
-        n_psr = 19
-        #n_psr = 3
+        s = eq + ef + tm
 
         model = []
-        for p in psrs[:n_psr]:
+        for p in psrs:
             model.append(s(p))
         self.pta = signal_base.PTA(model)  
+
+        # set white noise parameters
+        if params is None:
+            print('No noise dictionary provided!...')
+        else:
+            self.pta.set_default_params(params)
 
         self.psrs = psrs
         self.params = params
@@ -89,12 +73,18 @@ class FeStat(object):
         """
         Computes the Fe-statistic (see Ellis, Siemens, Creighton 2012).
         :param f0: GW frequency
-        :param gw_skyloc: [theta, phi] or 2x{number of sky locations} array,
-                          where theta=pi/2-DEC, phi=RA
+        :param gw_skyloc: 2x{number of sky locations} array containing [theta, phi] for each queried sky location,
+                          where theta=pi/2-DEC, phi=RA,
+                          for singlge sky location use gw_skyloc= np.array([[theta,],[phi,]])
         :param brave: Skip sanity checks in linalg for speedup if True.
-        :param maximized_parameters: Calculate maximized parameters if True.
+        :param maximized_parameters: Calculate maximized extrinsic parameters if True.
         :returns:
         fstat: value of the Fe-statistic
+        :if maximized_parameters=True also returns:
+        inc_max: Maximized value of inclination
+        psi_max: Maximized value of polarization angle
+        phase0_max: Maximized value of initial fhase
+        h_max: Maximized value of amplitude
         """
 
         tref=53000*86400
