@@ -16,14 +16,19 @@ class FpStat(object):
     """
     
     def __init__(self, psrs, params=None,
-                 psrTerm=True, bayesephem=True, wideband=False):
+                 psrTerm=True, bayesephem=True, wideband=False, pta=None):
         
-        # initialize standard model with fixed white noise and powerlaw red noise
-        print('Initializing the model...')
-        self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
-                                   ecc=False, psrTerm=psrTerm,
-                                   bayesephem=bayesephem, wideband=wideband)
-            
+        if pta is None:
+        
+            # initialize standard model with fixed white noise and powerlaw red noise
+            print('Initializing the model...')
+            self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
+                                       ecc=False, psrTerm=psrTerm,
+                                       bayesephem=bayesephem, wideband=wideband)
+
+        else:
+            self.pta = pta
+                    
         self.psrs = psrs
         self.params = params
                                    
