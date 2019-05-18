@@ -47,11 +47,11 @@ class FpStat(object):
         
         return Nmats
     
-    def compute_Fp(self, f0):
+    def compute_Fp(self, fgw):
         """
         Computes the Fp-statistic.
 
-        :param f0: GW frequency
+        :param fgw: GW frequency
 
         :returns:
         fstat: value of the Fp-statistic at the given frequency
@@ -77,8 +77,8 @@ class FpStat(object):
             ntoa = len(psr.toas)
             
             A = np.zeros((2, ntoa))
-            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * psr.toas)
-            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * psr.toas)
+            A[0, :] = 1 / fgw ** (1 / 3) * np.sin(2 * np.pi * fgw * psr.toas)
+            A[1, :] = 1 / fgw ** (1 / 3) * np.cos(2 * np.pi * fgw * psr.toas)
             
             ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma)
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma)
@@ -94,6 +94,26 @@ class FpStat(object):
             fstat += 0.5 * np.dot(N, np.dot(Minv, N))
     
         return fstat
+    
+    def compute_fap(self, fgw):
+        """
+        Compute false alarm rate for Fp-Statistic. We calculate
+        the log of the FAP and then exponentiate it in order
+        to avoid numerical precision problems
+
+        :param fgw: GW frequency
+
+        :returns: False alarm probability as defined in Eq (64)
+                  of Ellis, Seiemens, Creighton (2012)
+
+        """
+        
+        fp0 = self.compute_Fp(fgw)
+
+        N = len(self.psrs)
+        n = np.arange(0,N)
+    
+        return np.sum(np.exp(n*np.log(fp0)-fp0-np.log(scipy.special.gamma(n+1))))
 
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
