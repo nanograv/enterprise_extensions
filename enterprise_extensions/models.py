@@ -1168,6 +1168,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     elif select == 'band':
         # selection by observing band
         selection = selections.Selection(selections.by_band)
+    elif select == 'freqs' or select == 'frequencies':
+        # selection by observing frequency (f<=1Ghz, 1GHz<f<=2Ghz, f>2Ghz)
+        selection = selections.Selection(selections.by_frequency)
     elif select == 'single_band':
         selection = selections.Selection(selections.single_band(band_val=select_val))
     elif select == 'single_backend':
