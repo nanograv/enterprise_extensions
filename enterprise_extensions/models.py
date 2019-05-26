@@ -440,6 +440,22 @@ def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
     return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
 
 @signal_base.function
+def broken_powerlaw(f, log10_A, gamma=13/3., delta, log10_fb, kappa=0.1):
+    """
+    Generic broken powerlaw spectrum.
+    :param f: sampling frequencies
+    :param A: characteristic strain amplitude [set for gamma at f=1/yr]
+    :param gamma: negative slope of PSD for f > log10_fb [set for comparison at f=1/yr (default 13/3)]
+    :param delta: slope for frequencies < 10**log10_fb
+    :param log10_fb: log10 transition frequency at which slope switches from gamma to delta
+    :param kappa: smoothness of transition (Default = 0.1)
+    """
+    df = np.diff(np.concatenate((np.array([0]), f[::2])))
+    hcf = (10**log10_A * (f / const.fyr) ** ((3-gamma) / 2) *
+          (1 + (f / 10**log10_fb) ** (1/kappa)) ** (kappa * (gamma - delta) / 2))
+    return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
+
+@signal_base.function
 def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
                           log10_A_vl=-15, log10_A_sl=-15,
                           kappa=10/3, p_dist=1.0):
