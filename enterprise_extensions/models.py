@@ -440,7 +440,7 @@ def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
     return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
 
 @signal_base.function
-def broken_powerlaw(f, log10_A, gamma=13/3., delta, log10_fb, kappa=0.1):
+def broken_powerlaw(f, log10_A, gamma, delta, log10_fb, kappa=0.1):
     """
     Generic broken powerlaw spectrum.
     :param f: sampling frequencies
