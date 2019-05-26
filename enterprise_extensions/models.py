@@ -362,6 +362,15 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     return F * Dm[:, None], Ffreqs
 
 @signal_base.function
+def powerlaw_genmodes(f, log10_A=-16, gamma=5, components=2, wgts=None):
+    if wgts is not None:
+        df = wgts**2
+    else:
+        df = np.diff(np.concatenate((np.array([0]), f[::components])))
+    return ((10**log10_A)**2 / 12.0 / np.pi**2 *
+            const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, components))
+
+@signal_base.function
 def free_spectrum(f, log10_rho=None):
     """
     Free spectral model. PSD  amplitude at each frequency
@@ -1086,7 +1095,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
-                    select=None, break_flat=False, break_flat_fq=None):
+                    select=None, modes=None, wgts=None,
+                    break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
 
@@ -1108,7 +1118,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
+               'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
@@ -1128,6 +1139,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # different PSD function parameters
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+        elif psd == 'powerlaw_genmodes':
+            pl = powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
         elif psd == 'turnover':
             kappa = parameter.Uniform(0, 7)
             lf0 = parameter.Uniform(-9, -7)
@@ -1181,7 +1194,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         rn = rn + rn_flat
     else:
         rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                    coefficients=coefficients, selection=selection)
+                                       coefficients=coefficients, selection=selection,
+                                       modes=modes)
 
     if select == 'band+': # Add the common component as well
         rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
@@ -1574,7 +1588,8 @@ def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4,
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False):
+                           orf=None, name='gw', coefficients=False,
+                           modes=None, wgts=None):
     """
     Returns common red noise model:
 
@@ -1606,7 +1621,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'turnover_knee']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -1627,6 +1642,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         # common red noise PSD
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
+        elif psd == 'powerlaw_genmodes':
+            cpl = powerlaw_genmodes(log10_A=log10_Agw, gamma=gamma_gw, wgts=wgts)
         elif psd == 'turnover':
             kappa_name = '{}_kappa'.format(name)
             lf0_name = '{}_log10_fbend'.format(name)
@@ -1659,11 +1676,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name)
+                                        modes=modes, name=name)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], #coefficients=coefficients,
+        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
                                               components=components, Tspan=Tspan,
-                                              name=name)
+                                              modes=modes, name=name)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
@@ -2194,7 +2211,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
-                  noisedict=None, tm_svd=False, tm_norm=True, gamma_common=None,
+                  modes=None, wgts=None, noisedict=None,
+                  tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, bayesephem=False, wideband=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
@@ -2250,7 +2268,8 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
 
     # red noise
     s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
-                        components=red_components, coefficients=coefficients,
+                        components=red_components, modes=modes, wgts=wgts,
+                        coefficients=coefficients,
                         select=red_select, break_flat=red_breakflat,
                         break_flat_fq=red_breakflat_fq)
 
@@ -2258,11 +2277,13 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
     if orf is None:
         s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
-                                    gamma_val=gamma_common, name='gw')
+                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
+                                    name='gw')
     elif orf == 'hd':
         s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
-                                    gamma_val=gamma_common, orf='hd', name='gw')
+                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
+                                    orf='hd', name='gw')
 
     # DM variations
     if dm_var:
