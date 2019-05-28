@@ -80,6 +80,18 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
     d = np.eye(tm.shape[0]) * (sigma/500)**2
     return sigma**2 * np.exp(-tm**2/2/lam) + d
 
+# squared-exponential kernel for DM
+@signal_base.function
+def se_dm_kernel(avetoas, log10_sigma=-7, log10_lam=2):
+    
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+    
+    # Convert everything into seconds
+    lam = 10**log10_lam * 86400
+    sigma = 10**log10_sigma
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    return sigma**2 * np.exp(-r**2/2/lam) + d
+
 # quantization matrix in time and radio frequency to cut down on the kernel size.
 @signal_base.function
 def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_idx=2):
@@ -1290,7 +1302,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_lam = parameter.Uniform(1, 4)
             
             dm_basis = linear_interp_basis_dm(dt=15*86400)
-            dm_prior = se_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+            dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
@@ -1353,7 +1365,7 @@ def scattering_noise_block(kernel='periodic', coefficients=False):
         log10_lam = parameter.Uniform(1, 4)
 
         dm_basis = linear_interp_basis_scattering(dt=15*86400)
-        dm_prior = se_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+        dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='scattering_gp',
                               coefficients=coefficients)
