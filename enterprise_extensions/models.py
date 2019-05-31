@@ -269,6 +269,15 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     return F * Dm[:, None], Ffreqs
 
 @signal_base.function
+def powerlaw_genmodes(f, log10_A=-16, gamma=5, components=2, wgts=None):
+    if wgts is not None:
+        df = wgts**2
+    else:
+        df = np.diff(np.concatenate((np.array([0]), f[::components])))
+    return ((10**log10_A)**2 / 12.0 / np.pi**2 *
+            const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, components))
+
+@signal_base.function
 def free_spectrum(f, log10_rho=None):
     """
     Free spectral model. PSD  amplitude at each frequency
@@ -305,7 +314,7 @@ def t_process_adapt(f, log10_A=-15, gamma=4.33, alphas_adapt=None, nfreq=None):
             alpha_model[2*int(np.rint(nfreq))+1] = alphas_adapt
 
     return utils.powerlaw(f, log10_A=log10_A, gamma=gamma) * alpha_model
-    
+
 def InvGammaPrior(value, alpha=1, gamma=1):
     """Prior function for InvGamma parameters."""
     return scipy.stats.invgamma.pdf(value, alpha, scale=gamma)
@@ -909,7 +918,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 #### Model component building blocks ####
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend'):
+                      efac1=False, select='backend', name=None):
     """
     Returns the white noise block of the model:
 
@@ -955,13 +964,17 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             ecorr = parameter.Constant()
 
     # white noise signals
-    ef = white_signals.MeasurementNoise(efac=efac, selection=backend)
-    eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
+    ef = white_signals.MeasurementNoise(efac=efac,
+                                        selection=backend, name=name)
+    eq = white_signals.EquadNoise(log10_equad=equad,
+                                  selection=backend, name=name)
     if inc_ecorr:
         if gp_ecorr:
-            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                            selection=backend_ng, name=name)
         else:
-            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                selection=backend_ng, name=name)
 
     # combine signals
     if inc_ecorr:
@@ -972,7 +985,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False, select=None):
+                    components=30, gamma_val=None, coefficients=False,
+                    select=None, modes=None, wgts=None,
+                    break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
 
@@ -994,7 +1009,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
+               'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
@@ -1014,6 +1030,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # different PSD function parameters
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+        elif psd == 'powerlaw_genmodes':
+            pl = powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
         elif psd == 'turnover':
             kappa = parameter.Uniform(0, 7)
             lf0 = parameter.Uniform(-9, -7)
@@ -1048,8 +1066,27 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # define no selection
         selection = selections.Selection(selections.no_selection)
 
-    rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                   coefficients=coefficients, selection=selection)
+    if break_flat:
+        log10_A_flat = parameter.Uniform(-20, -11)
+        gamma_flat = parameter.Constant(0)
+        pl_flat = utils.powerlaw(log10_A=log10_A_flat, gamma=gamma_flat)
+
+        freqs = 1.0 * np.arange(1, components+1) / Tspan
+        components_low = sum(f < break_flat_fq for f in freqs)
+        if components_low < 1.5:
+            components_low = 2
+
+        rn = gp_signals.FourierBasisGP(pl, components=components_low, Tspan=Tspan,
+                                       coefficients=coefficients, selection=selection)
+
+        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs[components_low:],
+                                            coefficients=coefficients, selection=selection,
+                                            name='red_noise_hf')
+        rn = rn + rn_flat
+    else:
+        rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                       coefficients=coefficients, selection=selection,
+                                       modes=modes)
 
     if select == 'band+': # Add the common component as well
     	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
@@ -1320,7 +1357,8 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False):
+                           orf=None, name='gw', coefficients=False,
+                           modes=None, wgts=None):
     """
     Returns common red noise model:
 
@@ -1352,7 +1390,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'turnover_knee']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -1373,6 +1411,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         # common red noise PSD
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
+        elif psd == 'powerlaw_genmodes':
+            cpl = powerlaw_genmodes(log10_A=log10_Agw, gamma=gamma_gw, wgts=wgts)
         elif psd == 'turnover':
             kappa_name = '{}_kappa'.format(name)
             lf0_name = '{}_log10_fbend'.format(name)
@@ -1405,11 +1445,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name)
+                                        modes=modes, name=name)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
                                               components=components, Tspan=Tspan,
-                                              name=name)
+                                              modes=modes, name=name)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
@@ -1639,7 +1679,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 ###  PTA models from paper  ###
 ###############################
 
-def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
+def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
@@ -1928,12 +1968,16 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=True,
-                  orf=None, components=30, gamma_common=None, upper_limit=False,
-                  bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
-                  red_select=None, coefficients=False,):
+def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
+                  common_components=30, red_components=30, dm_components=30,
+                  modes=None, wgts=None, noisedict=None,
+                  tm_svd=False, tm_norm=True, gamma_common=None,
+                  upper_limit=False, bayesephem=False, wideband=False,
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  white_vary=False, gequad=False, dm_chrom=False,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
+                  coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1982,25 +2026,29 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                        components=components, coefficients=coefficients,
-                        select=red_select)
+    s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
+                        components=red_components, modes=modes, wgts=wgts,
+                        coefficients=coefficients,
+                        select=red_select, break_flat=red_breakflat,
+                        break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     if orf is None:
-        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, coefficients=coefficients,
-                                    gamma_val=gamma_common, name='gw')
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=common_components, coefficients=coefficients,
+                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
+                                    name='gw')
     elif orf == 'hd':
-        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                    components=components, coefficients=coefficients,
-                                    gamma_val=gamma_common, orf='hd', name='gw')
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=common_components, coefficients=coefficients,
+                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
+                                    orf='hd', name='gw')
 
     # DM variations
     if dm_var:
         if dm_type == 'gp':
             s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior,
-                                components=components, gamma_val=None,
+                                components=dm_components, gamma_val=None,
                                 coefficients=coefficients)
         if dm_annual:
             s += dm_annual_signal()
@@ -2018,7 +2066,11 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if '1713' in p.name:
+            if gequad:
+                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
@@ -2028,7 +2080,11 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                 models.append(s2(p))
         else:
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if '1713' in p.name:
+            if gequad:
+                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,

@@ -28,8 +28,8 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33,
-                 orf='hd', wideband=False, select=None, pta=None):
+    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd',
+                 wideband=False, select=None, noisedict=None, pta=None):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
@@ -39,7 +39,7 @@ class OptimalStatistic(object):
                                        bayesephem=bayesephem,
                                        gamma_common=gamma_common,
                                        wideband=wideband,
-                                       select=select)
+                                       select=select, noisedict=noisedict)
         else:
             self.pta = pta
 
@@ -97,7 +97,8 @@ class OptimalStatistic(object):
 
         X, Z = [], []
         for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
-            Sigma = TNT + np.diag(phiinv)
+
+            Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             try:
                 cf = sl.cho_factor(Sigma)
                 SigmaTNr = sl.cho_solve(cf, TNr)
@@ -105,7 +106,7 @@ class OptimalStatistic(object):
             except np.linalg.LinAlgError:
                 SigmaTNr = np.linalg.solve(Sigma, TNr)
                 SigmaTNF = np.linalg.solve(Sigma, FNT.T)
-
+                
             FNTSigmaTNr = np.dot(FNT, SigmaTNr)
             X.append(FNr - FNTSigmaTNr)
             Z.append(FNF - np.dot(FNT, SigmaTNF))

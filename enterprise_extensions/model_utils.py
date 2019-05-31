@@ -21,6 +21,39 @@ from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
+# Log-spaced frequncies
+def linBinning(T, logmode, f_min, nlin, nlog):
+    """
+    Get the frequency binning for the low-rank approximations, including
+    log-spaced low-frequency coverage.
+    Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+    :param T:       Duration experiment
+    :param logmode: From which linear mode to switch to log
+    :param f_min:   Down to which frequency we'll sample
+    :param nlin:    How many linear frequencies we'll use
+    :param nlog:    How many log frequencies we'll use
+    """
+    if logmode < 0:
+        raise ValueError("Cannot do log-spacing when all frequencies are linearly sampled")
+
+    # First the linear spacing and weights
+    df_lin = 1.0 / T
+    f_min_lin = (1.0 + logmode) / T
+    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin-1)*df_lin, nlin)
+    w_lin = np.sqrt(df_lin * np.ones(nlin))
+
+    if nlog > 0:
+        # Now the log-spacing, and weights
+        f_min_log = np.log(f_min)
+        f_max_log = np.log( (logmode+0.5)/T )
+        df_log = (f_max_log - f_min_log) / (nlog)
+        f_log = np.exp(np.linspace(f_min_log+0.5*df_log,
+                                   f_max_log-0.5*df_log, nlog))
+        w_log = np.sqrt(df_log * f_log)
+        return np.append(f_log, f_lin), np.append(w_log, w_lin)
+    else:
+        return f_lin, w_lin
+
 # New filter for different cadences
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
