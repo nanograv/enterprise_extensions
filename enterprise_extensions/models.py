@@ -1345,6 +1345,38 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
+
+def magnetoshpere_event_dip(tmin, tmax, sign=False, name='dmexp'):
+    """
+    Returns chromatic exponential dip (i.e. TOA advance),
+    that depends on the frequency in a positive power,
+    in contrast to, i.e. DM variations.
+    Reference: Shannon, Ryan M., et al. "The disturbance of a millisecond
+    pulsar magnetosphere." The Astrophysical Journal Letters 828.1 (2016): L1.
+
+    :param tmin, tmax:
+        search window for exponential dip time.
+    :param sign:
+        [boolean] allow for positive or negative exponential features.
+    :param name: Name of signal
+
+    :return dmexp:
+        chromatic exponential dip waveform.
+    """
+    t0_dmexp = parameter.Uniform(tmin,tmax)
+    log10_Amp_dmexp = parameter.Uniform(-10, -2)
+    log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(10000))
+    idx = parameter.Uniform(-7, 7)
+    if sign:
+        sign_param = parameter.Uniform(-1.0, 1.0)
+    else:
+        sign_param = -1.0
+    wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
+                         t0=t0_dmexp, log10_tau=log10_tau_dmexp,
+                         sign_param=sign_param, idx=idx)
+    dmexp = deterministic_signals.Deterministic(wf, name=name)
+
+    return dmexp
   
 def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     """
@@ -1860,7 +1892,10 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          num_dmdips=1, dmdip_seqname=None, dm_cusp=False, 
+                          num_dmdips=1, dmdip_seqname=None, magn_expdip=False,
+                          magnexp_sign=False, 
+                          magn_expdip_tmin=None, magn_expdip_tmax=None,
+                          num_magndips=1, magndip_seqname=None, dm_cusp=False, 
                           dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
                           dm_cusp_tmax=None, coefficients=False, red_select=None,
                           red_select_val=None, red_common=False,):
@@ -1956,7 +1991,22 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                                         idx=dm_expdip_idx,
                                         sign=dmexp_sign,
                                         name=dmdipname_base+str(dd))
-        if dm_cusp:
+        if magn_expdip:
+            if magn_expdip_tmin is None and magn_expdip_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = magn_expdip_tmin
+                tmax = magn_expdip_tmax
+            if magndip_seqname is not None:
+                magndipname_base = 'magnexp_'+magndip_seqname+'_'
+            else:
+                magndipname_base = 'magnexp_'
+            for dd in range(1,num_magndips+1):
+                s += magnetoshpere_event_dip(tmin=tmin, tmax=tmax,
+                                        sign=magnexp_sign,
+                                        name=magndipname_base+str(dd))    
+    if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
                 tmax = psr.toas.max() / 86400
