@@ -7,7 +7,6 @@ from enterprise_extensions import models
 
 from enterprise.signals import utils
 from enterprise.signals import signal_base
-from enterprise.signals.parameter import function
 
 
 class OptimalStatistic(object):
@@ -106,7 +105,7 @@ class OptimalStatistic(object):
             except np.linalg.LinAlgError:
                 SigmaTNr = np.linalg.solve(Sigma, TNr)
                 SigmaTNF = np.linalg.solve(Sigma, FNT.T)
-                
+
             FNTSigmaTNr = np.dot(FNT, SigmaTNr)
             X.append(FNr - FNTSigmaTNr)
             Z.append(FNF - np.dot(FNT, SigmaTNF))
