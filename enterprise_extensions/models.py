@@ -1916,9 +1916,14 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
-                          dm_cusp=False, dm_cusp_sign=False, dm_cusp_idx=2,
+                          dm_cusp=False, dm_cusp_sign=True, dm_cusp_idx=2,
                           dm_cusp_tmin=None, dm_cusp_tmax=None, dm_cusp_sym=False,
-                          num_dm_cusps=1, dm_cusp_seqname=None, coefficients=False):
+                          num_dm_cusps=1, dm_cusp_seqname=None, 
+                          dm_dual_cusp=False, dm_dual_cusp_tmin=None, dm_dual_cusp_tmax=None,
+                          dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4, dm_dual_cusp_sym=False,
+                          dm_dual_cusp_sign=True, num_dm_dual_cusps=1, dm_dual_cusp_seqname=None,
+                          dm_scattering=False, dm_sc_kernel='sq_exp',
+                          coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1958,6 +1963,17 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     :param dm_cusp_sym: make exponential cusp symmetric
     :param num_dm_cusps: number of dm exponential cusps
     :param dm_cusp_seqname: name of cusp sequence
+    :param dm_dual_cusp: include a DM cusp with two chromatic indices
+    :param dm_dual_cusp_tmin: sampling minimum of DM dual cusp epoch
+    :param dm_dual_cusp_tmax: sampling maximum of DM dual cusp epoch
+    :param dm_dual_cusp_idx1: first chromatic index of DM dual cusp
+    :param dm_dual_cusp_idx2: second chromatic index of DM dual cusp
+    :param dm_dual_cusp_sym: make dual cusp symmetric
+    :param dm_dual_cusp_sign: include a sign parameter for dual cusp
+    :param num_dm_dual_cusps: number of DM dual cusps
+    :param dm_dual_cusp_seqname: name of dual cusp sequence
+    :param dm_scattering: whether to explicitly model DM scattering variations
+    :param dm_sc_kernel: type of time-domain DM GP kernel for the scattering variations
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -1971,9 +1987,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     # red noise
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
-                            components=components, gamma_val=gamma_val,
-                            coefficients=coefficients, select=red_select)
-
+                             components=components, gamma_val=gamma_val,
+                             coefficients=coefficients, select=red_select)
 
     # DM variations
     if dm_var:
@@ -1995,6 +2010,8 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components,
                                        coefficients=coefficients)
+        if dm_scattering:
+            s += scattering_noise_block(kernel=dm_sc_kernel, coefficients=coefficients)
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = psr.toas.min() / 86400
@@ -2028,6 +2045,24 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                                          sign=dm_cusp_sign,
                                          symmetric=dm_cusp_sym,
                                          name=cusp_name_base+str(dd))
+        if dm_dual_cusp:
+            if dm_dual_cusp_tmin is None and dm_cusp_tmas is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_dual_cusp_tmin
+                tmax = dm_dual_cusp_tmax
+            if dm_dual_cusp_seqname is not None:
+                dual_cusp_name_base = 'dm_dual_cusp_'+dm_cusp_seqname+'_'
+            else:
+                dual_cusp_name_base = 'dm_dual_cusp_'
+            for dd in range(1,num_dm_dual_cusps+1):
+                s += dm_dual_exp_cusp(tmin=tmin, tmax=tmax,
+                                      idx1=dm_dual_cusp_idx1,
+                                      idx2=dm_dual_cusp_idx2
+                                      sign=dm_dual_cusp_sign,
+                                      symmetric=dm_dual_cusp_sym,
+                                      name=dual_cusp_name_base+str(dd))
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
