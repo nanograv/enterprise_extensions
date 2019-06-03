@@ -2059,7 +2059,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
             for dd in range(1,num_dm_dual_cusps+1):
                 s += dm_dual_exp_cusp(tmin=tmin, tmax=tmax,
                                       idx1=dm_dual_cusp_idx1,
-                                      idx2=dm_dual_cusp_idx2
+                                      idx2=dm_dual_cusp_idx2,
                                       sign=dm_dual_cusp_sign,
                                       symmetric=dm_dual_cusp_sym,
                                       name=dual_cusp_name_base+str(dd))
