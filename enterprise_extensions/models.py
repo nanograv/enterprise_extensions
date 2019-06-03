@@ -1970,7 +1970,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
-                  modes=None, wgts=None, noisedict=None,
+                  modes=None, wgts=None, logfreq=False, nmodes_log=10,
+                  noisedict=None,
                   tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, bayesephem=False, wideband=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
@@ -2024,6 +2025,12 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
 
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
+
+    if logfreq:
+        fmin = 10.0
+        modes, wgts = model_utils.linBinning(Tspan, logmode, 1.0 / fmin / Tspan,
+                                             common_components, nmodes_log)
+        wgts = wgts**2.0
 
     # red noise
     s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
