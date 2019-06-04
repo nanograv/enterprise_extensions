@@ -1356,7 +1356,7 @@ def magnetosphere_exponential_dip(tmin, tmax, idx='vary', sign=False,
         search window for exponential dip time.
     :param idx:
         index of radio frequency dependence (i.e. DM is 2). If this is set
-        to 'vary' then the index will vary from 1 - 6
+        to 'vary' then the index will vary from -7 to 7
     :param sign:
         [boolean] allow for positive or negative exponential features.
     :param name: Name of signal
@@ -1367,6 +1367,8 @@ def magnetosphere_exponential_dip(tmin, tmax, idx='vary', sign=False,
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
     log10_tau_dmexp = parameter.Uniform(np.log10(2), np.log10(1000))
+    if idx == 'vary':
+        idx = parameter.Uniform(-7, 7)
     if sign:
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
@@ -2281,14 +2283,14 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False,
+                                                        sign=False, idx='vary',
                                                         name='1643_magexp')
                 models.append(s5(p))
             elif '0437' in p.name:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False,
+                                                        sign=False, idx='vary',
                                                         name='0437_magexp')
                 models.append(s5(p))
             else:
@@ -2305,14 +2307,14 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False,
+                                                        sign=False, idx='vary',
                                                         name='1643_magexp')
                 models.append(s5(p))
             elif '0437' in p.name:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
                 s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False,
+                                                        sign=False, idx='vary',
                                                         name='0437_magexp')
                 models.append(s5(p))
             else:
