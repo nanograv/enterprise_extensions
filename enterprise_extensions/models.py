@@ -2046,7 +2046,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                                          symmetric=dm_cusp_sym,
                                          name=cusp_name_base+str(dd))
         if dm_dual_cusp:
-            if dm_dual_cusp_tmin is None and dm_cusp_tmas is None:
+            if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
                 tmax = psr.toas.max() / 86400
             else:
