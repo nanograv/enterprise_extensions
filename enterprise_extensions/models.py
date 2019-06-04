@@ -2028,7 +2028,7 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
 
     if logfreq:
         fmin = 10.0
-        modes, wgts = model_utils.linBinning(Tspan, logmode, 1.0 / fmin / Tspan,
+        modes, wgts = model_utils.linBinning(Tspan, nmodes_log, 1.0 / fmin / Tspan,
                                              common_components, nmodes_log)
         wgts = wgts**2.0
 
