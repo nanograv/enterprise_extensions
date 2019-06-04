@@ -231,7 +231,7 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
 def chrom_dual_exp_cusp(toas, freqs, t0=54000, sign_param=-1.0,
                         log10_Amp_1=-7, log10_tau_pre_1=1.7, log10_tau_post_1=1.7,
                         log10_Amp_2=-7, log10_tau_pre_2=1.7, log10_tau_post_2=1.7,
-                        symmetric=False, idx_1=2, idx_2=4):
+                        symmetric=False, idx1=2, idx2=4):
     """
     Chromatic exponential-cusp delay term in TOAs.
 
@@ -280,7 +280,7 @@ def chrom_dual_exp_cusp(toas, freqs, t0=54000, sign_param=-1.0,
         wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2_post) 
         wf_2 = wf_2_pre + wf_2_post
         
-    return np.sign(sign_param) * ( wf_1 * (1400 / freqs) ** idx_1 + wf_2 * (1400 / freqs) ** idx_2)
+    return np.sign(sign_param) * ( wf_1 * (1400 / freqs) ** idx1 + wf_2 * (1400 / freqs) ** idx2)
 
 @signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
