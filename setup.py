@@ -28,6 +28,7 @@ setup(
     packages=['enterprise_extensions',
               'enterprise_extensions.frequentist',
               'enterprise_extensions.electromagnetic'],
+    package_data={'enterprise_extensions.electromagnetic': ['ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt']},
     install_requires=['numpy','scipy','enterprise'],
     include_package_data=True,
     zip_safe=False,
