@@ -164,6 +164,30 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
 
     return Kt * Kv + d
 
+# kernel is the product of a squared-exponential time kernel and
+# a rational-quadratic frequency kernel
+@signal_base.function
+def sf_kernel(labels, log10_sigma=-7, log10_lam=2, 
+              log10_ell2=4, log10_alpha_wgt=0):
+    
+    avetoas = labels['avetoas']
+    avefreqs = labels['avefreqs']
+    
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+    r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
+    
+    # Convert everything into seconds
+    lam = 10**log10_lam * 86400
+    sigma = 10**log10_sigma
+    l2 = 10**log10_ell2
+    alpha_wgt = 10**log10_alpha_wgt
+    
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    Kt = sigma**2 * np.exp(-r**2/2/lam)
+    Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
+    
+    return Kt * Kv + d
+
 @signal_base.function
 def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
                     t0=54000, log10_tau=1.7, idx=2):
@@ -1303,6 +1327,16 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             
             dm_basis = linear_interp_basis_dm(dt=15*86400)
             dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+        elif nondiag_kernel == 'sq_exp_rfband':
+            # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_lam = parameter.Uniform(1, 4)
+            log10_ell2 = parameter.Uniform(2, 7)
+            log10_alpha_wgt = parameter.Uniform(-4, 1)
+            
+            dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
+            dm_prior = sf_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam,
+                                 log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
