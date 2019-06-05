@@ -1911,7 +1911,9 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None, dm_cusp=False, 
                           dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
-                          dm_cusp_tmax=None, coefficients=False, red_select=None,
+                          dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
+                          magn_expdip_tmin=None, magn_expdip_tmax=None, num_magndips=1,
+                          magndip_seqname=None, coefficients=False, red_select=None,
                           select_band_names=None, red_common=None):
 
     """
@@ -2005,6 +2007,21 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                                         idx=dm_expdip_idx,
                                         sign=dmexp_sign,
                                         name=dmdipname_base+str(dd))
+        if magn_expdip:
+            if magn_expdip_tmin is None and magn_expdip_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = magn_expdip_tmin
+                tmax = magn_expdip_tmax
+            if magndip_seqname is not None:
+                magndipname_base = 'magnexp_'+magndip_seqname+'_'
+            else:
+                magndipname_base = 'magnexp_'
+            for dd in range(1,num_magndips+1):
+                s += magnetosphere_exponential_dip(tmin=tmin, tmax=tmax, 
+                                                   idx='vary', sign=magnexp_sign,
+                                                   name=magndipname_base+str(dd))
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
