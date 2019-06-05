@@ -1199,7 +1199,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                   
              rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                                  coefficients=coefficients,
-                                                 selection=selection)
+                                                 selection=selection, name='red_noise_'+band)
 
 
     return rn
@@ -2211,11 +2211,11 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=True,
-                  orf=None, components=30, gamma_common=None, upper_limit=False,
+                  orf=None, components=50, gamma_common=None, upper_limit=False,
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
                   dm_psd='powerlaw', dm_annual=False, white_vary=False, inc_saturn_orb=False,
                   dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
-                  coefficients=False):
+                  coefficients=False, select_band_names=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
