@@ -1087,8 +1087,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     return s
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False,
-                    select=None, select_val=None, common=False):
+                    components=50, gamma_val=None, coefficients=False,
+                    select=None, common=None, select_band_names=None):
     """
     Returns red noise model:
 
@@ -1111,9 +1111,6 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         include latent coefficients in GP model?
     :param select:
         Choose which TOAs to apply red noise model to
-    :param select_val:
-        Choosing specific TOAs with a flag value, for example -B 10CM with
-        select=='band'
     :param common:
         Include a common component in addition to the red selection
     """
@@ -1169,22 +1166,40 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # selection by observing band
         selection = selections.Selection(selections.by_band)
     elif select == 'freqs' or select == 'frequencies':
-        # selection by observing frequency (f<=1Ghz, 1GHz<f<=2Ghz, f>2Ghz)
+        # selection by observing frequency (f<=1Ghz, 1GHz<f<=2Ghz, and f>2Ghz)
         selection = selections.Selection(selections.by_frequency)
-    elif select == 'single_band':
-        selection = selections.Selection(selections.single_band(band_val=select_val))
-    elif select == 'single_backend':
-        selection = selections.Selection(selections.single_band(backend_val=select_val))
     else:
         # define no selection
         selection = selections.Selection(selections.no_selection)
 
-    rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                   coefficients=coefficients, selection=selection)
+    if select is not None or common is not False:
+        # then we select on our selection or add a common process
+        rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                       coefficients=coefficients, selection=selection)
+    
+    if select_band_names is not None:
+         # We add red noise for each band in select_band_names
+        for band in select_band_names:
+             if band == '50cm' or band == 'band_50cm' or band == 'by_50cm':
+                 # selection by only 50cm data
+                 selection = selections.Selection(selections.band_50cm)
+             if band == '40cm' or band == 'band_40cm' or band == 'by_40cm':
+                 # selection by only 40cm data
+                 selection = selections.Selection(selections.band_40cm)
+             if band == '4050cm' or band == 'band_4050cm' or band == 'by_4050cm':
+                 # selection by only 40cm and 50cm data
+                 selection = selections.Selection(selections.band_4050cm)
+             if band == '20cm' or band == 'band_20cm' or band == 'by_20cm':
+                 # selection by only 20cm data
+                 selection = selections.Selection(selections.band_20cm)
+             if band == '10cm' or band == 'band_10cm' or band == 'by_10cm':
+                 # selection by only 10cm data
+                 selection = selections.Selection(selections.band_10cm)
+                  
+             rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                                 coefficients=coefficients,
+                                                 selection=selection)
 
-    if common: #Add a common component as well
-        rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                            coefficients=coefficients)
 
     return rn
 
@@ -1886,7 +1901,7 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           noisedict=None, tm_svd=False, tm_norm=True,
-                          white_vary=True, components=30, upper_limit=False,
+                          white_vary=True, components=50, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
@@ -1897,7 +1912,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           num_dmdips=1, dmdip_seqname=None, dm_cusp=False, 
                           dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
                           dm_cusp_tmax=None, coefficients=False, red_select=None,
-                          red_select_val=None, red_common=False,):
+                          select_band_names=None, red_common=None):
 
     """
     Single pulsar noise model
@@ -1950,7 +1965,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
         s += red_noise_block(psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
                             coefficients=coefficients, select=red_select,
-                            select_val=red_select_val, common=red_common)
+                            select_band_names=select_band_names, common=red_common)
 
 
 
