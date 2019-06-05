@@ -1199,22 +1199,16 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         selection = selections.Selection(selections.no_selection)
 
     if break_flat:
-        log10_A_flat = parameter.Uniform(-20, -11)
-        gamma_flat = parameter.Constant(0)
-        pl_flat = utils.powerlaw(log10_A=log10_A_flat, gamma=gamma_flat)
-
+        delta = parameter.Constant(0)
         freqs = 1.0 * np.arange(1, components+1) / Tspan
-        components_low = sum(f < break_flat_fq for f in freqs)
-        if components_low < 1.5:
-            components_low = 2
+        
+        if break_flat_fq is not None:
+            log10_fb = parameter.Constant(np.log10(break_flat_fq))
+        else:
+            log10_fb = parameter.Uniform(np.log10(freqs[1]), np.log10(freqs[28]))
 
-        rn = gp_signals.FourierBasisGP(pl, components=components_low, Tspan=Tspan,
-                                       coefficients=coefficients, selection=selection)
+        rn = broken_powerlaw(log10_A=log10_A, gamma=gamma, delta=delta, log10_fb=log10_fb)
 
-        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs[components_low:],
-                                            coefficients=coefficients, selection=selection,
-                                            name='red_noise_hf')
-        rn = rn + rn_flat
     else:
         rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                     coefficients=coefficients, selection=selection)
@@ -2275,15 +2269,12 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
-<<<<<<< HEAD
-                  noisedict=None, tm_svd=False, tm_norm=True, gamma_common=None,
-=======
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None,
                   tm_svd=False, tm_norm=True, gamma_common=None,
->>>>>>> upstream/master
                   upper_limit=False, bayesephem=False, wideband=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  dm_var=False, 
+                  dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
