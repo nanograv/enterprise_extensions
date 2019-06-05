@@ -1100,10 +1100,15 @@ class HyperModel(object):
             print('Adding DM exponential cusp prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
-        # DM annual prior draw
+        # DMX prior draw
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+            
+        # SW prior draw
+        if 'gp_sw' in jp.snames:
+            print('Adding Solar Wind DM GP prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
 
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
