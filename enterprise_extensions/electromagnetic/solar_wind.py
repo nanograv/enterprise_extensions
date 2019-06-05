@@ -151,9 +151,9 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_dmgp=False,
         gamma_sw = parameter.Uniform(-2,1)('gamma_sw')
         sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
 
-    if n_earth is None and ACE_prior:
+    if n_earth is None and not ACE_prior:
         n_earth = parameter.Uniform(0,30)('n_earth')
-    elif n_earth is None and not ACE_prior:
+    elif n_earth is None and ACE_prior:
         n_earth = ACE_SWEPAM_Parameter()('n_earth')
     else:
         pass
