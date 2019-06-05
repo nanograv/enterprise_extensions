@@ -1180,6 +1180,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     if select_band_names is not None:
          # We add red noise for each band in select_band_names
         for band in select_band_names:
+             band = band.lower()
              if band == '50cm' or band == 'band_50cm' or band == 'by_50cm':
                  # selection by only 50cm data
                  selection = selections.Selection(selections.band_50cm)
