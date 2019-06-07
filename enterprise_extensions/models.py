@@ -2215,7 +2215,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                   bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
                   dm_psd='powerlaw', dm_annual=False, white_vary=False, inc_saturn_orb=False,
                   dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
-                  coefficients=False, select_band_names=None):
+                  coefficients=False, select_psrs=None, chrom_events=True):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2301,57 +2301,35 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True,
                                                            inc_saturn_orb=inc_saturn_orb)
 
-    # adding white-noise, and acting on psr objects
+    # adding white-noise, and extra events and red terms acting on psr objects
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if '1713' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                             sign=False, name='dmexp')
-                models.append(s3(p))
-            elif '1643' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False, idx='vary',
-                                                        name='1643_magexp')
-                models.append(s5(p))
-            elif '0437' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False, idx='vary',
-                                                        name='0437_magexp')
-                models.append(s5(p))
-            else:
-                models.append(s2(p))
         else:
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if '1713' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                             sign=False, name='1713_dmexp')
-                models.append(s5(p))
-            elif '1643' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False, idx='vary',
-                                                        name='1643_magexp')
-                models.append(s5(p))
-            elif '0437' in p.name:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
-                                                        sign=False, idx='vary',
-                                                        name='0437_magexp')
-                models.append(s5(p))
-            else:
-                models.append(s4(p))
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+        if '1713' in p.name and chrom_events:
+            # Add DM exponential dip
+            tmin = p.toas.min() / 86400
+            tmax = p.toas.max() / 86400
+            s2 += dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                     sign=False, name='dmexp')
+        elif ('1643' in p.name or '0437' in p.name) and chrom_events:
+            # Add chromatic exponential dip for profile shape change events
+            tmin = p.toas.min() / 86400
+            tmax = p.toas.max() / 86400
+            s2 += magnetosphere_exponential_dip(tmin=tmin, tmax=tmax,
+                                                sign=False, idx='vary',
+                                                name=p.name+'_magexp')
+        # Add extra red noise terms
+        if select_psrs is not None:
+            for psrname, select_bands in select_psrs.items():
+                if psrname in p.name:
+                    s2 += red_noise_block(psd=psd, prior=amp_prior,
+                                          components=components, coefficients=coefficients,
+                                          select_band_names=select_bands,
+                                          common=False)
+        models.append(s2(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
