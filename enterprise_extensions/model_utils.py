@@ -1073,7 +1073,7 @@ class HyperModel(object):
         # try adding empirical proposals
         if empirical_distr is not None:
             print('Adding empirical proposals...\n')
-            sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+            sampler.addProposalToCycle(jp.draw_from_empirical_distr, 25)
         
         # Red noise prior draw
         if 'red noise' in self.snames:
