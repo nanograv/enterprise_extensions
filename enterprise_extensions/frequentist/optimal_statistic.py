@@ -96,13 +96,17 @@ class OptimalStatistic(object):
 
         X, Z = [], []
         for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
+
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+            try:
+                cf = sl.cho_factor(Sigma)
+                SigmaTNr = sl.cho_solve(cf, TNr)
+                SigmaTNF = sl.cho_solve(cf, FNT.T)
+            except np.linalg.LinAlgError:
+                SigmaTNr = np.linalg.solve(Sigma, TNr)
+                SigmaTNF = np.linalg.solve(Sigma, FNT.T)
 
-            cf = sl.cho_factor(Sigma)
-            SigmaTNr = sl.cho_solve(cf, TNr)
-            SigmaTNF = sl.cho_solve(cf, FNT.T)
             FNTSigmaTNr = np.dot(FNT, SigmaTNr)
-
             X.append(FNr - FNTSigmaTNr)
             Z.append(FNF - np.dot(FNT, SigmaTNF))
 
