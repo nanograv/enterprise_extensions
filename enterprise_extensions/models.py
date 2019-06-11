@@ -82,15 +82,16 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
 
 # squared-exponential kernel for DM
 @signal_base.function
-def se_dm_kernel(avetoas, log10_sigma=-7, log10_lam=2):
+def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     
     r = np.abs(avetoas[None, :] - avetoas[:, None])
     
     # Convert everything into seconds
-    lam = 10**log10_lam * 86400
+    l = 10**log10_ell * 86400
     sigma = 10**log10_sigma
     d = np.eye(r.shape[0]) * (sigma/500)**2
-    return sigma**2 * np.exp(-r**2/2/lam) + d
+    K = sigma**2 * np.exp(-r**2/2/l**2) + d
+    return K
 
 # quantization matrix in time and radio frequency to cut down on the kernel size.
 @signal_base.function
@@ -167,7 +168,7 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
 # kernel is the product of a squared-exponential time kernel and
 # a rational-quadratic frequency kernel
 @signal_base.function
-def sf_kernel(labels, log10_sigma=-7, log10_lam=2, 
+def sf_kernel(labels, log10_sigma=-7, log10_ell=2, 
               log10_ell2=4, log10_alpha_wgt=0):
     
     avetoas = labels['avetoas']
@@ -177,13 +178,13 @@ def sf_kernel(labels, log10_sigma=-7, log10_lam=2,
     r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
     
     # Convert everything into seconds
-    lam = 10**log10_lam * 86400
+    l = 10**log10_ell * 86400
     sigma = 10**log10_sigma
     l2 = 10**log10_ell2
     alpha_wgt = 10**log10_alpha_wgt
     
     d = np.eye(r.shape[0]) * (sigma/500)**2
-    Kt = sigma**2 * np.exp(-r**2/2/lam)
+    Kt = sigma**2 * np.exp(-r**2/2/l**2)
     Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
     
     return Kt * Kv + d
@@ -1317,19 +1318,19 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
         elif nondiag_kernel == 'sq_exp':
             # squared-exponential GP kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
-            log10_lam = parameter.Uniform(1, 4)
+            log10_ell = parameter.Uniform(1, 4)
             
             dm_basis = linear_interp_basis_dm(dt=15*86400)
-            dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+            dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
             # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
             log10_sigma = parameter.Uniform(-10, -4)
-            log10_lam = parameter.Uniform(1, 4)
+            log10_ell = parameter.Uniform(1, 4)
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
             
             dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
-            dm_prior = sf_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam,
+            dm_prior = sf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
                                  log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
@@ -1390,10 +1391,10 @@ def scattering_noise_block(kernel='periodic', coefficients=False):
     elif kernel == 'sq_exp':
         # squared-exponential kernel for DM
         log10_sigma = parameter.Uniform(-10, -4)
-        log10_lam = parameter.Uniform(1, 4)
+        log10_ell = parameter.Uniform(1, 4)
 
         dm_basis = linear_interp_basis_scattering(dt=15*86400)
-        dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_lam=log10_lam)
+        dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='scattering_gp',
                               coefficients=coefficients)
