@@ -1088,7 +1088,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=50, gamma_val=None, coefficients=False,
-                    select=None, common=None, select_band_names=None):
+                    select=None, common=True, select_band_names=None):
     """
     Returns red noise model:
 
@@ -1172,7 +1172,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # define no selection
         selection = selections.Selection(selections.no_selection)
 
-    if select is not None or common is not False:
+    if common or (select is not None):
         # then we select on our selection or add a common process
         rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                        coefficients=coefficients, selection=selection)
