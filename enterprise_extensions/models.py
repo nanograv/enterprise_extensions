@@ -1197,11 +1197,14 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                  # selection by only 10cm data
                  selection = selections.Selection(selections.band_10cm)
                   
-             rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                                 coefficients=coefficients,
-                                                 selection=selection, name='red_noise_'+band)
-
-
+             rn2 = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+                                             coefficients=coefficients,
+                                             selection=selection, name='red_noise_'+band)
+        if common or (select is not None):
+            rn += rn2
+        else:
+            rn = rn2
+            
     return rn
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
