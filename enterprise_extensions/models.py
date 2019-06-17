@@ -1422,7 +1422,7 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
 
     return dm1yr
 
-def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
+def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -1432,7 +1432,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param sign:
-        [boolean] allow for positive or negative exponential features.
+        set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
 
     :return dmexp:
@@ -1441,8 +1441,10 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
     log10_tau_dmexp = parameter.Uniform(0, 2.5)
-    if sign:
+    if sign == 'vary':
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'positive':
+        sign_param = 1.0
     else:
         sign_param = -1.0
     wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
@@ -1452,7 +1454,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
 
     return dmexp
 
-def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, symmetric=False, name='dm_cusp'):
+def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative', symmetric=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -1462,7 +1464,7 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, symmetric=False, name='dm
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param sign:
-        [boolean] allow for positive or negative exponential features.
+        set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
 
     :return dmexp:
@@ -1472,10 +1474,12 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, symmetric=False, name='dm
     log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
     log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
     
-    if sign:
+    if sign == 'vary':
         sign_param = parameter.Uniform(-1.0, 1.0)
-    else:
+    elif sign == 'positive':
         sign_param = 1.0
+    else:
+        sign_param = -1.0
         
     if symmetric:
         log10_tau_dm_cusp_post = 1
@@ -1490,7 +1494,7 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, symmetric=False, name='dm
 
     return dm_cusp
 
-def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign=False, symmetric=False, name='dual_dm_cusp'):
+def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative', symmetric=False, name='dual_dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -1500,7 +1504,7 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign=False, symmetric=False, na
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param sign:
-        [boolean] allow for positive or negative exponential features.
+        set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
 
     :return dmexp:
@@ -1512,10 +1516,12 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign=False, symmetric=False, na
     log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
     log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
     
-    if sign:
+    if sign == 'vary':
         sign_param = parameter.Uniform(-1.0, 1.0)
-    else:
+    elif sign == 'positive':
         sign_param = 1.0
+    else:
+        sign_param = -1.0
         
     if symmetric:
         log10_tau_dual_cusp_post_1 = 1
@@ -1942,15 +1948,15 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
                           dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
-                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
+                          dm_expdip=False, dmexp_sign='negative', dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
-                          dm_cusp=False, dm_cusp_sign=True, dm_cusp_idx=2,
+                          dm_cusp=False, dm_cusp_sign='negative', dm_cusp_idx=2,
                           dm_cusp_tmin=None, dm_cusp_tmax=None, dm_cusp_sym=False,
                           num_dm_cusps=1, dm_cusp_seqname=None, 
                           dm_dual_cusp=False, dm_dual_cusp_tmin=None, dm_dual_cusp_tmax=None,
                           dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4, dm_dual_cusp_sym=False,
-                          dm_dual_cusp_sign=True, num_dm_dual_cusps=1, dm_dual_cusp_seqname=None,
+                          dm_dual_cusp_sign='negative', num_dm_dual_cusps=1, dm_dual_cusp_seqname=None,
                           dm_scattering=False, dm_sc_kernel='sq_exp',
                           coefficients=False):
     """
@@ -1978,14 +1984,14 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     :param dmchrom_psd: power-spectral density of chromatic noise
     :param dmchrom_idx: frequency scaling of chromatic noise
     :param dm_expdip: inclue a DM exponential dip
-    :param dmexp_sign: include a sign parameter for dip
+    :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
     :param num_dmdips: number of dm exponential dips
     :param dmdip_seqname: name of dip sequence
     :param dm_cusp: inclue a DM exponential cusp
-    :param dm_cusp_sign: include a sign parameter for cusp
+    :param dm_cusp_sign: set the sign parameter for cusp
     :param dm_cusp_idx: chromatic index of exponential cusp
     :param dm_cusp_tmin: sampling minimum of DM cusp epoch
     :param dm_cusp_tmax: sampling maximum of DM cusp epoch
@@ -1998,7 +2004,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     :param dm_dual_cusp_idx1: first chromatic index of DM dual cusp
     :param dm_dual_cusp_idx2: second chromatic index of DM dual cusp
     :param dm_dual_cusp_sym: make dual cusp symmetric
-    :param dm_dual_cusp_sign: include a sign parameter for dual cusp
+    :param dm_dual_cusp_sign: set the sign parameter for dual cusp
     :param num_dm_dual_cusps: number of DM dual cusps
     :param dm_dual_cusp_seqname: name of dual cusp sequence
     :param dm_scattering: whether to explicitly model DM scattering variations
