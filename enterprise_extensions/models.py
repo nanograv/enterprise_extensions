@@ -1973,7 +1973,9 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None,
                   tm_svd=False, tm_norm=True, gamma_common=None,
-                  upper_limit=False, bayesephem=False, wideband=False,
+                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
+                  upper_limit_common=None,
+                  bayesephem=False, wideband=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
@@ -2018,6 +2020,15 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
+    gp_priors = [upper_limit_red, upper_limit_dm, upper_limit_common]
+    if all(ii is None for ii in gp_priors):
+        amp_prior_red = amp_prior
+        amp_prior_dm = amp_prior
+        amp_prior_common = amp_prior
+    else:
+        amp_prior_red = 'uniform' if upper_limit_red else 'log-uniform'
+        amp_prior_dm = 'uniform' if upper_limit_dm else 'log-uniform'
+        amp_prior_common = 'uniform' if upper_limit_common else 'log-uniform'
 
     # timing model
     s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
@@ -2033,7 +2044,7 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
         wgts = wgts**2.0
 
     # red noise
-    s += red_noise_block(psd=red_psd, prior=amp_prior, Tspan=Tspan,
+    s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
                         components=red_components, modes=modes, wgts=wgts,
                         coefficients=coefficients,
                         select=red_select, break_flat=red_breakflat,
@@ -2041,12 +2052,12 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
 
     # common red noise block
     if orf is None:
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
                                     modes=modes, wgts=wgts, gamma_val=gamma_common,
                                     name='gw')
     elif orf == 'hd':
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior, Tspan=Tspan,
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
                                     modes=modes, wgts=wgts, gamma_val=gamma_common,
                                     orf='hd', name='gw')
@@ -2054,7 +2065,7 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
     # DM variations
     if dm_var:
         if dm_type == 'gp':
-            s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior,
+            s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior_dm,
                                 components=dm_components, gamma_val=None,
                                 coefficients=coefficients)
         if dm_annual:
