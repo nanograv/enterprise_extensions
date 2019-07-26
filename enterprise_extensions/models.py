@@ -1200,8 +1200,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
              rn2 = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                              coefficients=coefficients,
                                              selection=selection, name='red_noise_'+band)
+    else:
+        rn2 = None
+
         if common or (select is not None):
-            rn += rn2
+            if rn2 is not None:
+                rn += rn2
         else:
             rn = rn2
             
@@ -1918,7 +1922,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
                           magn_expdip_tmin=None, magn_expdip_tmax=None, num_magndips=1,
                           magndip_seqname=None, coefficients=False, red_select=None,
-                          select_band_names=None, red_common=None):
+                          select_band_names=None, red_common=True):
 
     """
     Single pulsar noise model
