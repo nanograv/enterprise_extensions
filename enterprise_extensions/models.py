@@ -18,6 +18,43 @@ from enterprise_extensions import model_utils
 
 #### Extra model components not part of base enterprise ####
 
+# timing model delay
+@signal_base.function
+def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
+    """
+    Compute difference in residuals due to perturbed timing model.
+
+    :param residuals: original pulsar residuals from Pulsar object
+    :param t2pulsar: libstempo pulsar object
+    :param tmparams_orig: dictionary of TM parameter tuples, (val, err)
+    :param tmparams: new timing model parameters, rescaled to be in sigmas
+    :param which: option to have all or only named TM parameters varied
+
+    :return: difference between new and old residuals in seconds
+    """
+
+    if which == 'all': keys = tmparams_orig.keys()
+    else: keys = which
+
+    # grab original timing model parameters and errors in dictionary
+    orig_params = np.array([tmparams_orig[key] for key in keys])
+
+    # put varying parameters into dictionary
+    tmparams_rescaled = np.atleast_1d(np.double(orig_params[:,0] +
+                                                tmparams * orig_params[:,1]))
+    tmparams_vary = OrderedDict(zip(keys, tmparams_rescaled))
+
+    # set to new values
+    t2pulsar.vals(tmparams_vary)
+    new_res = np.double(t2pulsar.residuals().copy())
+
+    # remmeber to set values back to originals
+    t2pulsar.vals(OrderedDict(zip(keys,
+                                  np.atleast_1d(np.double(orig_params[:,0])))))
+
+    # Return the time-series for the pulsar
+    return new_res - residuals
+
 # linear interpolation basis in time with nu^-2 scaling
 @signal_base.function
 def linear_interp_basis_dm(toas, freqs, dt=30*86400):

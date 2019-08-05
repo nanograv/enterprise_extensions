@@ -795,7 +795,7 @@ def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
     """
     Computes the Savage Dickey Bayes Factor and uncertainty.
 
-    :param samples: MCMC samples of GWB (or common red noise) amplitude
+    :param samples: MCMCF samples of GWB (or common red noise) amplitude
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
