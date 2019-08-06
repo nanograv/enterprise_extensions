@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
 import scipy.stats
+from collections import OrderedDict
 
 import enterprise
 from enterprise.signals import parameter
@@ -954,6 +955,21 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
 
 #### Model component building blocks ####
 
+def timing_block(tmparam_list=['RAJ', 'DECJ', 'F0', 'F1',
+                               'PMRA', 'PMDEC', 'PX']):
+    """
+    Returns the timing model block of the model
+    :param tmparam_list: a list of parameters to vary in the model
+    """
+    # default 5-sigma prior above and below the parfile mean
+    tm_params = parameter.Uniform(-5.0, 5.0, size=len(tmparam_list))
+
+    # timing model
+    tm_func = tm_delay(tmparams=tm_params, which=tmparam_list)
+    tm = deterministic_signals.Deterministic(tm_func, name='timing model')
+
+    return tm
+
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                       efac1=False, select='backend', name=None):
     """
@@ -1716,7 +1732,8 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 ###  PTA models from paper  ###
 ###############################
 
-def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
+def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
+                          red_var=False, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
@@ -1732,6 +1749,9 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
+    :param tm_var: explicitly vary the timing model parameters
+    :param tm_linear: vary the timing model in the linear approximation
+    :param tmparam_list: an explicit list of timing model parameters to vary
     :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
@@ -1772,8 +1792,19 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # timing model
-    s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
-                               coefficients=coefficients)
+    if not tm_var:
+        s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
+                                   coefficients=coefficients)
+    else:
+        # create new attribute for enterprise pulsar object
+        psr.tmparams_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
+        for key in psr.tmparams_orig:
+            psr.tmparams_orig[key] = (psr.t2pulsar[key].val,
+                                      psr.t2pulsar[key].err)
+        if not tm_linear:
+            s = timing_block(tmparam_list=tmparam_list)
+        else:
+            pass
 
     # red noise
     if red_var:
@@ -2005,7 +2036,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
+def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
+                  common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None,
@@ -2039,6 +2071,9 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param tm_var: explicitly vary the timing model parameters
+    :param tm_linear: vary the timing model in the linear approximation
+    :param tmparam_list: an explicit list of timing model parameters to vary
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
@@ -2068,8 +2103,20 @@ def model_general(psrs, common_psd='powerlaw', red_psd='powerlaw', orf=None,
         amp_prior_common = 'uniform' if upper_limit_common else 'log-uniform'
 
     # timing model
-    s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
-                                coefficients=coefficients)
+    if not tm_var:
+        s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
+                                   coefficients=coefficients)
+    else:
+        # create new attribute for enterprise pulsar object
+        for p in psrs:
+            p.tmparams_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
+            for key in p.tmparams_orig:
+                p.tmparams_orig[key] = (p.t2pulsar[key].val,
+                                        p.t2pulsar[key].err)
+        if not tm_linear:
+            s = timing_block(tmparam_list=tmparam_list)
+        else:
+            pass
 
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
