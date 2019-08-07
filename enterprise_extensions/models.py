@@ -216,6 +216,26 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
+def chrom_gaussian_bump(toas, freqs, log10_Amp=-2.5, sign_param=1.0,
+                    t0=53890, sigma=81, idx=2):
+    """
+    Chromatic exponential-cusp delay term in TOAs.
+    Example: J1603-7202 in Lentati et al, MNRAS 458, 2016.
+
+    :param t0: time of Gaussian maximum [MJD]
+    :param sigma: time of Gaussian maximum [MJD]
+    :param log10_Amp: amplitude of the bump
+    :param sign_param: sign of waveform
+    :param idx: index of chromatic dependence
+
+    :return wf: delay time-series [s]
+    """
+    t0 *= const.day
+    sigma *= const.day
+    wf = 10**log10_Amp * np.exp(-(toas - t0)**2/2/sigma**2)
+    return np.sign(sign_param) * wf * (1400 / freqs) ** idx
+
+@signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
     """
     Chromatic annual sinusoid.
@@ -1334,6 +1354,39 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     dm_cusp = deterministic_signals.Deterministic(wf, name=name)
 
     return dm_cusp
+
+def dm_gaussian_bump(tmin, tmax, idx=2, sigma_min=20, sigma_max=140,
+    log10_A_low=-6, log10_A_high=-1, sign=False, name='dm_bump'):
+    """
+    Returns chromatic Gaussian bump (i.e. TOA advance):
+
+    :param tmin, tmax:
+        search window for exponential cusp time.
+    :param idx:
+        index of radio frequency dependence (i.e. DM is 2). If this is set
+        to 'vary' then the index will vary from 1 - 6
+    :param sigma_min, sigma_max:
+        standard deviation of a Gaussian in MJD
+    :param sign:
+        [boolean] allow for positive or negative exponential features.
+    :param name: Name of signal
+
+    :return dm_bump:
+        chromatic Gaussian bump waveform.
+    """
+    t0_dm_bump = parameter.Uniform(tmin,tmax)
+    sigma_dm_bump = parameter.Uniform(sigma_min,sigma_max)
+    log10_Amp_dm_bump = parameter.Uniform(log10_A_low, log10_A_high)
+    if sign:
+        sign_param = parameter.Uniform(-1.0, 1.0)
+    else:
+        sign_param = 1.0
+    wf = chrom_gaussian_bump(log10_Amp=log10_Amp_dm_bump,
+                         t0=t0_dm_bump, sigma=sigma_dm_bump,
+                         sign_param=sign_param, idx=idx)
+    dm_bump = deterministic_signals.Deterministic(wf, name=name)
+
+    return dm_bump
 
 def dmx_signal(dmx_data, name='dmx_signal'):
     """
