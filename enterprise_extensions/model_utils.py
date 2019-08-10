@@ -1220,6 +1220,10 @@ class HyperModel(object):
             idx = pardict['dm_gp']
             wave += np.dot(T[:,idx], b[idx])
             ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
+        elif comp == 'scattering':
+            idx = pardict['scattering_gp']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave * (psr.freqs**4) # * const.DM_K * 1e12)
         elif comp == 'red':
             idx = pardict['red noise']
             wave += np.dot(T[:,idx], b[idx])

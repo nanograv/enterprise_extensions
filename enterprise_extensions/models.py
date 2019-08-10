@@ -1940,7 +1940,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 ###  PTA models from paper  ###
 ###############################
 
-def model_singlepsr_noise(psr, red_var=False, psd='powerlaw', red_select=None,
+def model_singlepsr_noise(psr, red_var=True, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
