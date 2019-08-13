@@ -1176,12 +1176,11 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
-                    select=None, break_flat=False, break_flat_fq=None):
+                    select=None, modes=None, wgts=None,
+                    break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
-
         1. Red noise modeled as a power-law with 30 sampling frequencies
-
     :param psd:
         PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
     :param prior:
@@ -1198,7 +1197,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
+               'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
@@ -1218,6 +1218,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # different PSD function parameters
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+        elif psd == 'powerlaw_genmodes':
+            pl = powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
         elif psd == 'turnover':
             kappa = parameter.Uniform(0, 7)
             lf0 = parameter.Uniform(-9, -7)
@@ -1253,25 +1255,33 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         selection = selections.Selection(selections.no_selection)
 
     if break_flat:
-        delta = parameter.Constant(0)
+        log10_A_flat = parameter.Uniform(-20, -11)
+        gamma_flat = parameter.Constant(0)
+        pl_flat = utils.powerlaw(log10_A=log10_A_flat, gamma=gamma_flat)
+
         freqs = 1.0 * np.arange(1, components+1) / Tspan
-        
-        if break_flat_fq is not None:
-            log10_fb = parameter.Constant(np.log10(break_flat_fq))
-        else:
-            log10_fb = parameter.Uniform(np.log10(freqs[1]), np.log10(freqs[28]))
+        components_low = sum(f < break_flat_fq for f in freqs)
+        if components_low < 1.5:
+            components_low = 2
 
-        rn = broken_powerlaw(log10_A=log10_A, gamma=gamma, delta=delta, log10_fb=log10_fb)
+        rn = gp_signals.FourierBasisGP(pl, components=components_low, Tspan=Tspan,
+                                       coefficients=coefficients, selection=selection)
 
+        rn_flat = gp_signals.FourierBasisGP(pl_flat, modes=freqs[components_low:],
+                                            coefficients=coefficients, selection=selection,
+                                            name='red_noise_hf')
+        rn = rn + rn_flat
     else:
         rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
-                                    coefficients=coefficients, selection=selection)
+                                       coefficients=coefficients, selection=selection,
+                                       modes=modes)
 
     if select == 'band+': # Add the common component as well
         rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients)
 
     return rn
+
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', Tspan=None, components=30, gamma_val=None,
