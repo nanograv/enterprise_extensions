@@ -68,6 +68,18 @@ def linear_interp_basis_dm(toas, freqs, dt=30*86400):
 
     return U * Dm[:, None], avetoas
 
+# linear interpolation basis in time with nu^-4 scaling
+@signal_base.function
+def linear_interp_basis_scattering(toas, freqs, dt=30*86400):
+
+    # get linear interpolation basis in time
+    U, avetoas = utils.linear_interp_basis(toas, dt=dt)
+
+    # scale with radio frequency
+    Dm = (1400/freqs)**4
+
+    return U * Dm[:, None], avetoas
+
 # linear interpolation in radio frequcny
 @signal_base.function
 def linear_interp_basis_freq(freqs, df=64):
@@ -82,30 +94,46 @@ def dmx_ridge_prior(avetoas, log10_sigma=-7):
 
 # quasi-periodic kernel for DM
 @signal_base.function
-def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, gam_p=1, p=1):
+def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, log10_gam_p=0, log10_p=0):
 
     r = np.abs(avetoas[None, :] - avetoas[:, None])
 
     # convert units to seconds
     sigma = 10**log10_sigma
     l = 10**log10_ell * 86400
-    p *= 3.16e7
+    p = 10**log10_p * 3.16e7
+    gam_p = 10**log10_gam_p
     d = np.eye(r.shape[0]) * (sigma/500)**2
     K = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2) + d
     return K
 
 # squared-exponential kernel for FD
 @signal_base.function
-def se_kernel(avefreqs, log10_sigma=-7, log10_lam=np.log10(1000)):
+def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
+    
     tm = np.abs(avefreqs[None, :] - avefreqs[:, None])
+    
     lam = 10**log10_lam
     sigma = 10**log10_sigma
     d = np.eye(tm.shape[0]) * (sigma/500)**2
     return sigma**2 * np.exp(-tm**2/2/lam) + d
 
+# squared-exponential kernel for DM
+@signal_base.function
+def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
+    
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+    
+    # Convert everything into seconds
+    l = 10**log10_ell * 86400
+    sigma = 10**log10_sigma
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    K = sigma**2 * np.exp(-r**2/2/l**2) + d
+    return K
+
 # quantization matrix in time and radio frequency to cut down on the kernel size.
 @signal_base.function
-def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
+def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_idx=2):
     if df is None:
         dfs = [(600, 1000), (1000, 1900), (1900, 3000), (3000, 5000)]
     else:
@@ -142,7 +170,7 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
         nctot += nn
 
     if dm:
-         weights = (1400/freqs)**2
+         weights = (1400/freqs)**dm_idx
     else:
         weights = np.ones_like(freqs)
 
@@ -152,8 +180,8 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False):
 # kernel is the product of a quasi-periodic time kernel and
 # a rational-quadratic frequency kernel.
 @signal_base.function
-def tf_kernel(labels, log10_sigma=-7, log10_ell=2, gam_p=1,
-              p=1, log10_ell2=4, alpha_wgt=2):
+def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
+              log10_p=0, log10_ell2=4, log10_alpha_wgt=0):
 
     avetoas = labels['avetoas']
     avefreqs = labels['avefreqs']
@@ -165,11 +193,38 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, gam_p=1,
     sigma = 10**log10_sigma
     l = 10**log10_ell * 86400
     l2 = 10**log10_ell2
-    p *= 3.16e7
+    p = 10**log10_p * 3.16e7
+    gam_p = 10**log10_gam_p
+    alpha_wgt = 10**log10_alpha_wgt
+    
     d = np.eye(r.shape[0]) * (sigma/500)**2
     Kt = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2)
     Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
 
+    return Kt * Kv + d
+
+# kernel is the product of a squared-exponential time kernel and
+# a rational-quadratic frequency kernel
+@signal_base.function
+def sf_kernel(labels, log10_sigma=-7, log10_ell=2, 
+              log10_ell2=4, log10_alpha_wgt=0):
+    
+    avetoas = labels['avetoas']
+    avefreqs = labels['avefreqs']
+    
+    r = np.abs(avetoas[None, :] - avetoas[:, None])
+    r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
+    
+    # Convert everything into seconds
+    l = 10**log10_ell * 86400
+    sigma = 10**log10_sigma
+    l2 = 10**log10_ell2
+    alpha_wgt = 10**log10_alpha_wgt
+    
+    d = np.eye(r.shape[0]) * (sigma/500)**2
+    Kt = sigma**2 * np.exp(-r**2/2/l**2)
+    Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
+    
     return Kt * Kv + d
 
 @signal_base.function
@@ -188,19 +243,23 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     """
     t0 *= const.day
     tau = 10**log10_tau * const.day
-    wf = 10**log10_Amp * np.heaviside(toas - t0, 1) * \
-        np.exp(- (toas - t0) / tau)
+    ind = np.where(toas > t0)[0]
+    wf = 10**log10_Amp * np.heaviside(toas - t0, 1) 
+    wf[ind] *= np.exp(- (toas[ind] - t0) / tau)
 
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
 def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
-                    t0=54000, log10_tau=1.7, idx=2):
+                   t0=54000, log10_tau_pre=1.7, log10_tau_post=1.7, 
+                   symmetric=False, idx=2):
     """
     Chromatic exponential-cusp delay term in TOAs.
 
     :param t0: time of exponential minimum [MJD]
-    :param tau: 1/e time of exponential [s]
+    :param tau_pre: 1/e time of exponential before peak [s]
+    :param tau_post: 1/e time of exponential after peak[s]
+    :param symmetric: whether or not tau_pre = tau_post
     :param log10_Amp: amplitude of cusp
     :param sign_param: sign of waveform
     :param idx: index of chromatic dependence
@@ -208,12 +267,83 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     :return wf: delay time-series [s]
     """
     t0 *= const.day
-    tau = 10**log10_tau * const.day
-    wf = (10**log10_Amp * np.heaviside(toas - t0, 1) * \
-        np.exp(- (toas - t0) / tau)) + (10**log10_Amp * \
-        (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
-
+    if symmetric:
+        tau = 10**log10_tau_pre * const.day
+        ind_pre = np.where(toas < t0)[0]
+        ind_post = np.where(toas > t0)[0]
+        wf_pre = 10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
+        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau)
+        wf_post = 10**log10_Amp * np.heaviside(toas - t0, 1) 
+        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau) 
+        wf = wf_pre + wf_post
+        
+    else:
+        tau_pre = 10**log10_tau_pre * const.day
+        tau_post = 10**log10_tau_post * const.day
+        ind_pre = np.where(toas < t0)[0]
+        ind_post = np.where(toas > t0)[0]
+        wf_pre = 10**log10_Amp * (1 - np.heaviside(toas - t0, 1))
+        wf_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_pre)
+        wf_post = 10**log10_Amp * np.heaviside(toas - t0, 1) 
+        wf_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_post) 
+        wf = wf_pre + wf_post
+        
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
+
+@signal_base.function
+def chrom_dual_exp_cusp(toas, freqs, t0=54000, sign_param=-1.0,
+                        log10_Amp_1=-7, log10_tau_pre_1=1.7, log10_tau_post_1=1.7,
+                        log10_Amp_2=-7, log10_tau_pre_2=1.7, log10_tau_post_2=1.7,
+                        symmetric=False, idx1=2, idx2=4):
+    """
+    Chromatic exponential-cusp delay term in TOAs.
+
+    :param t0: time of exponential minimum [MJD]
+    :param tau_pre: 1/e time of exponential before peak [s]
+    :param tau_post: 1/e time of exponential after peak[s]
+    :param symmetric: whether or not tau_pre = tau_post
+    :param log10_Amp: amplitude of cusp
+    :param sign_param: sign of waveform
+    :param idx: index of chromatic dependence
+
+    :return wf: delay time-series [s]
+    """
+    t0 *= const.day
+    ind_pre = np.where(toas < t0)[0]
+    ind_post = np.where(toas > t0)[0]
+    if symmetric:
+        tau_1 = 10**log10_tau_pre_1 * const.day
+        wf_1_pre = 10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
+        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1)
+        wf_1_post = 10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
+        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1) 
+        wf_1 = wf_1_pre + wf_1_post
+        
+        tau_2 = 10**log10_tau_pre_2 * const.day
+        wf_2_pre = 10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
+        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2)
+        wf_2_post = 10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
+        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2) 
+        wf_2 = wf_2_pre + wf_2_post
+        
+    else:
+        tau_1_pre = 10**log10_tau_pre_1 * const.day
+        tau_1_post = 10**log10_tau_post_1 * const.day
+        wf_1_pre = 10**log10_Amp_1 * (1 - np.heaviside(toas - t0, 1))
+        wf_1_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_1_pre)
+        wf_1_post = 10**log10_Amp_1 * np.heaviside(toas - t0, 1) 
+        wf_1_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_1_post) 
+        wf_1 = wf_1_pre + wf_1_post
+        
+        tau_2_pre = 10**log10_tau_pre_2 * const.day
+        tau_2_post = 10**log10_tau_post_2 * const.day
+        wf_2_pre = 10**log10_Amp_2 * (1 - np.heaviside(toas - t0, 1))
+        wf_2_pre[ind_pre] *= np.exp(- (t0 - toas[ind_pre]) / tau_2_pre)
+        wf_2_post = 10**log10_Amp_2 * np.heaviside(toas - t0, 1) 
+        wf_2_post[ind_post] *= np.exp(- (toas[ind_post] - t0) / tau_2_post) 
+        wf_2 = wf_2_pre + wf_2_post
+        
+    return np.sign(sign_param) * ( wf_1 * (1400 / freqs) ** idx1 + wf_2 * (1400 / freqs) ** idx2)
 
 @signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
@@ -307,15 +437,6 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     return F * Dm[:, None], Ffreqs
 
 @signal_base.function
-def powerlaw_genmodes(f, log10_A=-16, gamma=5, components=2, wgts=None):
-    if wgts is not None:
-        df = wgts**2
-    else:
-        df = np.diff(np.concatenate((np.array([0]), f[::components])))
-    return ((10**log10_A)**2 / 12.0 / np.pi**2 *
-            const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, components))
-
-@signal_base.function
 def free_spectrum(f, log10_rho=None):
     """
     Free spectral model. PSD  amplitude at each frequency
@@ -391,6 +512,22 @@ def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
     hcf = (10**log10_A * (f / const.fyr) ** ((3-gamma) / 2) *
             (1.0 + (f / 10**lfk)) ** delta / np.sqrt(1 + (10**lfb / f) ** kappa))
+    return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
+
+@signal_base.function
+def broken_powerlaw(f, log10_A, gamma, delta, log10_fb, kappa=0.1):
+    """
+    Generic broken powerlaw spectrum.
+    :param f: sampling frequencies
+    :param A: characteristic strain amplitude [set for gamma at f=1/yr]
+    :param gamma: negative slope of PSD for f > f_break [set for comparison at f=1/yr (default 13/3)]
+    :param delta: slope for frequencies < f_break
+    :param log10_fb: log10 transition frequency at which slope switches from gamma to delta
+    :param kappa: smoothness of transition (Default = 0.1)
+    """
+    df = np.diff(np.concatenate((np.array([0]), f[::2])))
+    hcf = (10**log10_A * (f / const.fyr) ** ((3-gamma) / 2) *
+          (1 + (f / 10**log10_fb) ** (1/kappa)) ** (kappa * (gamma - delta) / 2))
     return hcf**2 / 12 / np.pi**2 / f**3 * np.repeat(df, 2)
 
 @signal_base.function
@@ -1043,9 +1180,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
-
         1. Red noise modeled as a power-law with 30 sampling frequencies
-
     :param psd:
         PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
     :param prior:
@@ -1113,7 +1248,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # define selection by observing backend
         selection = selections.Selection(selections.by_backend)
     elif select == 'band' or select == 'band+':
-    	# define selection by observing band
+        # define selection by observing band
         selection = selections.Selection(selections.by_band)
     else:
         # define no selection
@@ -1142,10 +1277,11 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                        modes=modes)
 
     if select == 'band+': # Add the common component as well
-    	rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+        rn = rn + gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                    coefficients=coefficients)
 
     return rn
+
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', Tspan=None, components=30, gamma_val=None,
@@ -1223,25 +1359,42 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # Periodic GP kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
-            period = parameter.Uniform(0.2, 5.0)
-            gam_p = parameter.Uniform(0.1, 30.0)
+            log10_p = parameter.Uniform(-4, 1)
+            log10_gam_p = parameter.Uniform(-3, 2)
 
             dm_basis = linear_interp_basis_dm(dt=15*86400)
-            dm_prior = periodic_kernel(log10_sigma=log10_sigma,
-                                    log10_ell=log10_ell, gam_p=gam_p, p=period)
+            dm_prior = periodic_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell, 
+                                       log10_gam_p=log10_gam_p, log10_p=log10_p)
         elif nondiag_kernel == 'periodic_rfband':
             # Periodic GP kernel for DM with RQ radio-frequency dependence
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
             log10_ell2 = parameter.Uniform(2, 7)
-            alpha_wgt = parameter.Uniform(0.2, 6)
-            period = parameter.Uniform(0.2, 5.0)
-            gam_p = parameter.Uniform(0.1, 30.0)
-
+            log10_alpha_wgt = parameter.Uniform(-4, 1)
+            log10_p = parameter.Uniform(-4, 1)
+            log10_gam_p = parameter.Uniform(-3, 2)
+            
             dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
             dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
-                                 gam_p=gam_p, p=period, alpha_wgt=alpha_wgt,
-                                 log10_ell2=log10_ell2)
+                                 log10_gam_p=log10_gam_p, log10_p=log10_p, 
+                                 log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
+        elif nondiag_kernel == 'sq_exp':
+            # squared-exponential GP kernel for DM
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+            
+            dm_basis = linear_interp_basis_dm(dt=15*86400)
+            dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
+        elif nondiag_kernel == 'sq_exp_rfband':
+            # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+            log10_ell2 = parameter.Uniform(2, 7)
+            log10_alpha_wgt = parameter.Uniform(-4, 1)
+            
+            dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True)
+            dm_prior = sf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
+                                 log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
@@ -1250,6 +1403,63 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             dm_prior = dmx_ridge_prior(log10_sigma=log10_sigma)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
+                              coefficients=coefficients)
+
+    return dmgp
+
+def scattering_noise_block(kernel='periodic', coefficients=False):
+    """
+    Returns Scattering noise model:
+
+        1. Scattering noise modeled as a power-law with 30 sampling frequencies
+
+    :param psd:
+        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+    :param prior:
+        Prior on log10_A. Default if "log-uniform". Use "uniform" for
+        upper limits.
+    :param Tspan:
+        Sets frequency sampling f_i = i / Tspan. Default will
+        use overall time span for indivicual pulsar.
+    :param components:
+        Number of frequencies in sampling of DM-variations.
+    :param gamma_val:
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess DM-variations
+    """
+    #gp_kernel == 'nondiag':
+    if kernel == 'periodic':
+        # Periodic GP kernel for DM
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_ell = parameter.Uniform(1, 4)
+        log10_p = parameter.Uniform(-4, 1)
+        log10_gam_p = parameter.Uniform(-3, 2)
+
+        dm_basis = linear_interp_basis_scattering(dt=15*86400)
+        dm_prior = periodic_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell, 
+                                   log10_gam_p=log10_gam_p, log10_p=log10_p)
+    elif kernel == 'periodic_rfband':
+        # Periodic GP kernel for DM with RQ radio-frequency dependence
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_ell = parameter.Uniform(1, 4)
+        log10_ell2 = parameter.Uniform(2, 7)
+        log10_alpha_wgt = parameter.Uniform(-4, 1)
+        log10_p = parameter.Uniform(-4, 1)
+        log10_gam_p = parameter.Uniform(-3, 2)
+
+        dm_basis = get_tf_quantization_matrix(df=200, dt=15*86400, dm=True, idx=4)
+        dm_prior = tf_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell,
+                             log10_gam_p=log10_gam_p, log10_p=log10_p, 
+                             log10_alpha_wgt=log10_alpha_wgt, log10_ell2=log10_ell2)
+    elif kernel == 'sq_exp':
+        # squared-exponential kernel for DM
+        log10_sigma = parameter.Uniform(-10, -4)
+        log10_ell = parameter.Uniform(1, 4)
+
+        dm_basis = linear_interp_basis_scattering(dt=15*86400)
+        dm_prior = se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
+
+    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='scattering_gp',
                               coefficients=coefficients)
 
     return dmgp
@@ -1275,7 +1485,7 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
 
     return dm1yr
 
-def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
+def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -1285,7 +1495,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param sign:
-        [boolean] allow for positive or negative exponential features.
+        set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
 
     :return dmexp:
@@ -1293,9 +1503,11 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     """
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
-    if sign:
+    log10_tau_dmexp = parameter.Uniform(0, 2.5)
+    if sign == 'vary':
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'positive':
+        sign_param = 1.0
     else:
         sign_param = -1.0
     wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
@@ -1305,7 +1517,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
 
     return dmexp
 
-def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
+def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative', symmetric=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -1315,7 +1527,7 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param sign:
-        [boolean] allow for positive or negative exponential features.
+        set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
 
     :return dmexp:
@@ -1323,14 +1535,69 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     """
     t0_dm_cusp = parameter.Uniform(tmin,tmax)
     log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
-    log10_tau_dm_cusp = parameter.Uniform(np.log10(5), np.log10(100))
-    if sign:
+    log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
+    
+    if sign == 'vary':
         sign_param = parameter.Uniform(-1.0, 1.0)
-    else:
+    elif sign == 'positive':
         sign_param = 1.0
-    wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp,
-                         t0=t0_dm_cusp, log10_tau=log10_tau_dm_cusp,
-                         sign_param=sign_param, idx=idx)
+    else:
+        sign_param = -1.0
+        
+    if symmetric:
+        log10_tau_dm_cusp_post = 1
+    else:
+        log10_tau_dm_cusp_post = parameter.Uniform(0, 2.5)
+        
+    wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp, sign_param=sign_param,
+                        t0=t0_dm_cusp, log10_tau_pre=log10_tau_dm_cusp_pre, 
+                        log10_tau_post=log10_tau_dm_cusp_post, symmetric=symmetric, 
+                        idx=idx)
+    dm_cusp = deterministic_signals.Deterministic(wf, name=name)
+
+    return dm_cusp
+
+def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative', symmetric=False, name='dual_dm_cusp'):
+    """
+    Returns chromatic exponential cusp (i.e. TOA advance):
+
+    :param tmin, tmax:
+        search window for exponential cusp time.
+    :param idx:
+        index of radio frequency dependence (i.e. DM is 2). If this is set
+        to 'vary' then the index will vary from 1 - 6
+    :param sign:
+        set sign of dip: 'positive', 'negative', or 'vary'
+    :param name: Name of signal
+
+    :return dmexp:
+        chromatic exponential dip waveform.
+    """
+    t0_dual_cusp = parameter.Uniform(tmin,tmax)
+    log10_Amp_dual_cusp_1 = parameter.Uniform(-10, -2)
+    log10_Amp_dual_cusp_2 = parameter.Uniform(-10, -2)
+    log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
+    log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
+    
+    if sign == 'vary':
+        sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'positive':
+        sign_param = 1.0
+    else:
+        sign_param = -1.0
+        
+    if symmetric:
+        log10_tau_dual_cusp_post_1 = 1
+        log10_tau_dual_cusp_post_2 = 1
+    else:
+        log10_tau_dual_cusp_post_1 = parameter.Uniform(0, 2.5)
+        log10_tau_dual_cusp_post_2 = parameter.Uniform(0, 2.5)
+        
+    wf = chrom_dual_exp_cusp(t0=t0_dual_cusp, sign_param=sign_param, symmetric=symmetric,
+                        log10_Amp_1=log10_Amp_dual_cusp_1, log10_tau_pre_1=log10_tau_dual_cusp_pre_1, 
+                        log10_tau_post_1=log10_tau_dual_cusp_post_1, log10_Amp_2=log10_Amp_dual_cusp_2,
+                        log10_tau_pre_2=log10_tau_dual_cusp_pre_2, log10_tau_post_2=log10_tau_dual_cusp_post_2, 
+                        idx1=idx1, idx2=idx2)
     dm_cusp = deterministic_signals.Deterministic(wf, name=name)
 
     return dm_cusp
@@ -1355,8 +1622,8 @@ def dmx_signal(dmx_data, name='dmx_signal'):
 
     return dmx_sig
 
-def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
-                          name='chromatic', components=30,
+def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4, 
+                          Tspan=None, name='chromatic', components=30,
                           coefficients=False):
     """
     Returns GP chromatic noise model :
@@ -1375,7 +1642,10 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
 
     """
     if psd in ['powerlaw', 'turnover']:
-        log10_A = parameter.Uniform(-18, -11)
+        if prior == 'uniform':
+            log10_A = parameter.LinearExp(-18, -11)
+        elif prior == 'log-uniform':
+            log10_A = parameter.Uniform(-18, -11)
         gamma = parameter.Uniform(0, 7)
 
         # PSD
@@ -1388,12 +1658,16 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
                                  lf0=lf0, kappa=kappa)
 
     if psd == 'spectrum':
-        log10_rho = parameter.LinearExp(-9, -4, size=components)
+        if prior == 'uniform':
+            log10_rho = parameter.LinearExp(-10, -4, size=components)
+        elif prior == 'log-uniform':
+            log10_rho = parameter.Uniform(-10, -4, size=components)
         cpl = free_spectrum(log10_rho=log10_rho)
 
     # set up signal
-    if idx == 'vary':
-        c_idx = parameter.Uniform(0, 6)
+    # JS: This does not work with basis_quad function below
+    #if idx == 'vary':
+    #    c_idx = parameter.Uniform(0, 6)
 
     # quadratic piece
     basis_quad = chromatic_quad_basis(idx=idx)
@@ -1410,8 +1684,7 @@ def chromatic_noise_block(psd='powerlaw', idx=4, Tspan=None,
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False,
-                           modes=None, wgts=None):
+                           orf=None, name='gw', coefficients=False):
     """
     Returns common red noise model:
 
@@ -1443,7 +1716,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'turnover_knee']:
+    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -1464,8 +1737,6 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         # common red noise PSD
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
-        elif psd == 'powerlaw_genmodes':
-            cpl = powerlaw_genmodes(log10_A=log10_Agw, gamma=gamma_gw, wgts=wgts)
         elif psd == 'turnover':
             kappa_name = '{}_kappa'.format(name)
             lf0_name = '{}_log10_fbend'.format(name)
@@ -1498,11 +1769,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        modes=modes, name=name)
+                                        name=name)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], coefficients=coefficients,
+        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf], #coefficients=coefficients,
                                               components=components, Tspan=Tspan,
-                                              modes=modes, name=name)
+                                              name=name)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
@@ -1733,7 +2004,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 ###############################
 
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
-                          red_var=False, psd='powerlaw', red_select=None,
+                          red_var=True, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
@@ -1741,11 +2012,17 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
                           dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, dm_chrom=False,
                           dmchrom_psd='powerlaw', dmchrom_idx=4,
-                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
+                          dm_expdip=False, dmexp_sign='negative', dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
-                          dm_cusp=False, dm_cusp_sign=False, dm_cusp_idx=2,
-                          dm_cusp_tmin=None, dm_cusp_tmax=None, coefficients=False):
+                          dm_cusp=False, dm_cusp_sign='negative', dm_cusp_idx=2,
+                          dm_cusp_tmin=None, dm_cusp_tmax=None, dm_cusp_sym=False,
+                          num_dm_cusps=1, dm_cusp_seqname=None, 
+                          dm_dual_cusp=False, dm_dual_cusp_tmin=None, dm_dual_cusp_tmax=None,
+                          dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4, dm_dual_cusp_sym=False,
+                          dm_dual_cusp_sign='negative', num_dm_dual_cusps=1, dm_dual_cusp_seqname=None,
+                          dm_scattering=False, dm_sc_kernel='sq_exp',
+                          coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1774,17 +2051,31 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
     :param dmchrom_psd: power-spectral density of chromatic noise
     :param dmchrom_idx: frequency scaling of chromatic noise
     :param dm_expdip: inclue a DM exponential dip
-    :param dmexp_sign: include a sign parameter for dip
+    :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
     :param num_dmdips: number of dm exponential dips
     :param dmdip_seqname: name of dip sequence
     :param dm_cusp: inclue a DM exponential cusp
-    :param dm_cusp_sign: include a sign parameter for cusp
+    :param dm_cusp_sign: set the sign parameter for cusp
     :param dm_cusp_idx: chromatic index of exponential cusp
     :param dm_cusp_tmin: sampling minimum of DM cusp epoch
     :param dm_cusp_tmax: sampling maximum of DM cusp epoch
+    :param dm_cusp_sym: make exponential cusp symmetric
+    :param num_dm_cusps: number of dm exponential cusps
+    :param dm_cusp_seqname: name of cusp sequence
+    :param dm_dual_cusp: include a DM cusp with two chromatic indices
+    :param dm_dual_cusp_tmin: sampling minimum of DM dual cusp epoch
+    :param dm_dual_cusp_tmax: sampling maximum of DM dual cusp epoch
+    :param dm_dual_cusp_idx1: first chromatic index of DM dual cusp
+    :param dm_dual_cusp_idx2: second chromatic index of DM dual cusp
+    :param dm_dual_cusp_sym: make dual cusp symmetric
+    :param dm_dual_cusp_sign: set the sign parameter for dual cusp
+    :param num_dm_dual_cusps: number of DM dual cusps
+    :param dm_dual_cusp_seqname: name of dual cusp sequence
+    :param dm_scattering: whether to explicitly model DM scattering variations
+    :param dm_sc_kernel: type of time-domain DM GP kernel for the scattering variations
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -1809,9 +2100,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
     # red noise
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
-                            components=components, gamma_val=gamma_val,
-                            coefficients=coefficients, select=red_select)
-
+                             components=components, gamma_val=gamma_val,
+                             coefficients=coefficients, select=red_select)
 
     # DM variations
     if dm_var:
@@ -1833,6 +2123,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components,
                                        coefficients=coefficients)
+        if dm_scattering:
+            s += scattering_noise_block(kernel=dm_sc_kernel, coefficients=coefficients)
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = psr.toas.min() / 86400
@@ -1856,10 +2148,34 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
             else:
                 tmin = dm_cusp_tmin
                 tmax = dm_cusp_tmax
-            s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
-                                        idx=dm_cusp_idx,
-                                        sign=dm_cusp_sign,
-                                        name='dm_cusp')
+            if dm_cusp_seqname is not None:
+                cusp_name_base = 'dm_cusp_'+dm_cusp_seqname+'_'
+            else:
+                cusp_name_base = 'dm_cusp_'
+            for dd in range(1,num_dm_cusps+1):
+                s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
+                                         idx=dm_cusp_idx,
+                                         sign=dm_cusp_sign,
+                                         symmetric=dm_cusp_sym,
+                                         name=cusp_name_base+str(dd))
+        if dm_dual_cusp:
+            if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_dual_cusp_tmin
+                tmax = dm_dual_cusp_tmax
+            if dm_dual_cusp_seqname is not None:
+                dual_cusp_name_base = 'dm_dual_cusp_'+dm_cusp_seqname+'_'
+            else:
+                dual_cusp_name_base = 'dm_dual_cusp_'
+            for dd in range(1,num_dm_dual_cusps+1):
+                s += dm_dual_exp_cusp(tmin=tmin, tmax=tmax,
+                                      idx1=dm_dual_cusp_idx1,
+                                      idx2=dm_dual_cusp_idx2,
+                                      sign=dm_dual_cusp_sign,
+                                      symmetric=dm_dual_cusp_sym,
+                                      name=dual_cusp_name_base+str(dd))
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
@@ -2138,13 +2454,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     if orf is None:
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
-                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
-                                    name='gw')
+                                    gamma_val=gamma_common, name='gw')
     elif orf == 'hd':
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                     components=common_components, coefficients=coefficients,
-                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
-                                    orf='hd', name='gw')
+                                    gamma_val=gamma_common, orf='hd', name='gw')
 
     # DM variations
     if dm_var:
