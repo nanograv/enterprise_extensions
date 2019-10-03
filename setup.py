@@ -30,7 +30,7 @@ setup(
     name='enterprise_extensions',
     version=get_version(),
     description='Extensions, model shortcuts, and utilities for the enterprise PTA analysis framework.',
-    long_description=long_description=readme + '\n\n' + history,
+    long_description=readme + '\n\n' + history,
     classifiers=[
         'Topic :: Scientific/Engineering :: Astronomy',
         'Topic :: Scientific/Engineering :: Physics',
