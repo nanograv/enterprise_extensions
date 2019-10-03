@@ -16,7 +16,7 @@ from enterprise.signals import utils
 from enterprise import constants as const
 
 from enterprise_extensions import model_utils
-import .enterprise_base as eb
+import enterprise_extensions.enterprise_base as eb
 
 
 @signal_base.function

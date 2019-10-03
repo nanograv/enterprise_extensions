@@ -16,7 +16,7 @@ from enterprise.signals import utils
 from enterprise import constants as const
 
 from enterprise_extensions import model_utils
-import .enterprise_base as eb
+import enterprise_extensions.enterprise_base as eb
 
 def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
               skyloc=None, logmin=-18, logmax=-11,

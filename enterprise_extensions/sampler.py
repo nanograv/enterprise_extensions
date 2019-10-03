@@ -12,12 +12,8 @@ import acor
 from enterprise import constants as const
 from enterprise.signals import signal_base
 
-try:
-    import cPickle as pickle
-except:
-    import pickle
+import pickle
 
-from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
@@ -72,22 +68,26 @@ class JumpProposal(object):
 
             if pickled_distr is None:
                 self.empirical_distr = None
-            else:
-                # only save the empirical distributions for parameters that are in the model
-                mask = []
-                for idx,d in enumerate(pickled_distr):
-                    if d.ndim == 1:
-                        if d.param_name in pta.param_names:
-                            mask.append(idx)
-                    else:
-                        if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
-                            mask.append(idx)
-                if len(mask) > 1:
-                    self.empirical_distr = [pickled_distr[m] for m in mask]
-                else:
-                    self.empirical_distr = None
+
+        elif isinstance(empirical_distr,list):
+            pass
         else:
             self.empirical_distr = None
+
+        if self.empirical_distr is not None:
+            # only save the empirical distributions for parameters that are in the model
+            mask = []
+            for idx,d in enumerate(self.empirical_distr):
+                if d.ndim == 1:
+                    if d.param_name in pta.param_names:
+                        mask.append(idx)
+                else:
+                    if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                        mask.append(idx)
+            if len(mask) > 1:
+                self.empirical_distr = [self.empirical_distr[m] for m in mask]
+            else:
+                self.empirical_distr = None
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
