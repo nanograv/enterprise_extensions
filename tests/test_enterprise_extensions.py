@@ -5,8 +5,7 @@
 
 import pytest
 
-
-from enterprise_extensions import enterprise_extensions
+from enterprise_extensions import deterministic
 
 
 @pytest.fixture
