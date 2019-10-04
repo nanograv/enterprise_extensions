@@ -17,7 +17,7 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 import enterprise_extensions.enterprise_base as eb
-import 
+
 #### Extra model components not part of base enterprise ####
 
 # timing model delay
