@@ -25,16 +25,17 @@ install:
 
     - sudo apt-get update
 
-
     - pip install -r requirements.txt
     - pip install -r requirements_dev.txt
     - pip list | grep -E "numpy|scipy|Cython|scikit-sparse"
     - pip install git+https://github.com/vallis/libstempo.git --install-option="--with-tempo2=$TEMPO2"
     - pip install git+https://github.com/nanograv/enterprise.git
-    - pip install -U tox-travis
+    - python setup.py install
+    # - pip install -U tox-travis
 
 script:
-    - tox
+    - pytest
+    #- tox
     #- coverage run --source enterprise setup.py test
     #- make lint
 
