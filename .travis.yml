@@ -31,8 +31,8 @@ install:
     - pip install git+https://github.com/vallis/libstempo.git --install-option="--with-tempo2=$TEMPO2"
     - pip install git+https://github.com/nanograv/enterprise@master
 
-# script:
-    #- make test
+script:
+    - pytest
     #- coverage run --source enterprise setup.py test
     #- make lint
 
