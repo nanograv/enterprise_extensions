@@ -29,7 +29,7 @@ install:
     - pip install -r requirements_dev.txt
     - pip list | grep -E "numpy|scipy|Cython|scikit-sparse"
     - pip install git+https://github.com/dfm/acor.git
-    - pip install got+https://github.com/jellis18/PTMCMCSampler.git
+    - pip install git+https://github.com/jellis18/PTMCMCSampler.git
     - pip install git+https://github.com/vallis/libstempo.git --install-option="--with-tempo2=$TEMPO2"
     - pip install git+https://github.com/nanograv/enterprise.git
     - python setup.py install
