@@ -155,7 +155,8 @@ class HyperModel(object):
 
         return q, float(lqxy)
 
-    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True, empirical_distr=None):
+    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
+                      empirical_distr=None):
         """
         Sets up an instance of PTMCMC sampler.
 
