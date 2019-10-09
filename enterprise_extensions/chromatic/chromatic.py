@@ -19,6 +19,19 @@ from enterprise import constants as const
 from enterprise_extensions import model_utils
 import enterprise_extensions.enterprise_base as eb
 
+__all__ = ['chrom_exp_decay',
+           'chrom_exp_cusp',
+           'chrom_dual_exp_cusp',
+           'chrom_yearly_sinusoid',
+           'chromatic_quad_basis',
+           'chromatic_quad_prior',
+           'dmx_delay',
+           'dm_exponential_dip',
+           'dm_exponential_cusp',
+           'dm_dual_exp_cusp',
+           'dmx_signal',
+           'dm_annual_signal',
+          ]
 
 @signal_base.function
 def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
