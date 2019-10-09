@@ -49,6 +49,15 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     return F * Dm[:, None], Ffreqs
 
 @signal_base.function
+def powerlaw_genmodes(f, log10_A=-16, gamma=5, components=2, wgts=None):
+    if wgts is not None:
+        df = wgts**2
+    else:
+        df = np.diff(np.concatenate((np.array([0]), f[::components])))
+    return ((10**log10_A)**2 / 12.0 / np.pi**2 *
+            const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, components))
+
+@signal_base.function
 def free_spectrum(f, log10_rho=None):
     """
     Free spectral model. PSD  amplitude at each frequency
