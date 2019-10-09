@@ -19,6 +19,14 @@ from enterprise import constants as const
 from enterprise_extensions import model_utils
 import enterprise_extensions.enterprise_base as eb
 
+__all__ =['white_noise_block',
+          'red_noise_block',
+          'dm_noise_block',
+          'scattering_noise_block',
+          'chromatic_noise_block',
+          'common_red_noise_block',
+          ]
+
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                       efac1=False, select='backend', name=None):
     """
