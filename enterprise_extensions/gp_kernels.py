@@ -19,6 +19,18 @@ from enterprise import constants as const
 from enterprise_extensions import model_utils
 import enterprise_extensions.enterprise_base as eb
 
+__all__ = ['linear_interp_basis_dm',
+           'linear_interp_basis_scattering',
+           'linear_interp_basis_freq',
+           'dmx_ridge_prior',
+           'periodic_kernel',
+           'se_kernel',
+           'se_dm_kernel',
+           'get_tf_quantization_matrix',
+           'tf_kernel',
+           'sf_kernel',
+           ]
+
 
 # linear interpolation basis in time with nu^-2 scaling
 @signal_base.function
