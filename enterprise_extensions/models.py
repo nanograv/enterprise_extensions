@@ -1966,6 +1966,10 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
+    tmin = psr.toas.min() / 86400
+    tmax = psr.toas.max() / 86400
+    components = int((tmax-tmin)/60)  # components down to 60 days
+
     # timing model
     s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
                                coefficients=coefficients)
@@ -2279,7 +2283,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     if orf is None:
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, coefficients=coefficients,
-                                    gamma_val=gamma_common, name='gw')
+                                    gamma_val=gamma_common, name='red')
     elif orf == 'hd':
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, gamma_val=gamma_common,
@@ -2288,7 +2292,17 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, gamma_val=gamma_common,
                                     orf='dipole', name='dipole')
-
+    elif orf == 'monopole':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='monopole', name='monopole')
+    elif orf == 'monopole+':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, coefficients=coefficients,
+                                    gamma_val=gamma_common, name='red')
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='monopole', name='monopole')
 
     # DM variations
     if dm_var:
