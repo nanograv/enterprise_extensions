@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
@@ -101,7 +102,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
         Name of CW signal.
     """
 
-    if dist_prior == None:
+    if dist_prior is None:
         log10_dist = None
 
         if amp_prior == 'uniform':

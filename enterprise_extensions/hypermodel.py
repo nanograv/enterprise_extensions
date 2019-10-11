@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
@@ -16,7 +17,7 @@ from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-from .sampler import JumpProposal
+from .sampler import JumpProposal, get_parameter_groups
 
 class HyperModel(object):
     """
@@ -155,7 +156,8 @@ class HyperModel(object):
 
         return q, float(lqxy)
 
-    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True, empirical_distr=None):
+    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
+                      empirical_distr=None):
         """
         Sets up an instance of PTMCMC sampler.
 
