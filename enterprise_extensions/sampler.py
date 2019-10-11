@@ -2,16 +2,8 @@
 from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
-import scipy.stats as scistats
-import scipy.linalg as sl
-from glob import glob
-import json
 import os
-import hashlib
-import acor
 from enterprise import constants as const
-from enterprise.signals import signal_base
-
 import pickle
 
 from enterprise import constants as const
@@ -222,8 +214,6 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(-10, -2)
         elif 'log10_tau' in dmname:
             q[idx] = np.random.uniform(0, 2.5)
-        #elif 't0' in dmname:
-        #    q[idx] = np.random.uniform(53393.0, 57388.0)
         elif 'sign_param' in dmname:
             q[idx] = np.random.uniform(-1.0, 1.0)
 
@@ -465,6 +455,7 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+
 def get_global_parameters(pta):
     """Utility function for finding global parameters."""
     pars = []
@@ -484,7 +475,7 @@ def get_parameter_groups(pta):
     """Utility function to get parameter groupings for sampling."""
     params = pta.param_names
     ndim = len(params)
-    groups  = [list(np.arange(0, ndim))]
+    groups = [list(np.arange(0, ndim))]
 
     # get global and individual parameters
     gpars, ipars = get_global_parameters(pta)
@@ -501,6 +492,7 @@ def get_parameter_groups(pta):
 
     return groups
 
+
 def get_cw_groups(pta):
     """Utility function to get parameter groups for CW sampling.
     These groups should be appended to the usual get_parameter_groups()
@@ -515,6 +507,7 @@ def get_cw_groups(pta):
         groups.append(group_from_params(pta, pars))
 
     return groups
+
 
 def group_from_params(pta, params):
     gr = []

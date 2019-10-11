@@ -3,22 +3,13 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import scipy.stats as scistats
-import scipy.linalg as sl
-from glob import glob
-import json
-import os
 import acor
-from enterprise import constants as const
-from enterprise.signals import signal_base
+import matplotlib.pyplot as plt
 
 try:
     import cPickle as pickle
-except:
+except ImportError:
     import pickle
-
-from enterprise.pulsar import Pulsar
-from enterprise import constants as const
-from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 # Log-spaced frequncies
 def linBinning(T, logmode, f_min, nlin, nlog):
@@ -33,7 +24,8 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     :param nlog:    How many log frequencies we'll use
     """
     if logmode < 0:
-        raise ValueError("Cannot do log-spacing when all frequencies are linearly sampled")
+        raise ValueError("Cannot do log-spacing when all frequencies are"
+                         "linearly sampled")
 
     # First the linear spacing and weights
     df_lin = 1.0 / T
@@ -124,7 +116,7 @@ class PostProcessing(object):
         else:
             ncols, nrows = 1,1
 
-        fig = plt.figure(figsize=(15, 2*nrows))
+        plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
             plt.subplot(nrows, ncols, ii+1)
             plt.plot(self.chain[:, ii], **plot_kwargs)
@@ -139,7 +131,7 @@ class PostProcessing(object):
         else:
             ncols, nrows = 1,1
 
-        fig = plt.figure(figsize=(15, 2*nrows))
+        plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
             plt.subplot(nrows, ncols, ii+1)
             plt.hist(self.chain[:, ii], **hist_kwargs)

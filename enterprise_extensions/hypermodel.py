@@ -17,7 +17,7 @@ from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-from .sampler import JumpProposal
+from .sampler import JumpProposal, get_parameter_groups
 
 class HyperModel(object):
     """
