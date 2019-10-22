@@ -21,39 +21,6 @@ from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-# Log-spaced frequncies
-def linBinning(T, logmode, f_min, nlin, nlog):
-    """
-    Get the frequency binning for the low-rank approximations, including
-    log-spaced low-frequency coverage.
-    Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
-    :param T:       Duration experiment
-    :param logmode: From which linear mode to switch to log
-    :param f_min:   Down to which frequency we'll sample
-    :param nlin:    How many linear frequencies we'll use
-    :param nlog:    How many log frequencies we'll use
-    """
-    if logmode < 0:
-        raise ValueError("Cannot do log-spacing when all frequencies are linearly sampled")
-
-    # First the linear spacing and weights
-    df_lin = 1.0 / T
-    f_min_lin = (1.0 + logmode) / T
-    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin-1)*df_lin, nlin)
-    w_lin = np.sqrt(df_lin * np.ones(nlin))
-
-    if nlog > 0:
-        # Now the log-spacing, and weights
-        f_min_log = np.log(f_min)
-        f_max_log = np.log( (logmode+0.5)/T )
-        df_log = (f_max_log - f_min_log) / (nlog)
-        f_log = np.exp(np.linspace(f_min_log+0.5*df_log,
-                                   f_max_log-0.5*df_log, nlog))
-        w_log = np.sqrt(df_log * f_log)
-        return np.append(f_log, f_lin), np.append(w_log, w_lin)
-    else:
-        return f_lin, w_lin
-
 # New filter for different cadences
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
@@ -315,7 +282,7 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(-1.0, 1.0)
 
         return q, 0
-
+      
     def draw_from_dmexpcusp_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -500,43 +467,9 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = 'gp_sw'
+        signal_name = 'dm_sw'
 
         # draw parameter from signal model
-        param = np.random.choice(self.snames[signal_name])
-        if param.size:
-            idx2 = np.random.randint(0, param.size)
-            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
-
-        # scalar parameter
-        else:
-            q[self.pmap[str(param)]] = param.sample()
-
-        # forward-backward jump probability
-        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
-                param.get_logpdf(q[self.pmap[str(param)]]))
-
-        return q, float(lqxy)
-
-    def draw_from_signal_prior(self, x, iter, beta):
-
-        q = x.copy()
-        lqxy = 0
-        std = ['linear timing model',
-               'red noise',
-               'phys_ephem',
-               'gw',
-               'cw',
-               'bwm',
-               'gp_sw',
-               'ecorr_sherman-morrison',
-               'ecorr',
-               'efac',
-               'equad',
-               ]
-        non_std = [nm for nm in self.snames.keys() if nm not in std]
-        # draw parameter from signal model
-        signal_name = np.random.choice(non_std)
         param = np.random.choice(self.snames[signal_name])
         if param.size:
             idx2 = np.random.randint(0, param.size)
@@ -680,12 +613,12 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     if 'dmexp' in jp.snames:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
     # DM cusp prior draw
     if 'dm_cusp' in jp.snames:
         print('Adding DM exponential cusp prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
-
+        
     # DMX prior draw
     if 'dmx_signal' in jp.snames:
         print('Adding DMX prior draws...\n')
@@ -795,7 +728,7 @@ def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
     """
     Computes the Savage Dickey Bayes Factor and uncertainty.
 
-    :param samples: MCMCF samples of GWB (or common red noise) amplitude
+    :param samples: MCMC samples of GWB (or common red noise) amplitude
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
@@ -1089,12 +1022,12 @@ class HyperModel(object):
         if 'dmexp' in '\t'.join(jp.snames):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
-
+    
         # DM cusp prior draw
         if 'dm_cusp' in jp.snames:
             print('Adding DM exponential cusp prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
-
+            
         # DM annual prior draw
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
@@ -1225,6 +1158,8 @@ class HyperModel(object):
 
         return ret
 
+#########Solar Wind Modeling########
+
 def mask_filter(psr, mask):
     """filter given pulsar data by user defined mask"""
     psr._toas = psr._toas[mask]
@@ -1245,6 +1180,81 @@ def mask_filter(psr, mask):
     psr.sort_data()
 
 
+AU_light_sec = const.AU / const.c #1 AU in light seconds
+AU_pc = const.AU / const.pc #1 AU in parsecs (for DM normalization)
+
+def _dm_solar_close(n_earth,r_earth):
+    return (n_earth * AU_light_sec * AU_pc / r_earth)
+
+def _dm_solar(n_earth,theta_impact,r_earth):
+    return ( (np.pi - theta_impact) *
+            (n_earth * AU_light_sec * AU_pc
+             / (r_earth * np.sin(theta_impact))) )
+
+
+def dm_solar(n_earth,theta_impact,r_earth):
+    """
+    Calculates Dispersion measure due to 1/r^2 solar wind density model.
+    ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
+    ::param :theta_impact: angle between sun and line-of-sight to pulsar (rad)
+    ::param :r_earth :distance from Earth to Sun in (light seconds).
+    See You et al. 20007 for more details.
+    """
+    return np.where(np.pi - theta_impact >= 1e-5,
+                    _dm_solar(n_earth, theta_impact, r_earth),
+                    _dm_solar_close(n_earth, r_earth))
+
+def solar_wind(psr, n_earth=8.7):
+    """
+    Use the attributes of an enterprise Pulsar object to calculate the
+    dispersion measure due to the solar wind and solar impact angle.
+
+    param:: psr enterprise Pulsar objects
+    param:: n_earth, proton density at 1 Au
+
+    returns: DM due to solar wind (pc/cm^3) and solar impact angle (rad)
+    """
+    earth = psr.planetssb[:, 2, :3]
+    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, psr.pos_t)
+
+    theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
+
+    dm_sol_wind = dm_solar(n_earth, theta_impact, R_earth)
+
+    return dm_sol_wind, theta_impact
+
+
+def solar_wind_mask(psrs,angle_cutoff=None,std_cutoff=None):
+    """
+    Convenience function for masking TOAs lower than a certain solar impact.
+    Alternatively one can set a standard deviation limit, so that all TOAs above
+        a certain st dev away from the solar wind DM average for a given pulsar
+        can be excised.
+    param:: psrs list of enterprise Pulsar objects
+    param:: angle_cutoff (degrees) Mask TOAs within this angle
+    param:: std_cutoff (float number) Number of St. Devs above average to excise
+
+    returns:: dictionary of maskes for each pulsar
+    """
+    solar_wind_mask = {}
+    if std_cutoff and angle_cutoff:
+        raise ValueError('Can not make mask using St Dev and Angular Cutoff!!')
+    if std_cutoff:
+        for ii,p in enumerate(psrs):
+            dm_sw, _ = solar_wind(p)
+            std = np.std(dm_sw)
+            mean = np.mean(dm_sw)
+            solar_wind_mask[p.name] = np.where(dm_sw < (mean + std_cutoff * std),
+                                               True, False)
+    elif angle_cutoff:
+        angle_cutoff = np.deg2rad(angle_cutoff)
+        for ii,p in enumerate(psrs):
+            _, impact_ang = solar_wind(p)
+            solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
+                                               True, False)
+
+    return solar_wind_mask
 
 #########Empirical Distributions########
 
@@ -1393,5 +1403,5 @@ def make_empirical_distributions(paramlist, params, chain,
     # save the list of empirical distributions as a pickle file
     with open(filename, 'wb') as f:
         pickle.dump(distr, f, protocol=2)
-
+        
     print('The empirical distributions have been pickled to {0}.'.format(filename))
