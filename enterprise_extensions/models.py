@@ -1206,7 +1206,6 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # then we select on our selection or add a common process
         rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
                                        coefficients=coefficients, selection=selection)
-
     if select_band_names is not None:
          # We add red noise for each band in select_band_names
              band = select_band_names
@@ -1214,6 +1213,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
              selection = return_band_selection_class_from_name(band)
 
              rn = gp_signals.FourierBasisGP(pl, components=components, Tspan=Tspan,
+
                                              coefficients=coefficients,
                                              selection=selection, name='red_noise_'+band)
     else:
@@ -1224,7 +1224,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                 rn += rn2
         else:
             rn = rn2
-
+            
     return rn
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
@@ -1987,7 +1987,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                           dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           dm_gauss = False, dm_gauss_tmin=None, dm_gauss_tmax=None,  
-                          dmdip_seqname=None, dm_cusp=False, 
+                          num_dmdips=1, dmdip_seqname=None, dm_cusp=False, 
                           dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
                           dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
                           magn_expdip_tmin=None, magn_expdip_tmax=None, num_magndips=1,
@@ -2036,6 +2036,10 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :return s: single pulsar noise model
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    tmin = psr.toas.min() / 86400
+    tmax = psr.toas.max() / 86400
+    components = int((tmax-tmin)/60)  # components down to 60 days
 
     # timing model
     s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
@@ -2413,7 +2417,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
     if orf is None:
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, coefficients=coefficients,
-                                    gamma_val=gamma_common, name='gw')
+                                    gamma_val=gamma_common, name='red')
     elif orf == 'hd':
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, gamma_val=gamma_common,
@@ -2422,7 +2426,17 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
         s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                     components=components, gamma_val=gamma_common,
                                     orf='dipole', name='dipole')
-
+    elif orf == 'monopole':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='monopole', name='monopole')
+    elif orf == 'monopole+':
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, coefficients=coefficients,
+                                    gamma_val=gamma_common, name='red')
+        s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                    components=components, gamma_val=gamma_common,
+                                    orf='monopole', name='monopole')
 
     # DM variations
     if dm_var:
