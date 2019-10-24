@@ -44,10 +44,19 @@ def nodmx_psrs(caplog):
             psrs.append(pickle.load(fin))
 
     return psrs
+
 def test_model_singlepsr_noise(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1])
     assert hasattr(m,'get_lnlikelihood')
+
+def test_model_singlepsr_noise_sw(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    m=models.model_singlepsr_noise(nodmx_psrs[1],dm_sw_deter=True,
+                                   dm_sw_gp=True)
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
 
 def test_model1(dmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)

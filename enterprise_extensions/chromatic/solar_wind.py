@@ -13,6 +13,8 @@ from .. import models, model_utils
 
 defpath = os.path.dirname(__file__)
 
+yr_in_sec = 365.25*24*3600
+
 @signal_base.function
 def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
                t_init=None, t_final=None):
@@ -119,8 +121,9 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
     return F * dt_DM[:, None], Ffreqs
 
 
-def solar_wind_block(n_earth=None, ACE_prior=False, include_dmgp=False,
-                     sw_prior=None, sw_basis=None, Tspan=None):
+def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
+                     include_dmgp=False, sw_prior=None, sw_basis=None,
+                     Tspan=None):
     """
     Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
         Contains a single mean electron density with an auxiliary perturbation
@@ -158,17 +161,24 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_dmgp=False,
     else:
         pass
 
-    if sw_basis is None:
-        sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15, Tspan=Tspan)
-    else:
-        pass
-
-    gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
-
     deter_sw = solar_wind(n_earth=n_earth)
     mean_sw = deterministic_signals.Deterministic(deter_sw, name='n_earth')
-
     sw_model = mean_sw + gp_sw
+
+    if include_swgp:
+        if sw_basis is None:
+            if Tspan is not None:
+                freqs = np.linspace(1/Tspan,30/Tspan,30)
+                freqs = freqs[1/freqs > 1.5*yr_in_sec]
+                sw_basis = createfourierdesignmatrix_solar_dm(modes=freqs)
+            else:
+                sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15,
+                                                              Tspan=Tspan)
+        else:
+            pass
+
+        gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
+        sw_model += gp_sw
 
     if include_dmgp:
         # DM GP signals

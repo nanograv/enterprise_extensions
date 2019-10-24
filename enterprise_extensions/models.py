@@ -50,6 +50,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_dual_cusp_sign='negative', num_dm_dual_cusps=1,
                           dm_dual_cusp_seqname=None,
                           dm_scattering=False, dm_sc_kernel='sq_exp',
+                          dm_sw_deter=False, dm_sw_gp=False,
                           coefficients=False):
     """
     Single pulsar noise model
@@ -105,6 +106,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dm_scattering: whether to explicitly model DM scattering variations
     :param dm_sc_kernel: type of time-domain DM GP kernel for the scattering
         variations
+    :param dm_sw_deter: use the deterministic solar wind model
+    :param dm_sw_gp: add a Gaussian process perturbation to the deterministic
+        solar wind model.
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -206,6 +210,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                             sign=dm_dual_cusp_sign,
                                             symmetric=dm_dual_cusp_sym,
                                             name=dual_cusp_name_base+str(dd))
+        if dm_sw_deter:
+            Tspan = psr.toas.max() - psr.toas.min()
+            s+=chrom.solar_wind.solar_wind_block(ACE_prior=True,
+                                                 include_swgp=dm_sw_gp,
+                                                 Tspan=Tspan)
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
