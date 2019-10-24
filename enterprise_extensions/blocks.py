@@ -8,8 +8,8 @@ from enterprise.signals import selections
 from enterprise.signals import white_signals
 from enterprise.signals import gp_signals
 from enterprise.signals import utils
-
-import enterprise_extensions.enterprise_base as eb
+from enterprise.signals import gp_bases as gpb
+from enterprise.signals import gp_priors as gpp
 import enterprise_extensions.gp_kernels as gpk
 import enterprise_extensions.chromatic as chrom
 
@@ -135,7 +135,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
         elif psd == 'powerlaw_genmodes':
-            pl = eb.powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
+            pl = gpp.powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
         elif psd == 'turnover':
             kappa = parameter.Uniform(0, 7)
             lf0 = parameter.Uniform(-9, -7)
@@ -143,13 +143,13 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                 lf0=lf0, kappa=kappa)
         elif psd == 'tprocess':
             df = 2
-            alphas = eb.InvGamma(df/2, df/2, size=components)
-            pl = eb.t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
+            alphas = gpp.InvGamma(df/2, df/2, size=components)
+            pl = gpp.t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
         elif psd == 'tprocess_adapt':
             df = 2
-            alpha_adapt = eb.InvGamma(df/2, df/2, size=1)
+            alpha_adapt = gpp.InvGamma(df/2, df/2, size=1)
             nfreq = parameter.Uniform(-0.5, 10-0.5)
-            pl = eb.t_process_adapt(log10_A=log10_A, gamma=gamma,
+            pl = gpp.t_process_adapt(log10_A=log10_A, gamma=gamma,
                                     alphas_adapt=alpha_adapt, nfreq=nfreq)
 
     if psd == 'spectrum':
@@ -158,7 +158,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         elif prior == 'log-uniform':
             log10_rho = parameter.Uniform(-10, -4, size=components)
 
-        pl = eb.free_spectrum(log10_rho=log10_rho)
+        pl = gpp.free_spectrum(log10_rho=log10_rho)
 
     if select == 'backend':
         # define selection by observing backend
@@ -256,14 +256,14 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                                           lf0=lf0_dm, kappa=kappa_dm)
             elif psd == 'tprocess':
                 df = 2
-                alphas_dm = eb.InvGamma(df/2, df/2, size=components)
-                dm_prior = eb.t_process(log10_A=log10_A_dm, gamma=gamma_dm,
+                alphas_dm = gpp.InvGamma(df/2, df/2, size=components)
+                dm_prior = gpp.t_process(log10_A=log10_A_dm, gamma=gamma_dm,
                                         alphas=alphas_dm)
             elif psd == 'tprocess_adapt':
                 df = 2
-                alpha_adapt_dm = eb.InvGamma(df/2, df/2, size=1)
+                alpha_adapt_dm = gpp.InvGamma(df/2, df/2, size=1)
                 nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
-                dm_prior = eb.t_process_adapt(log10_A=log10_A_dm,
+                dm_prior = gpp.t_process_adapt(log10_A=log10_A_dm,
                                               gamma=gamma_dm,
                                               alphas_adapt=alpha_adapt_dm,
                                               nfreq=nfreq_dm)
@@ -274,7 +274,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             elif prior == 'log-uniform':
                 log10_rho_dm = parameter.Uniform(-10, -4, size=components)
 
-            dm_prior = eb.free_spectrum(log10_rho=log10_rho_dm)
+            dm_prior = gpp.free_spectrum(log10_rho=log10_rho_dm)
 
         dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
                                                       Tspan=Tspan)
@@ -444,7 +444,7 @@ def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4,
             log10_rho = parameter.LinearExp(-10, -4, size=components)
         elif prior == 'log-uniform':
             log10_rho = parameter.Uniform(-10, -4, size=components)
-        cpl = eb.free_spectrum(log10_rho=log10_rho)
+        cpl = gpp.free_spectrum(log10_rho=log10_rho)
 
     # set up signal
     # JS: This does not work with basis_quad function below
@@ -457,8 +457,8 @@ def chromatic_noise_block(psd='powerlaw', prior='log-uniform', idx=4,
     cquad = gp_signals.BasisGP(prior_quad, basis_quad, name=name+'_quad')
 
     # Fourier piece
-    basis_gp = eb.createfourierdesignmatrix_chromatic(nmodes=components,
-                                                      Tspan=Tspan)
+    basis_gp = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
+                                                       Tspan=Tspan)
     cgp = gp_signals.BasisGP(cpl, basis_gp, name=name+'_gp',
                              coefficients=coefficients)
 
@@ -536,7 +536,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             lfb_gw = parameter.Uniform(-9.3, -8)(lfb_name)
             delta_gw = parameter.Uniform(-2, 0)(delta_name)
             lfk_gw = parameter.Uniform(-8, -7)(lfk_name)
-            cpl = eb.turnover_knee(log10_A=log10_Agw, gamma=gamma_gw,
+            cpl = gpp.turnover_knee(log10_A=log10_Agw, gamma=gamma_gw,
                                    lfb=lfb_gw, lfk=lfk_gw,
                                    kappa=kappa_gw, delta=delta_gw)
 
@@ -548,7 +548,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         elif prior == 'log-uniform':
             log10_rho_gw = parameter.Uniform(-9, -4, size=components)(rho_name)
 
-        cpl = eb.free_spectrum(log10_rho=log10_rho_gw)
+        cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,

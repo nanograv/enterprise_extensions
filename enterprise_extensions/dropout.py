@@ -2,22 +2,14 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
-import scipy.stats
-from collections import OrderedDict
 
 import enterprise
 from enterprise.signals import parameter
-from enterprise.signals import selections
 from enterprise.signals import signal_base
 import enterprise.signals.signal_base as base
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
-
-from enterprise_extensions import model_utils
-import enterprise_extensions.enterprise_base as eb
 
 
 @signal_base.function

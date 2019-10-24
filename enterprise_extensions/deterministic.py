@@ -2,22 +2,13 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
-import scipy.stats
-from collections import OrderedDict
 
-import enterprise
 from enterprise.signals import parameter
-from enterprise.signals import selections
 from enterprise.signals import signal_base
-import enterprise.signals.signal_base as base
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
 
-from enterprise_extensions import model_utils
-import enterprise_extensions.enterprise_base as eb
 
 def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
               skyloc=None, logmin=-18, logmax=-11,
@@ -73,6 +64,7 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
 
     return bwm
+
 
 def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
                   skyloc=None, log10_fgw=None,
@@ -160,6 +152,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
 
     return cw
 
+
 def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
                  ecc=None, psrTerm=False, tref=0, name='cw'):
     """
@@ -238,6 +231,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
     cw = CWSignal(wf, ecc=True, psrTerm=psrTerm)
 
     return cw
+
 
 @signal_base.function
 def cw_delay(toas, pos, pdist,
@@ -415,6 +409,7 @@ def cw_delay(toas, pos, pdist,
 
     return res
 
+
 @signal_base.function
 def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
                                 log10_mc, log10_dist, log10_h, log10_F, cos_inc,
@@ -571,9 +566,12 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
             # no more than 1000 harmonics
             nharm = min(nharm, 100)
             splusp, scrossp = utils.calculate_splus_scross(nmax=nharm, mc=mc,
-                                                           dl=dist, h0=h0, F=Fp, e=ep,
-                                                           t=toas.copy(), l0=lp, gamma=gp,
-                                                           gammadot=gammadotp, inc=inc)
+                                                           dl=dist, h0=h0,
+                                                           F=Fp, e=ep,
+                                                           t=toas.copy(),
+                                                           l0=lp, gamma=gp,
+                                                           gammadot=gammadotp,
+                                                           inc=inc)
 
             rr = (fplus*cos2psi - fcross*sin2psi) * (splusp - splus) + \
                 (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
@@ -597,11 +595,14 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
             super(CWSignal, self).__init__(psr)
             self._wf[''].add_kwarg(psrTerm=psrTerm)
             if ecc:
-                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name, 'pgam', 'cw']))
+                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name,
+                                                               'pgam',
+                                                               'cw']))
                 self._params['pgam'] = pgam
                 self._wf['']._params['pgam'] = pgam
 
     return CWSignal
+
 
 @signal_base.function
 def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
