@@ -163,7 +163,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
 
     deter_sw = solar_wind(n_earth=n_earth)
     mean_sw = deterministic_signals.Deterministic(deter_sw, name='n_earth')
-    sw_model = mean_sw + gp_sw
+    sw_model = mean_sw
 
     if include_swgp:
         if sw_basis is None:
