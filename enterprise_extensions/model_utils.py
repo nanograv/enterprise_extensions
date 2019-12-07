@@ -176,7 +176,7 @@ class JumpProposal(object):
         else:
             self.empirical_distr = None
 
-    def draw_from_all_prior(self, x, iter, beta):
+    def draw_from_prior(self, x, iter, beta):
         """Prior draw.
 
         The function signature is specific to PTMCMCSampler.
@@ -204,45 +204,28 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_par_prior(self, par_names):
-        def draw(x, iter, beta):
-            """Prior draw function generator for custom par_names.
-            par_names: list of strings
+    def draw_from_red_prior(self, x, iter, beta):
 
-            The function signature is specific to PTMCMCSampler.
-            """
+        q = x.copy()
+        lqxy = 0
 
-            q = x.copy()
-            lqxy = 0
+        signal_name = 'red noise'
 
-            # randomly choose parameter
-            par_list = []
-            for par_name in par_names:
-                par_list.append([n for n in self.pnames if par_name in n])
-            if par_list is None:
-                return q, float(lqxy)
-            par_list = np.concatenate(par_list,axis=None)
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
-            idx_name = np.random.choice(par_list)
-            idx = self.pnames.index(idx_name)
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
 
-            # if vector parameter jump in random component
-            param = self.params[idx]
-            if param.size:
-                idx2 = np.random.randint(0, param.size)
-                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
-            # scalar parameter
-            else:
-                q[self.pmap[str(param)]] = param.sample()
-
-            # forward-backward jump probability
-            lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
-                    param.get_logpdf(q[self.pmap[str(param)]]))
-
-            return q, float(lqxy)
-        draw.__name__ = 'draw_from_{}_prior'.format(par_names)
-        return draw
+        return q, float(lqxy)
 
     def draw_from_empirical_distr(self, x, iter, beta):
 
@@ -276,31 +259,266 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_par_log_uniform(self, par_dict):
-        def draw(x, iter, beta):
-            """log uniform prior draw function generator for custom par_names.
-            par_names: list of strings
+    def draw_from_dm_gp_prior(self, x, iter, beta):
 
-            The function signature is specific to PTMCMCSampler.
-            """
+        q = x.copy()
+        lqxy = 0
 
-            q = x.copy()
-            lqxy = 0
+        signal_name = 'dm_gp'
 
-            # draw parameter from signal model
-            par_name = np.random.choice(par_dict.keys())
-            par_list = [n for n in self.pnames if par_name in n and 'log' in n]
-            if not par_list:
-                return q, 0
-            idx_name = np.random.choice(par_list)
-            idx = self.pnames.index(idx_name)
-            q[idx] = np.random.uniform(par_dict[par_name][0],par_dict[par_name][1])
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
-            return q, 0
-        draw.__name__ = 'draw_from_{}_log_uniform'.format(par_dict.keys())
-        return draw
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
 
-    def draw_from_non_std_signal(self, x, iter, beta):
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_dm1yr_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        dm1yr_names = [dmname for dmname in self.pnames if 'dm_s1yr' in dmname]
+        dmname = np.random.choice(dm1yr_names)
+        idx = self.pnames.index(dmname)
+        if 'log10_Amp' in dmname:
+            q[idx] = np.random.uniform(-10, -2)
+        elif 'phase' in dmname:
+            q[idx] = np.random.uniform(0, 2*np.pi)
+
+        return q, 0
+
+    def draw_from_dmexpdip_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        dmexp_names = [dmname for dmname in self.pnames if 'dmexp' in dmname]
+        dmname = np.random.choice(dmexp_names)
+        idx = self.pnames.index(dmname)
+        if 'log10_Amp' in dmname:
+            q[idx] = np.random.uniform(-10, -2)
+        elif 'log10_tau' in dmname:
+            q[idx] = np.random.uniform(np.log10(5), np.log10(100))
+        elif 't0' in dmname:
+            q[idx] = np.random.uniform(53393.0, 57388.0)
+        elif 'sign_param' in dmname:
+            q[idx] = np.random.uniform(-1.0, 1.0)
+
+        return q, 0
+
+    def draw_from_dmexpcusp_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        dmexp_names = [dmname for dmname in self.pnames if 'dm_cusp' in dmname]
+        dmname = np.random.choice(dmexp_names)
+        idx = self.pnames.index(dmname)
+        if 'log10_Amp' in dmname:
+            q[idx] = np.random.uniform(-10, -2)
+        elif 'log10_tau' in dmname:
+            q[idx] = np.random.uniform(np.log10(5), np.log10(100))
+        elif 't0' in dmname:
+            q[idx] = np.random.uniform(53393.0, 57388.0)
+        elif 'sign_param' in dmname:
+            q[idx] = np.random.uniform(-1.0, 1.0)
+
+        return q, 0
+
+    def draw_from_dmx_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'dmx_signal'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        idx = self.pnames.index('gw_log10_A')
+        q[idx] = np.random.uniform(-18, -11)
+
+        return q, 0
+
+    def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        idx = self.pnames.index('dipole_log10_A')
+        q[idx] = np.random.uniform(-18, -11)
+
+        return q, 0
+
+    def draw_from_monopole_log_uniform_distribution(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        idx = self.pnames.index('monopole_log10_A')
+        q[idx] = np.random.uniform(-18, -11)
+
+        return q, 0
+
+    def draw_from_altpol_log_uniform_distribution(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        polnames = [pol for pol in self.pnames if 'log10Apol' in pol]
+        if 'kappa' in self.pnames:
+            polnames.append('kappa')
+        pol = np.random.choice(polnames)
+        idx = self.pnames.index(pol)
+        if pol == 'log10Apol_tt':
+            q[idx] = np.random.uniform(-18, -12)
+        elif pol == 'log10Apol_st':
+            q[idx] = np.random.uniform(-18, -12)
+        elif pol == 'log10Apol_vl':
+            q[idx] = np.random.uniform(-18, -15)
+        elif pol == 'log10Apol_sl':
+            q[idx] = np.random.uniform(-18, -16)
+        elif pol == 'kappa':
+            q[idx] = np.random.uniform(0, 10)
+
+        return q, 0
+
+    def draw_from_ephem_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'phys_ephem'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_bwm_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'bwm'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_cw_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'cw'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_cw_log_uniform_distribution(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        idx = self.pnames.index('log10_h')
+        q[idx] = np.random.uniform(-18, -11)
+
+        return q, 0
+
+    def draw_from_dm_sw_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'gp_sw'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_signal_prior(self, x, iter, beta):
 
         q = x.copy()
         lqxy = 0
@@ -334,10 +552,24 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_signal(self, signal_names):
+    def draw_from_par_prior(self, par_names):
+        # Preparing and comparing par_names with PTA parameters
+        par_names = np.atleast_1d(par_names)
+        par_list = []
+        name_list = []
+        for par_name in par_names:
+            pn_list = [n for n in self.plist if par_name in n]
+            if pn_list:
+                par_list.append(pn_list)
+                name_list.append(par_name)
+        if not par_list:
+            raise UserWarning("No parameter prior match found between {} and PTA.object."
+                              .format(par_names))
+        par_list = np.concatenate(par_list,axis=None)
+
         def draw(x, iter, beta):
-            """Signal draw function generator for custom signal_names.
-            signal_names: list of strings
+            """Prior draw function generator for custom par_names.
+            par_names: list of strings
 
             The function signature is specific to PTMCMCSampler.
             """
@@ -345,9 +577,12 @@ class JumpProposal(object):
             q = x.copy()
             lqxy = 0
 
-            # draw parameter from signal model
-            signal_name = np.random.choice(signal_names)
-            param = np.random.choice(self.snames[signal_name])
+            # randomly choose parameter
+            idx_name = np.random.choice(par_list)
+            idx = self.plist.index(idx_name)
+
+            # if vector parameter jump in random component
+            param = self.params[idx]
             if param.size:
                 idx2 = np.random.randint(0, param.size)
                 q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
@@ -361,7 +596,92 @@ class JumpProposal(object):
                     param.get_logpdf(q[self.pmap[str(param)]]))
 
             return q, float(lqxy)
-        draw.__name__ = 'draw_from_{}_signal'.format(signal_names)
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_prior'.format(name_string)
+        return draw
+
+    def draw_from_par_log_uniform(self, par_dict):
+        # Preparing and comparing par_dict.keys() with PTA parameters
+        par_list = []
+        name_list = []
+        for par_name in par_dict.keys():
+            pn_list = [n for n in self.plist if par_name in n and 'log' in n]
+            if pn_list:
+                par_list.append(pn_list)
+                name_list.append(par_name)
+        if not par_list:
+            raise UserWarning("No parameter dictionary match found between {} and PTA.object."
+                              .format(par_dict.keys()))
+        par_list = np.concatenate(par_list,axis=None)
+
+        def draw(x, iter, beta):
+            """log uniform prior draw function generator for custom par_names.
+            par_dict: dictionary with {"par_names":(lower bound,upper bound)}
+                                      { "string":(float,float)}
+
+            The function signature is specific to PTMCMCSampler.
+            """
+
+            q = x.copy()
+            lqxy = 0
+
+            # draw parameter from signal model
+            idx_name = np.random.choice(par_list)
+            idx = self.plist.index(idx_name)
+            q[idx] = np.random.uniform(par_dict[par_name][0],par_dict[par_name][1])
+
+            return q, 0
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_log_uniform'.format(name_string)
+        return draw
+
+    def draw_from_signal(self, signal_names):
+        # Preparing and comparing signal_names with PTA signals
+        signal_names = np.atleast_1d(signal_names)
+        signal_list = []
+        name_list = []
+        for signal_name in signal_names:
+            try:
+                param_list = self.snames[signal_name]
+                signal_list.append(param_list)
+                name_list.append(signal_name)
+            except:
+                pass
+        if not signal_list:
+            raise UserWarning("No signal match found between {} and PTA.object!"
+                              .format(signal_names))
+        signal_list = np.concatenate(signal_list,axis=None)
+
+        def draw(x, iter, beta):
+            """Signal draw function generator for custom signal_names.
+            signal_names: list of strings
+
+            The function signature is specific to PTMCMCSampler.
+            """
+
+            q = x.copy()
+            lqxy = 0
+
+            # draw parameter from signal model
+            param = np.random.choice(signal_list)
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+            # scalar parameter
+            else:
+                q[self.pmap[str(param)]] = param.sample()
+
+            # forward-backward jump probability
+            lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                    param.get_logpdf(q[self.pmap[str(param)]]))
+
+            return q, float(lqxy)
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_signal'.format(name_string)
         return draw
 
 
