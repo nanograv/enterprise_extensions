@@ -16,7 +16,46 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 
-#### Extra model components not part of base enterprise ####
+# Extra model components not part of base enterprise ####
+
+# timing model delay
+@signal_base.function
+def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
+    """
+    Compute difference in residuals due to perturbed timing model.
+
+    :param residuals: original pulsar residuals from Pulsar object
+    :param t2pulsar: libstempo pulsar object
+    :param tmparams_orig: dictionary of TM parameter tuples, (val, err)
+    :param tmparams: new timing model parameters, rescaled to be in sigmas
+    :param which: option to have all or only named TM parameters varied
+
+    :return: difference between new and old residuals in seconds
+    """
+
+    if which == 'all':
+        keys = tmparams_orig.keys()
+    else:
+        keys = which
+
+    # grab original timing model parameters and errors in dictionary
+    orig_params = np.array([tmparams_orig[key] for key in keys])
+
+    # put varying parameters into dictionary
+    tmparams_rescaled = np.atleast_1d(np.double(orig_params[:, 0] +
+                                                tmparams * orig_params[:, 1]))
+    tmparams_vary = OrderedDict(zip(keys, tmparams_rescaled))
+
+    # set to new values
+    t2pulsar.vals(tmparams_vary)
+    new_res = np.double(t2pulsar.residuals().copy())
+
+    # remember to set values back to originals
+    t2pulsar.vals(OrderedDict(zip(keys,
+                                  np.atleast_1d(np.double(orig_params[:, 0])))))
+
+    # Return the time-series for the pulsar
+    return new_res - residuals
 
 # linear interpolation basis in time with nu^-2 scaling
 @signal_base.function
@@ -201,10 +240,11 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     """
     t0 *= const.day
     tau = 10**log10_tau * const.day
-    wf = (10**log10_Amp * np.heaviside(toas - t0, 1) * \
-        np.exp(- (toas - t0) / tau)) + (10**log10_Amp * \
-        (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
-    
+
+    wf = (10**log10_Amp * np.heaviside(toas - t0, 1) *
+          np.exp(- (toas - t0) / tau)) + (10**log10_Amp *
+                                          (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
+
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
@@ -276,7 +316,7 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     :param toas: vector of time series in seconds
     :param freqs: radio frequencies of observations [MHz]
     :param nmodes: number of fourier coefficients to use
-    :param freq: option to output frequencies
+    :param freqs: option to output frequencies
     :param Tspan: option to some other Tspan
     :param logf: use log frequency spacing
     :param fmin: lower sampling frequency
@@ -410,7 +450,7 @@ def turnover_knee(f, log10_A, gamma, lfb, lfk, kappa, delta):
     """
     Generic turnover spectrum with a high-frequency knee.
     :param f: sampling frequencies of GWB
-    :param A: characteristic strain amplitude at f=1/yr
+    :param log10_A: characteristic strain amplitude at f=1/yr
     :param gamma: negative slope of PSD around f=1/yr (usually 13/3)
     :param lfb: log10 transition frequency at which environment dominates GWs
     :param lfk: log10 knee frequency due to population finiteness
@@ -450,7 +490,7 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
                               orf_aa_sl*gwpol_amps[3]])
 
     S_psd = prefactor * (gwpol_factors[0,:] * (f / const.fyr)**(-4/3) +
-                         np.sum(gwpol_factors[1:,:],axis=0) * \
+                         np.sum(gwpol_factors[1:,:],axis=0) *
                          (f / const.fyr)**(-2)) / \
     (8*np.pi**2*f**3)
 
@@ -465,8 +505,10 @@ def dropout_powerlaw(f, log10_A=-16, gamma=5, k_drop=0.5, k_threshold=0.5):
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
 
-    if k_drop >= k_threshold: k_switch = 1.0
-    elif k_drop < k_threshold: k_switch = 0.0
+    if k_drop >= k_threshold:
+        k_switch = 1.0
+    elif k_drop < k_threshold:
+        k_switch = 0.0
 
     return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
                        const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
@@ -485,8 +527,10 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
     """
 
     # get dropout switch
-    if k_drop >= k_threshold: k_switch = 1.0
-    elif k_drop < k_threshold: k_switch = 0.0
+    if k_drop >= k_threshold:
+        k_switch = 1.0
+    elif k_drop < k_threshold:
+        k_switch = 0.0
 
     # convert toas to MJD
     mjd = toas / 86400
@@ -805,7 +849,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     WARNING: This residual waveform is only accurate if the
     GW frequency is not significantly evolving over the
     observation time of the pulsar.
-    :param toa: pulsar observation times
+    :param toas: pulsar observation times
     :param theta: polar coordinate of pulsar
     :param phi: azimuthal coordinate of pulsar
     :param gwtheta: Polar angle of GW source in celestial coords [radians]
@@ -851,8 +895,8 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     omhat = np.array([-singwtheta*cosgwphi, -singwtheta*singwphi, -cosgwtheta])
 
     # pulsar position vector
-    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),\
-            np.cos(theta)])
+    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
+                     np.cos(theta)])
 
     fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
     fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
@@ -895,13 +939,13 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     # no more than 100 harmonics
     nharm = min(nharm, 100)
 
-    ##### earth term #####
+    # earth term #
     splus, scross = utils.calculate_splus_scross(nmax=nharm, mc=mc, dl=dist,
                                                  h0=h0, F=F, e=e0, t=toas.copy(),
                                                  l0=l0, gamma=gamma0,
                                                  gammadot=gammadot, inc=inc)
 
-    ##### pulsar term #####
+    # pulsar term #
     if psrTerm:
         # pulsar distance
         pd = pdist
@@ -2270,7 +2314,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, select='backend'):
+             be_type='orbel', wideband=False, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2302,6 +2346,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
     """
@@ -2321,7 +2367,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -2349,14 +2395,20 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=True,
-                  orf=None, components=50, gamma_common=None, upper_limit=False,
-                  bayesephem=False, wideband=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False, white_vary=False, inc_saturn_orb=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
-                  coefficients=False, select_psrs=None, chrom_events=True,
-                  constant_jump_name=None,constant_jump_amin=None,
-                  constant_jump_amax=None):
+def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
+                  common_psd='powerlaw', red_psd='powerlaw', orf=None,
+                  common_components=30, red_components=30, dm_components=30,
+                  modes=None, wgts=None, logfreq=False, nmodes_log=10,
+                  noisedict=None,
+                  tm_svd=False, tm_norm=True, gamma_common=None,
+                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
+                  upper_limit_common=None,
+                  bayesephem=False, be_type='orbel', wideband=False,
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  white_vary=False, gequad=False, dm_chrom=False,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
+                  coefficients=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2391,6 +2443,8 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
     """
@@ -2448,13 +2502,12 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
             s += dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=components,
+                                       name='chromatic', components=dm_components,
                                        coefficients=coefficients)
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True,
-                                                           inc_saturn_orb=inc_saturn_orb)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # adding white-noise, and extra events and red terms acting on psr objects
     models = []
@@ -2747,7 +2800,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False):
+             be_type='orbel', wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -2779,6 +2832,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2796,7 +2851,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # timing model
     s += gp_signals.TimingModel()
