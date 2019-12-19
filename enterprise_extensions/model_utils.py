@@ -116,6 +116,7 @@ class JumpProposal(object):
         self.pnames = pta.param_names
         self.npar = len(pta.params)
         self.ndim = sum(p.size or 1 for p in pta.params)
+        self.plist = [p.name for p in pta.params]
 
         # parameter map
         self.pmap = {}
