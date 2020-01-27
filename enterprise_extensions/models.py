@@ -1744,17 +1744,18 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
                           red_var=False, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
-                          is_wideband=False, use_dmdata=False, gamma_val=None,
-                          dm_var=False, dm_type='gp', dmgp_kernel='diag',
-                          dm_psd='powerlaw', dm_nondiag_kernel='periodic',
-                          dmx_data=None, dm_annual=False, gamma_dm_val=None,
-                          dm_chrom=False, dmchrom_psd='powerlaw',
-                          dmchrom_idx=4, dm_expdip=False, dmexp_sign=False,
-                          dm_expdip_idx=2, dm_expdip_tmin=None,
-                          dm_expdip_tmax=None, num_dmdips=1,
-                          dmdip_seqname=None, dm_cusp=False,
+                          is_wideband=False, use_dmdata=False,
+                          dmjump_var=False, gamma_val=None, dm_var=False,
+                          dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
+                          dm_nondiag_kernel='periodic', dmx_data=None,
+                          dm_annual=False, gamma_dm_val=None, dm_chrom=False,
+                          dmchrom_psd='powerlaw', dmchrom_idx=4,
+                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
+                          dm_expdip_tmin=None, dm_expdip_tmax=None,
+                          num_dmdips=1, dmdip_seqname=None, dm_cusp=False,
                           dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None,
-                          dm_cusp_tmax=None, coefficients=False):
+                          dm_cusp_tmax=None, coefficients=False,
+                          select='backend'):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1806,7 +1807,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
     # timing model
     if not tm_var:
         if is_wideband and use_dmdata:
-            dmjump = parameter.Constant()
+            if dmjump_var:
+                dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            else:
+                dmjump = parameter.Constant()
             if white_vary:
                 dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
                 #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
@@ -1889,17 +1893,19 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not is_wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                select=select)
         model = s2(psr)
     else:
-        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
+                select=select)
         model = s3(psr)
 
     # set up PTA
     pta = signal_base.PTA([model])
 
     # set white noise parameters
-    if not white_vary:
+    if not white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
             print('No noise dictionary provided!...')
         else:
@@ -1911,7 +1917,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             components=30, upper_limit=False, bayesephem=False,
-            be_type='orbel', is_wideband=False, use_dmdata=False):
+            be_type='orbel', is_wideband=False, use_dmdata=False,
+            select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with only white and red noise:
@@ -1983,21 +1990,24 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                    select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
+                    select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2097,11 +2107,12 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2118,7 +2129,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   dm_psd='powerlaw', dm_annual=False, gequad=False,
                   dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
-                  coefficients=False,select='backend'):
+                  coefficients=False, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2289,7 +2300,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if not white_vary:
+    if not white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
             print('No noise dictionary provided!...')
         else:
@@ -2395,13 +2406,14 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     pta = signal_base.PTA(models)
-
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2512,11 +2524,12 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2619,11 +2632,12 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2726,11 +2740,12 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2841,11 +2856,12 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2964,11 +2980,12 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3079,11 +3096,12 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3180,11 +3198,12 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3302,11 +3321,12 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3424,11 +3444,12 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3561,11 +3582,12 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -3675,10 +3697,11 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
