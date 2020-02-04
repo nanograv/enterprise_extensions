@@ -312,7 +312,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, select='backend'):
+             be_type='orbel', wideband=False, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -344,6 +344,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
     """
@@ -363,7 +365,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -401,7 +403,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
                   upper_limit_common=None,
-                  bayesephem=False, wideband=False,
+                  bayesephem=False, be_type='orbel', wideband=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw',
                   dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
@@ -445,6 +447,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
     """
@@ -525,7 +529,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # adding white-noise, and acting on psr objects
     models = []
@@ -820,7 +824,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False):
+             be_type='orbel', wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -852,6 +856,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -869,7 +875,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
 
     # timing model
     s += gp_signals.TimingModel()
