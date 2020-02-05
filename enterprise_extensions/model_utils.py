@@ -98,7 +98,7 @@ def get_tspan(psrs):
     tmax = np.max([p.toas.max() for p in psrs])
 
     return tmax - tmin
-  
+
 
 class PostProcessing(object):
 
