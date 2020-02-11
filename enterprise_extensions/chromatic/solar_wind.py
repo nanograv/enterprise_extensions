@@ -6,6 +6,7 @@ import os
 from enterprise import constants as const
 from enterprise.signals import signal_base
 from enterprise.signals import gp_signals
+from enterprise.signals import gp_kernels as gpk
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 import enterprise.signals.parameter as parameter
@@ -87,6 +88,20 @@ def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
 
     return dt_DM
 
+# linear interpolation basis in time with nu^-2 scaling
+@signal_base.function
+def linear_interp_basis_sw_dm(toas, freqs, planetssb, pos_t, dt=7*86400):
+
+    # get linear interpolation basis in time
+    U, avetoas = utils.linear_interp_basis(toas, dt=dt)
+
+    # scale with radio frequency
+    theta, R_earth = theta_impact(planetssb,pos_t)
+    dm_sol_wind = dm_solar(1.0, theta, R_earth)
+    dt_DM = dm_sol_wind * 4.148808e3 /(freqs**2)
+
+
+    return U * dt_DM[:, None], avetoas
 
 @signal_base.function
 def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
@@ -122,7 +137,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
 
 
 def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
-                     include_dmgp=False, sw_prior=None, sw_basis=None,
+                     swgp_prior=None, swgp_basis=None,
                      Tspan=None):
     """
     Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
@@ -136,11 +151,9 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
         Solar electron density at 1 AU.
     :param ACE_prior:
         Whether to use the ACE SWEPAM data as an astrophysical prior.
-    :param include_dmgp:
-        Boolean flag to add in a simple power-law DM GP automatically.
-    :param sw_prior:
+    :param swgp_prior:
         Prior function for solar wind Gaussian process. Default is a power law.
-    :param sw_basis:
+    :param swgp_basis:
         Basis to be used for solar wind Gaussian process. Default is to use the
         built in function to creat a GP with 15 frequencies (1/Tspan,15/Tspan).
     :param Tspan:
@@ -177,18 +190,29 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
         else:
             pass
 
+        if nondiag_kernel == 'periodic':
+            # Periodic GP kernel for DM
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+            log10_p = parameter.Uniform(-4, 1)
+            log10_gam_p = parameter.Uniform(-3, 2)
+
+            sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
+            sw_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
+                                           log10_ell=log10_ell,
+                                           log10_gam_p=log10_gam_p,
+                                           log10_p=log10_p)
+        elif nondiag_kernel == 'sq_exp':
+            # squared-exponential GP kernel for DM
+            log10_sigma = parameter.Uniform(-10, -4)
+            log10_ell = parameter.Uniform(1, 4)
+
+            sw_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                        log10_ell=log10_ell)
+
         gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
         sw_model += gp_sw
-
-    if include_dmgp:
-        # DM GP signals
-        log10_A_dm = parameter.Uniform(-20,-12)
-        gamma_dm = parameter.Uniform(0,7)
-        dm_basis = utils.createfourierdesignmatrix_dm(nmodes=10, Tspan=Tspan,
-                                                      logf=True)
-        dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
-        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp')
-        sw_model += dmgp
 
     return sw_model
 
