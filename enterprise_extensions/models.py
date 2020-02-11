@@ -19,6 +19,7 @@ from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
                                           scattering_noise_block,
                                           chromatic_noise_block,
                                           common_red_noise_block)
+from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 import enterprise_extensions.chromatic as chrom
 import enterprise_extensions.dropout as do
 """
@@ -110,8 +111,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dm_sw_deter: use the deterministic solar wind model
     :param dm_sw_gp: add a Gaussian process perturbation to the deterministic
         solar wind model.
-    :param swgp_prior: prior
-    :param swgp_basis: 
+    :param swgp_prior: prior is currently set automatically
+    :param swgp_basis: ['powerlaw', 'periodid', 'sq_exp']
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
