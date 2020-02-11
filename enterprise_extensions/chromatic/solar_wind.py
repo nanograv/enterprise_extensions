@@ -137,8 +137,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t, nmodes=30,
 
 
 def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
-                     swgp_prior=None, swgp_basis=None,
-                     Tspan=None):
+                     swgp_prior=None, swgp_basis=None, Tspan=None):
     """
     Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
         Contains a single mean electron density with an auxiliary perturbation
@@ -154,11 +153,12 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
     :param swgp_prior:
         Prior function for solar wind Gaussian process. Default is a power law.
     :param swgp_basis:
-        Basis to be used for solar wind Gaussian process. Default is to use the
-        built in function to creat a GP with 15 frequencies (1/Tspan,15/Tspan).
+        Basis to be used for solar wind Gaussian process.
+        Options includes ['powerlaw'.'periodic','sq_exp']
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
-        use overall time span for indivicual pulsar.
+        use overall time span for individual pulsar. Default is to use 15
+        frequencies (1/Tspan,15/Tspan).
 
     """
     # dm noise parameters that are common
@@ -179,7 +179,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
     sw_model = mean_sw
 
     if include_swgp:
-        if sw_basis is None:
+        if sw_basis is 'powerlaw':
             if Tspan is not None:
                 freqs = np.linspace(1/Tspan,30/Tspan,30)
                 freqs = freqs[1/freqs > 1.5*yr_in_sec]
@@ -187,10 +187,8 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
             else:
                 sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15,
                                                               Tspan=Tspan)
-        else:
-            pass
-
-        if nondiag_kernel == 'periodic':
+                
+        elif sw_basis == 'periodic':
             # Periodic GP kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
@@ -202,12 +200,12 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
                                            log10_ell=log10_ell,
                                            log10_gam_p=log10_gam_p,
                                            log10_p=log10_p)
-        elif nondiag_kernel == 'sq_exp':
+        elif sw_basis == 'sq_exp':
             # squared-exponential GP kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
             sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
 
