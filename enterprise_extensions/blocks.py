@@ -10,8 +10,8 @@ from enterprise.signals import gp_signals
 from enterprise.signals import utils
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
-import enterprise_extensions.gp_kernels as gpk
-import enterprise_extensions.chromatic as chrom
+from . import gp_kernels as gpk
+from . import chromatic as chrom
 
 __all__ = ['white_noise_block',
            'red_noise_block',
