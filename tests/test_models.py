@@ -120,7 +120,7 @@ def test_model3d(dmx_psrs,caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_jumpproposal(dmx_psrs,caplog):
     m2a=models.model_2a(dmx_psrs,noisedict=noise_dict)
-    jp=model_utils.JumpProposal(m2a)
+    jp=sampler.JumpProposal(m2a)
     assert jp.draw_from_prior.__name__ == 'draw_from_prior'
     assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
     assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
