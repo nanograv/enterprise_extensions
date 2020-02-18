@@ -116,3 +116,16 @@ def test_model3d(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m3d=models.model_3d(dmx_psrs,noisedict=noise_dict)
     assert hasattr(m3d,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_jumpproposal(dmx_psrs,caplog):
+    m2a=models.model_2a(dmx_psrs,noisedict=noise_dict)
+    jp=sampler.JumpProposal(m2a)
+    assert jp.draw_from_prior.__name__ == 'draw_from_prior'
+    assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
+    assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
+            'draw_from_J1713+0747_prior')
+    assert (jp.draw_from_par_log_uniform({'gw':(-20,-10)}).__name__ ==
+            'draw_from_gw_log_uniform')
+    assert (jp.draw_from_signal('red noise').__name__ ==
+            'draw_from_red noise_signal')
