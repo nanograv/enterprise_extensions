@@ -8,7 +8,7 @@ from enterprise.signals import signal_base
 from enterprise.signals import gp_signals
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
-import enterprise.signals.parameter as parameter
+from enterprise.signals import parameter
 from .. import gp_kernels as gpk
 defpath = os.path.dirname(__file__)
 
