@@ -16,7 +16,6 @@ from enterprise_extensions import model_utils
 from enterprise_extensions.timing import timing_block
 from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
                                           dm_noise_block,
-                                          scattering_noise_block,
                                           chromatic_noise_block,
                                           common_red_noise_block)
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
@@ -35,8 +34,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, dm_chrom=False,
-                          dmchrom_psd='powerlaw', dmchrom_idx=4,
+                          dm_annual=False, gamma_dm_val=None, chrom=False,
+                          chrom_gp_kernel='nondiag',
+                          chrom_psd='powerlaw', chrom_idx=4,
+                          chrom_kernel='periodic',
                           dm_expdip=False, dmexp_sign='negative',
                           dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
@@ -50,7 +51,6 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4,
                           dm_dual_cusp_sign='negative', num_dm_dual_cusps=1,
                           dm_dual_cusp_seqname=None,
-                          dm_scattering=False, dm_sc_kernel='sq_exp',
                           dm_sw_deter=False, dm_sw_gp=False,
                           swgp_prior=None, swgp_basis=None,
                           coefficients=False):
@@ -78,9 +78,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
     :param gamma_dm_val: spectral index of power-law DM variations
-    :param dm_chrom: include general chromatic noise
-    :param dmchrom_psd: power-spectral density of chromatic noise
-    :param dmchrom_idx: frequency scaling of chromatic noise
+    :param chrom: include general chromatic noise
+    :param chrom_gp_kernel: GP kernel type to use in chrom ['diag','nondiag']
+    :param chrom_psd: power-spectral density of chromatic noise
+    :param chrom_idx: frequency scaling of chromatic noise
+    :param chrom_kernel: Type of 'nondiag' kernel to use in chrom GP.
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -106,7 +108,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param num_dm_dual_cusps: number of DM dual cusps
     :param dm_dual_cusp_seqname: name of dual cusp sequence
     :param dm_scattering: whether to explicitly model DM scattering variations
-    :param dm_sc_kernel: type of time-domain DM GP kernel for the scattering
+    :param chrom_kernel: type of time-domain DM GP kernel for the scattering
         variations
     :param dm_sw_deter: use the deterministic solar wind model
     :param dm_sw_gp: add a Gaussian process perturbation to the deterministic
@@ -156,13 +158,13 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
             s += chrom.dm_annual_signal()
-        if dm_chrom:
-            s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=components,
+        if chrom:
+            s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
+                                       psd=chrom_psd, idx=chrom_idx,
+                                       components=components,
+                                       nondiag_kernel=chrom_kernel,
                                        coefficients=coefficients)
-        if dm_scattering:
-            s += scattering_noise_block(kernel=dm_sc_kernel,
-                                        coefficients=coefficients)
+
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = psr.toas.min() / 86400
@@ -181,17 +183,19 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                               name=dmdipname_base+str(dd))
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
-                tmin = psr.toas.min() / 86400
-                tmax = psr.toas.max() / 86400
+                tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
+                tmax = [psr.toas.max() / 86400 for ii in range(num_dm_cusps)]
             else:
-                tmin = dm_cusp_tmin
-                tmax = dm_cusp_tmax
+                tmin = (dm_cusp_tmin if isinstance(dm_cusp_tmin,list)
+                                     else [dm_cusp_tmin])
+                tmax = (dm_cusp_tmax if isinstance(dm_cusp_tmmax,list)
+                                     else [dm_cusp_tmax])
             if dm_cusp_seqname is not None:
                 cusp_name_base = 'dm_cusp_'+dm_cusp_seqname+'_'
             else:
                 cusp_name_base = 'dm_cusp_'
             for dd in range(1,num_dm_cusps+1):
-                s += chrom.dm_exponential_cusp(tmin=tmin, tmax=tmax,
+                s += chrom.dm_exponential_cusp(tmin=tmin[dd], tmax=tmax[dd],
                                                idx=dm_cusp_idx,
                                                sign=dm_cusp_sign,
                                                symmetric=dm_cusp_sym,

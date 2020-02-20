@@ -32,13 +32,13 @@ def linear_interp_basis_dm(toas, freqs, dt=30*86400):
 
 # linear interpolation basis in time with nu^-4 scaling
 @signal_base.function
-def linear_interp_basis_scattering(toas, freqs, dt=30*86400):
+def linear_interp_basis_chromatic(toas, freqs, dt=30*86400, idx=4):
 
     # get linear interpolation basis in time
     U, avetoas = utils.linear_interp_basis(toas, dt=dt)
 
     # scale with radio frequency
-    Dm = (1400/freqs)**4
+    Dm = (1400/freqs)**idx
 
     return U * Dm[:, None], avetoas
 
@@ -56,7 +56,8 @@ def dmx_ridge_prior(avetoas, log10_sigma=-7):
 
 # quasi-periodic kernel for DM
 @signal_base.function
-def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, log10_gam_p=0, log10_p=0):
+def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2,
+                    log10_gam_p=0, log10_p=0):
 
     r = np.abs(avetoas[None, :] - avetoas[:, None])
 
