@@ -19,8 +19,8 @@ from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
                                           chromatic_noise_block,
                                           common_red_noise_block)
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
-import enterprise_extensions.chromatic as chrom
-import enterprise_extensions.dropout as do
+from enterprise_extensions import chromatic as chrom
+from enterprise_extensions import dropout as do
 """
 PTA models from paper
 """

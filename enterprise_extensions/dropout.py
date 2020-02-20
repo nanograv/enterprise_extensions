@@ -6,7 +6,6 @@ import numpy as np
 import enterprise
 from enterprise.signals import parameter
 from enterprise.signals import signal_base
-import enterprise.signals.signal_base as base
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
@@ -161,7 +160,7 @@ def Dropout_PhysicalEphemerisSignal(
             # initialize delay
             self._delay = np.zeros(len(psr.toas))
 
-        @base.cache_call('delay_params')
+        @signal_base.cache_call('delay_params')
         def get_delay(self, params):
             delay = self._wf[''](params=params)
             if use_epoch_toas:
