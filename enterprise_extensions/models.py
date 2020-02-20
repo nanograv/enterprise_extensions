@@ -179,7 +179,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             else:
                 dmdipname_base = 'dmexp_'
             for dd in range(1,num_dmdips+1):
-                s += chrom.dm_exponential_dip(tmin=tmin[dd], tmax=tmax[dd],
+                s += chrom.dm_exponential_dip(tmin=tmin[dd-1], tmax=tmax[dd-1],
                                               idx=dm_expdip_idx,
                                               sign=dmexp_sign,
                                               name=dmdipname_base+str(dd))
@@ -197,7 +197,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             else:
                 cusp_name_base = 'dm_cusp_'
             for dd in range(1,num_dm_cusps+1):
-                s += chrom.dm_exponential_cusp(tmin=tmin[dd], tmax=tmax[dd],
+                s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
+                                               tmax=tmax[dd-1],
                                                idx=dm_cusp_idx,
                                                sign=dm_cusp_sign,
                                                symmetric=dm_cusp_sym,
