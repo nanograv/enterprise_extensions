@@ -223,11 +223,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                             name=dual_cusp_name_base+str(dd))
         if dm_sw_deter:
             Tspan = psr.toas.max() - psr.toas.min()
-            s+=chrom.solar_wind.solar_wind_block(ACE_prior=True,
-                                                 include_swgp=dm_sw_gp,
-                                                 swgp_prior=swgp_prior,
-                                                 swgp_basis=swgp_basis,
-                                                 Tspan=Tspan)
+            s+=solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
+                                swgp_prior=swgp_prior, swgp_basis=swgp_basis,
+                                Tspan=Tspan)
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
