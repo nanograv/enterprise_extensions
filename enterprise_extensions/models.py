@@ -184,8 +184,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
                 tmax = [psr.toas.max() / 86400 for ii in range(num_dm_cusps)]
             else:
-                tmin = dm_cusp_tmin
-                tmax = dm_cusp_tmax
+                tmin = (dm_cusp_tmin if isinstance(dm_cusp_tmin,list)
+                                     else [dm_cusp_tmin])
+                tmax = (dm_cusp_tmax if isinstance(dm_cusp_tmmax,list)
+                                     else [dm_cusp_tmax])
             if dm_cusp_seqname is not None:
                 cusp_name_base = 'dm_cusp_'+dm_cusp_seqname+'_'
             else:
