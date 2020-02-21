@@ -13,6 +13,7 @@ from enterprise.signals import deterministic_signals
 from enterprise import constants as const
 
 from enterprise_extensions import model_utils
+from enterprise_extensions import deterministic
 from enterprise_extensions.timing import timing_block
 from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
                                           dm_noise_block,
@@ -1556,7 +1557,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += deterministic_signals.bwm_block(Tmin_bwm, Tmax_bwm,
+    s += deterministic.bwm_block(Tmin_bwm, Tmax_bwm,
                                          amp_prior=amp_prior,
                                          skyloc=skyloc, name='bwm')
 
@@ -1646,7 +1647,7 @@ def model_cw(psrs, upper_limit=False,
 
     # GW CW signal block
     if not ecc:
-        s += deterministic_signals.cw_block_circ(amp_prior=amp_prior,
+        s += deterministic.cw_block_circ(amp_prior=amp_prior,
                                                  skyloc=skyloc,
                                                  log10_fgw=log10_F,
                                                  psrTerm=psrTerm, tref=tmin,
@@ -1654,7 +1655,7 @@ def model_cw(psrs, upper_limit=False,
     else:
         if type(ecc) is not float:
             ecc = None
-        s += deterministic_signals.cw_block_ecc(amp_prior=amp_prior,
+        s += deterministic.cw_block_ecc(amp_prior=amp_prior,
                                                 skyloc=skyloc, log10_F=log10_F,
                                                 ecc=ecc, psrTerm=psrTerm,
                                                 tref=tmin, name='cw')
