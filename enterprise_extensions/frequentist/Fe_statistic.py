@@ -4,12 +4,9 @@ import numpy as np
 import scipy.linalg as sl
 import json
 
-#from enterprise_extensions import models
-import enterprise_cw_funcs_from_git as models
-
 import enterprise
 from enterprise.pulsar import Pulsar
-import enterprise.signals.parameter as parameter
+from enterprise.signals import parameter
 from enterprise.signals import utils
 from enterprise.signals import signal_base
 from enterprise.signals import selections
@@ -17,7 +14,7 @@ from enterprise.signals.selections import Selection
 from enterprise.signals import white_signals
 from enterprise.signals import gp_signals
 from enterprise.signals import deterministic_signals
-import enterprise.constants as const
+from enterprise import constants as const
 
 class FeStat(object):
     """
