@@ -49,7 +49,7 @@ class JumpProposal(object):
         if empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 with open(empirical_distr, 'rb') as f:
-                    pickled_distr = pickle.load(f, encoding='latin1')
+                    pickled_distr = pickle.load(f)
             except:
                 try:
                     with open(empirical_distr, 'rb') as f:
@@ -58,8 +58,7 @@ class JumpProposal(object):
                     print('I can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
 
-            if pickled_distr is None:
-                self.empirical_distr = None
+            self.empirical_distr = pickled_distr
 
         elif isinstance(empirical_distr,list):
             pass
