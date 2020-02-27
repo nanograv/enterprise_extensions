@@ -11,6 +11,7 @@ from enterprise.signals import signal_base
 import enterprise.signals.signal_base as base
 from enterprise.signals import white_signals
 from enterprise.signals import gp_signals
+from enterprise.signals import gp_priors
 from enterprise.signals import deterministic_signals
 from enterprise.signals import utils
 from enterprise import constants as const
@@ -1069,7 +1070,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
-               'tprocess', 'tprocess_adapt']:
+               'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
@@ -1106,6 +1107,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             nfreq = parameter.Uniform(-0.5, 10-0.5)
             pl = t_process_adapt(log10_A=log10_A, gamma=gamma,
                                  alphas_adapt=alpha_adapt, nfreq=nfreq)
+        elif psd == 'infinitepower':
+            pl = gp_priors.infinitepower()
 
     if psd == 'spectrum':
         if prior == 'uniform':
@@ -2466,7 +2469,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False):
+             be_type='orbel', wideband=False, correlationsonly=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -2508,7 +2511,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
+                        Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
