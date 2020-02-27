@@ -192,7 +192,7 @@ class HyperModel(object):
         np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
 
         # always add draw from prior
         sampler.addProposalToCycle(jp.draw_from_prior, 5)
