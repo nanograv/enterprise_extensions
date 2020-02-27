@@ -1,0 +1,46 @@
+language: python
+cache: pip
+
+python:
+    - "3.6"
+    - "3.7"
+
+before_install:
+    - sudo apt-get install gfortran
+    - sudo apt-get install libsuitesparse-dev
+
+install:
+    - export TEMPO2=$HOME/.local/tempo2
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$TEMPO2/lib
+    - mkdir -p $TEMPO2
+    - curl -O https://bitbucket.org/psrsoft/tempo2/get/master.tar.gz -z master.tar.gz
+    - tar zxvf master.tar.gz
+    - cd psrsoft-tempo2-*
+    - ./bootstrap
+    - ./configure --prefix=$TEMPO2
+    -  make && make install
+    - cp -Rp T2runtime/* $TEMPO2/.
+    - cd ..
+    - rm -rf psrsoft-tempo2-*
+
+    - sudo apt-get update
+
+    - pip install -r requirements.txt
+    - pip install -r requirements_dev.txt
+    - pip list | grep -E "numpy|scipy|Cython|scikit-sparse"
+    - pip install git+https://github.com/dfm/acor.git
+    - pip install git+https://github.com/jellis18/PTMCMCSampler.git
+    - pip install git+https://github.com/nanograv/pint.git
+    - pip install git+https://github.com/vallis/libstempo.git --install-option="--with-tempo2=$TEMPO2"
+    - pip install git+https://github.com/nanograv/enterprise.git
+    - python setup.py install
+    # - pip install -U tox-travis
+
+script:
+    - pytest
+    #- tox
+    #- coverage run --source enterprise setup.py test
+    #- make lint
+
+# after_success:
+    # coveralls

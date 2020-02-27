@@ -1,19 +1,16 @@
+# -*- coding: utf-8 -*-
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
-import scipy.stats
 from collections import OrderedDict
 
-import enterprise
 from enterprise.signals import parameter
 from enterprise.signals import selections
 from enterprise.signals import signal_base
-import enterprise.signals.signal_base as base
 from enterprise.signals import white_signals
 from enterprise.signals import gp_signals
 from enterprise.signals import gp_priors
 from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
 from enterprise import constants as const
 
 from enterprise_extensions import model_utils
@@ -1748,13 +1745,26 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, dm_chrom=False,
-                          dmchrom_psd='powerlaw', dmchrom_idx=4,
-                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
+                          dm_annual=False, gamma_dm_val=None, chrom_gp=False,
+                          chrom_gp_kernel='nondiag',
+                          chrom_psd='powerlaw', chrom_idx=4,
+                          chrom_kernel='periodic',
+                          dm_expdip=False, dmexp_sign='negative',
+                          dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
-                          dm_cusp=False, dm_cusp_sign=False, dm_cusp_idx=2,
-                          dm_cusp_tmin=None, dm_cusp_tmax=None, coefficients=False):
+                          dm_cusp=False, dm_cusp_sign='negative',
+                          dm_cusp_idx=2, dm_cusp_sym=False,
+                          dm_cusp_tmin=None, dm_cusp_tmax=None,
+                          num_dm_cusps=1, dm_cusp_seqname=None,
+                          dm_dual_cusp=False, dm_dual_cusp_tmin=None,
+                          dm_dual_cusp_tmax=None, dm_dual_cusp_sym=False,
+                          dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4,
+                          dm_dual_cusp_sign='negative', num_dm_dual_cusps=1,
+                          dm_dual_cusp_seqname=None,
+                          dm_sw_deter=False, dm_sw_gp=False,
+                          swgp_prior=None, swgp_basis=None,
+                          coefficients=False):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -1779,21 +1789,43 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
     :param gamma_dm_val: spectral index of power-law DM variations
-    :param dm_chrom: include general chromatic noise
-    :param dmchrom_psd: power-spectral density of chromatic noise
-    :param dmchrom_idx: frequency scaling of chromatic noise
+    :param chrom_gp: include general chromatic noise
+    :param chrom_gp_kernel: GP kernel type to use in chrom ['diag','nondiag']
+    :param chrom_psd: power-spectral density of chromatic noise
+    :param chrom_idx: frequency scaling of chromatic noise
+    :param chrom_kernel: Type of 'nondiag' kernel to use in chrom GP.
     :param dm_expdip: inclue a DM exponential dip
-    :param dmexp_sign: include a sign parameter for dip
+    :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
     :param num_dmdips: number of dm exponential dips
     :param dmdip_seqname: name of dip sequence
     :param dm_cusp: inclue a DM exponential cusp
-    :param dm_cusp_sign: include a sign parameter for cusp
+    :param dm_cusp_sign: set the sign parameter for cusp
     :param dm_cusp_idx: chromatic index of exponential cusp
     :param dm_cusp_tmin: sampling minimum of DM cusp epoch
     :param dm_cusp_tmax: sampling maximum of DM cusp epoch
+    :param dm_cusp_sym: make exponential cusp symmetric
+    :param num_dm_cusps: number of dm exponential cusps
+    :param dm_cusp_seqname: name of cusp sequence
+    :param dm_dual_cusp: include a DM cusp with two chromatic indices
+    :param dm_dual_cusp_tmin: sampling minimum of DM dual cusp epoch
+    :param dm_dual_cusp_tmax: sampling maximum of DM dual cusp epoch
+    :param dm_dual_cusp_idx1: first chromatic index of DM dual cusp
+    :param dm_dual_cusp_idx2: second chromatic index of DM dual cusp
+    :param dm_dual_cusp_sym: make dual cusp symmetric
+    :param dm_dual_cusp_sign: set the sign parameter for dual cusp
+    :param num_dm_dual_cusps: number of DM dual cusps
+    :param dm_dual_cusp_seqname: name of dual cusp sequence
+    :param dm_scattering: whether to explicitly model DM scattering variations
+    :param chrom_kernel: type of time-domain DM GP kernel for the scattering
+        variations
+    :param dm_sw_deter: use the deterministic solar wind model
+    :param dm_sw_gp: add a Gaussian process perturbation to the deterministic
+        solar wind model.
+    :param swgp_prior: prior is currently set automatically
+    :param swgp_basis: ['powerlaw', 'periodid', 'sq_exp']
     :param coefficients: explicitly include latent coefficients in model
 
     :return s: single pulsar noise model
@@ -1818,9 +1850,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
     # red noise
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
-                            components=components, gamma_val=gamma_val,
-                            coefficients=coefficients, select=red_select)
-
+                             components=components, gamma_val=gamma_val,
+                             coefficients=coefficients, select=red_select)
 
     # DM variations
     if dm_var:
@@ -1835,40 +1866,77 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False, tmparam_list=None,
                                     nondiag_kernel=dm_nondiag_kernel,
                                     coefficients=coefficients)
         elif dm_type == 'dmx':
-            s += dmx_signal(dmx_data=dmx_data[psr.name])
+            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
-            s += dm_annual_signal()
-        if dm_chrom:
-            s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=components,
+            s += chrom.dm_annual_signal()
+        if chrom_gp:
+            s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
+                                       psd=chrom_psd, idx=chrom_idx,
+                                       components=components,
+                                       nondiag_kernel=chrom_kernel,
                                        coefficients=coefficients)
+
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
-                tmin = psr.toas.min() / 86400
-                tmax = psr.toas.max() / 86400
+                tmin = [psr.toas.min() / 86400 for ii in range(num_dmdips)]
+                tmax = [psr.toas.max() / 86400 for ii in range(num_dmdips)]
             else:
-                tmin = dm_expdip_tmin
-                tmax = dm_expdip_tmax
+                tmin = (dm_expdip_tmin if isinstance(dm_expdip_tmin,list)
+                                     else [dm_expdip_tmin])
+                tmax = (dm_expdip_tmax if isinstance(dm_expdip_tmax,list)
+                                     else [dm_expdip_tmax])
             if dmdip_seqname is not None:
                 dmdipname_base = 'dmexp_'+dmdip_seqname+'_'
             else:
                 dmdipname_base = 'dmexp_'
             for dd in range(1,num_dmdips+1):
-                s += dm_exponential_dip(tmin=tmin, tmax=tmax,
-                                        idx=dm_expdip_idx,
-                                        sign=dmexp_sign,
-                                        name=dmdipname_base+str(dd))
+                s += chrom.dm_exponential_dip(tmin=tmin[dd-1], tmax=tmax[dd-1],
+                                              idx=dm_expdip_idx,
+                                              sign=dmexp_sign,
+                                              name=dmdipname_base+str(dd))
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
+                tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
+                tmax = [psr.toas.max() / 86400 for ii in range(num_dm_cusps)]
+            else:
+                tmin = (dm_cusp_tmin if isinstance(dm_cusp_tmin,list)
+                                     else [dm_cusp_tmin])
+                tmax = (dm_cusp_tmax if isinstance(dm_cusp_tmmax,list)
+                                     else [dm_cusp_tmax])
+            if dm_cusp_seqname is not None:
+                cusp_name_base = 'dm_cusp_'+dm_cusp_seqname+'_'
+            else:
+                cusp_name_base = 'dm_cusp_'
+            for dd in range(1,num_dm_cusps+1):
+                s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
+                                               tmax=tmax[dd-1],
+                                               idx=dm_cusp_idx,
+                                               sign=dm_cusp_sign,
+                                               symmetric=dm_cusp_sym,
+                                               name=cusp_name_base+str(dd))
+        if dm_dual_cusp:
+            if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
                 tmax = psr.toas.max() / 86400
             else:
-                tmin = dm_cusp_tmin
-                tmax = dm_cusp_tmax
-            s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
-                                        idx=dm_cusp_idx,
-                                        sign=dm_cusp_sign,
-                                        name='dm_cusp')
+                tmin = dm_dual_cusp_tmin
+                tmax = dm_dual_cusp_tmax
+            if dm_dual_cusp_seqname is not None:
+                dual_cusp_name_base = 'dm_dual_cusp_'+dm_cusp_seqname+'_'
+            else:
+                dual_cusp_name_base = 'dm_dual_cusp_'
+            for dd in range(1,num_dm_dual_cusps+1):
+                s += chrom.dm_dual_exp_cusp(tmin=tmin, tmax=tmax,
+                                            idx1=dm_dual_cusp_idx1,
+                                            idx2=dm_dual_cusp_idx2,
+                                            sign=dm_dual_cusp_sign,
+                                            symmetric=dm_dual_cusp_sym,
+                                            name=dual_cusp_name_base+str(dd))
+        if dm_sw_deter:
+            Tspan = psr.toas.max() - psr.toas.min()
+            s+=solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
+                                swgp_prior=swgp_prior, swgp_basis=swgp_basis,
+                                Tspan=Tspan)
 
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
@@ -1932,7 +2000,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # red noise
     s = red_noise_block(psd=psd, prior=amp_prior,
-                         Tspan=Tspan, components=components)
+                        Tspan=Tspan, components=components)
 
     # ephemeris model
     if bayesephem:
@@ -2028,10 +2096,12 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True, select=select)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True,
+                                       select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False, select=select)
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False,
+                                       select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -2056,7 +2126,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
                   upper_limit_common=None,
                   bayesephem=False, be_type='orbel', wideband=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw',
+                  dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
@@ -2136,40 +2207,46 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     if logfreq:
         fmin = 10.0
-        modes, wgts = model_utils.linBinning(Tspan, nmodes_log, 1.0 / fmin / Tspan,
+        modes, wgts = model_utils.linBinning(Tspan, nmodes_log,
+                                             1.0 / fmin / Tspan,
                                              common_components, nmodes_log)
         wgts = wgts**2.0
 
     # red noise
     s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
-                        components=red_components, modes=modes, wgts=wgts,
-                        coefficients=coefficients,
-                        select=red_select, break_flat=red_breakflat,
-                        break_flat_fq=red_breakflat_fq)
+                         components=red_components, modes=modes, wgts=wgts,
+                         coefficients=coefficients,
+                         select=red_select, break_flat=red_breakflat,
+                         break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     if orf is None:
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
-                                    components=common_components, coefficients=coefficients,
-                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
-                                    name='gw')
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
+                                    Tspan=Tspan,
+                                    components=common_components,
+                                    coefficients=coefficients,
+                                    gamma_val=gamma_common, name='gw')
     elif orf == 'hd':
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
-                                    components=common_components, coefficients=coefficients,
-                                    modes=modes, wgts=wgts, gamma_val=gamma_common,
-                                    orf='hd', name='gw')
+        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
+                                    Tspan=Tspan,
+                                    components=common_components,
+                                    coefficients=coefficients,
+                                    gamma_val=gamma_common, orf='hd',
+                                    name='gw')
 
     # DM variations
     if dm_var:
         if dm_type == 'gp':
-            s += dm_noise_block(gp_kernel='diag', psd=dm_psd, prior=amp_prior_dm,
+            s += dm_noise_block(gp_kernel='diag', psd=dm_psd,
+                                prior=amp_prior_dm,
                                 components=dm_components, gamma_val=None,
                                 coefficients=coefficients)
         if dm_annual:
-            s += dm_annual_signal()
+            s += chrom.dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic', components=dm_components,
+                                       name='chromatic',
+                                       components=dm_components,
                                        coefficients=coefficients)
 
     # ephemeris model
@@ -2188,8 +2265,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s3 = s2 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                             sign=False, name='dmexp')
+                s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                   sign=False, name='dmexp')
                 models.append(s3(p))
             else:
                 models.append(s2(p))
@@ -2202,8 +2279,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s5 = s4 + dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                             sign=False, name='dmexp')
+                s5 = s4 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                   sign=False, name='dmexp')
                 models.append(s5(p))
             else:
                 models.append(s4(p))
@@ -2873,8 +2950,8 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
                                 name='gw')
 
     # ephemeris model
-    s += Dropout_PhysicalEphemerisSignal(use_epoch_toas=True,
-                                         k_threshold=k_threshold)
+    s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True,
+                                            k_threshold=k_threshold)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -2969,16 +3046,16 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     else:
         gamma_gw = parameter.Uniform(0, 7)(gam_name)
 
-    k_drop = parameter.Uniform(0.0, 1.0) # per-pulsar
+    k_drop = parameter.Uniform(0.0, 1.0)  # per-pulsar
 
-    drop_pl = dropout_powerlaw(log10_A=log10_Agw, gamma=gamma_gw,
-                               k_drop=k_drop, k_threshold=k_threshold)
+    drop_pl = do.dropout_powerlaw(log10_A=log10_Agw, gamma=gamma_gw,
+                                  k_drop=k_drop, k_threshold=k_threshold)
     crn = gp_signals.FourierBasisGP(drop_pl, components=components,
                                     Tspan=Tspan, name='gw')
     s += crn
 
     # ephemeris model
-    s += Dropout_PhysicalEphemerisSignal(use_epoch_toas=True)
+    s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -3006,7 +3083,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-## Does not yet work with IPTA datasets due to white-noise modeling issues.
+# Does not yet work with IPTA datasets due to white-noise modeling issues.
 def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
                     gamma_common=None, upper_limit=False, bayesephem=False,
                     wideband=False,
@@ -3172,9 +3249,9 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
     tmax = np.max([p.toas.max() for p in psrs])
     Tspan = tmax - tmin
 
-    if Tmin_bwm == None:
+    if Tmin_bwm is None:
         Tmin_bwm = tmin/const.day
-    if Tmax_bwm == None:
+    if Tmax_bwm is None:
         Tmax_bwm = tmax/const.day
 
     # red noise
@@ -3185,14 +3262,15 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
         s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
                             gamma_val=None)
         if dm_annual:
-            s += dm_annual_signal()
+            s += chrom.dm_annual_signal()
 
         # DM exponential dip for J1713's DM event
-        dmexp = dm_exponential_dip(tmin=54500, tmax=54900)
+        dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += bwm_block(Tmin_bwm, Tmax_bwm, amp_prior=amp_prior,
-                   skyloc=skyloc, name='bwm')
+    s += deterministic.bwm_block(Tmin_bwm, Tmax_bwm,
+                                         amp_prior=amp_prior,
+                                         skyloc=skyloc, name='bwm')
 
     # ephemeris model
     if bayesephem:
@@ -3280,15 +3358,18 @@ def model_cw(psrs, upper_limit=False,
 
     # GW CW signal block
     if not ecc:
-        s += cw_block_circ(amp_prior=amp_prior,
-                           skyloc=skyloc, log10_fgw=log10_F,
-                           psrTerm=psrTerm, tref=tmin, name='cw')
+        s += deterministic.cw_block_circ(amp_prior=amp_prior,
+                                                 skyloc=skyloc,
+                                                 log10_fgw=log10_F,
+                                                 psrTerm=psrTerm, tref=tmin,
+                                                 name='cw')
     else:
         if type(ecc) is not float:
             ecc = None
-        s += cw_block_ecc(amp_prior=amp_prior,
-                          skyloc=skyloc, log10_F=log10_F, ecc=ecc,
-                          psrTerm=psrTerm, tref=tmin, name='cw')
+        s += deterministic.cw_block_ecc(amp_prior=amp_prior,
+                                                skyloc=skyloc, log10_F=log10_F,
+                                                ecc=ecc, psrTerm=psrTerm,
+                                                tref=tmin, name='cw')
 
     # ephemeris model
     if bayesephem:
@@ -3301,7 +3382,8 @@ def model_cw(psrs, upper_limit=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True, gp_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True,
+                                       gp_ecorr=True)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
