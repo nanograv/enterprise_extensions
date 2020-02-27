@@ -53,7 +53,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_dual_cusp_seqname=None,
                           dm_sw_deter=False, dm_sw_gp=False,
                           swgp_prior=None, swgp_basis=None,
-                          coefficients=False):
+                          coefficients=False, extra_sigs=None):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -116,6 +116,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param swgp_prior: prior is currently set automatically
     :param swgp_basis: ['powerlaw', 'periodid', 'sq_exp']
     :param coefficients: explicitly include latent coefficients in model
+    :param extra_sigs: Any additional `enterprise` signals to be added to the
+        model.
 
     :return s: single pulsar noise model
     """
@@ -178,9 +180,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 dmdipname_base = 'dmexp_'+dmdip_seqname+'_'
             else:
                 dmdipname_base = 'dmexp_'
+            dm_expdip_idx = (dm_expdip_idx if isinstance(dm_expdip_idx,list)
+                                           else [dm_expdip_idx])
             for dd in range(1,num_dmdips+1):
                 s += chrom.dm_exponential_dip(tmin=tmin[dd-1], tmax=tmax[dd-1],
-                                              idx=dm_expdip_idx,
+                                              idx=dm_expdip_idx[dd-1],
                                               sign=dmexp_sign,
                                               name=dmdipname_base+str(dd))
         if dm_cusp:
@@ -196,6 +200,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 cusp_name_base = 'dm_cusp_'+dm_cusp_seqname+'_'
             else:
                 cusp_name_base = 'dm_cusp_'
+            dm_cusp_idx = (dm_cusp_idx if isinstance(dm_cusp_idx,list)
+                                           else [dm_cusp_idx])
             for dd in range(1,num_dm_cusps+1):
                 s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
                                                tmax=tmax[dd-1],
@@ -227,6 +233,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                 swgp_prior=swgp_prior, swgp_basis=swgp_basis,
                                 Tspan=Tspan)
 
+    if extra_sigs is not None:
+        s += extra_sigs
     # adding white-noise, and acting on psr objects
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
