@@ -241,7 +241,7 @@ def dm_solar(n_earth,theta,r_earth):
                     _dm_solar(n_earth, theta, r_earth),
                     _dm_solar_close(n_earth, r_earth))
 
-def theta_impact(planetssb,pos_t):
+def theta_impact(planetssb,sunssb,pos_t):
     """
     Use the attributes of an enterprise Pulsar object to calculate the
     solar impact angle.
@@ -254,8 +254,10 @@ def theta_impact(planetssb,pos_t):
     returns: Solar impact angle (rad), Distance to Earth
     """
     earth = planetssb[:, 2, :3]
-    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
+    sun = sunssb[:,:3]
+    earthsun = earth-sun
+    R_earth = np.sqrt(np.einsum('ij,ij->i',earthsun, earthsun))
+    Re_cos_theta_impact = np.einsum('ij,ij->i',earthsun, pos_t)
 
     theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
 
