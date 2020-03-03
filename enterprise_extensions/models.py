@@ -430,7 +430,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
-                  coefficients=False,pshift=False):
+                  coefficients=False, pshift=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -845,7 +845,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, pshift=False):
+             be_type='orbel', wideband=False, correlationsonly=False, pshift=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -879,6 +879,9 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
         Include BayesEphem model. Set to False by default
     :param be_type:
         orbel, orbel-v2, setIII
+    :param correlationsonly:
+        Give infinite power (well, 1e40) to pulsar red noise, effectively
+        canceling out also GW diagonal terms
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -887,7 +890,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
+                        Tspan=Tspan, components=components)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
