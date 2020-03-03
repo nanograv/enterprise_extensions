@@ -473,7 +473,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False):
+                           orf=None, name='gw', coefficients=False,
+                           pshift=False):
     """
     Returns common red noise model:
 
@@ -559,12 +560,12 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name)
+                                        name=name, pshift=pshift)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
                                               Tspan=Tspan,
-                                              name=name)
+                                              name=name, pshift=pshift)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
