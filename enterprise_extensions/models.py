@@ -182,15 +182,16 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                    if isinstance(dmdip_seqname,list)
                                    else ['dmexp_' + dmdip_seqname + '_'])
             else:
-                dmdipname_base = ['dmexp_' for ii in range(num_dmdips)]
-                                   
+                dmdipname_base = ['dmexp_{0}'.format(ii+1)
+                                  for ii in range(num_dmdips)]
+
             dm_expdip_idx = (dm_expdip_idx if isinstance(dm_expdip_idx,list)
                                            else [dm_expdip_idx])
-            for dd in range(1,num_dmdips+1):
-                s += chrom.dm_exponential_dip(tmin=tmin[dd-1], tmax=tmax[dd-1],
-                                              idx=dm_expdip_idx[dd-1],
+            for dd in range(num_dmdips):
+                s += chrom.dm_exponential_dip(tmin=tmin[dd], tmax=tmax[dd],
+                                              idx=dm_expdip_idx[dd],
                                               sign=dmexp_sign,
-                                              name=dmdipname_base+str(dd))
+                                              name=dmdipname_base[dd])
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
