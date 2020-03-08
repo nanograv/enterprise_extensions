@@ -114,7 +114,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
-               'tprocess', 'tprocess_adapt']:
+               'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
@@ -151,6 +151,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             nfreq = parameter.Uniform(-0.5, 10-0.5)
             pl = gpp.t_process_adapt(log10_A=log10_A, gamma=gamma,
                                     alphas_adapt=alpha_adapt, nfreq=nfreq)
+        elif psd == 'infinitepower':
+            pl = gpp.infinitepower()
 
     if psd == 'spectrum':
         if prior == 'uniform':
@@ -473,7 +475,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False):
+                           orf=None, name='gw', coefficients=False,
+                           pshift=False):
     """
     Returns common red noise model:
 
@@ -559,12 +562,12 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name)
+                                        name=name, pshift=pshift)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
                                               Tspan=Tspan,
-                                              name=name)
+                                              name=name, pshift=pshift)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
