@@ -178,9 +178,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 tmax = (dm_expdip_tmax if isinstance(dm_expdip_tmax,list)
                                      else [dm_expdip_tmax])
             if dmdip_seqname is not None:
-                dmdipname_base = (['dmexp_' + nm + '_' for nm in dmdip_seqname]
+                dmdipname_base = (['dmexp_' + nm for nm in dmdip_seqname]
                                    if isinstance(dmdip_seqname,list)
-                                   else ['dmexp_' + dmdip_seqname + '_'])
+                                   else ['dmexp_' + dmdip_seqname])
             else:
                 dmdipname_base = ['dmexp_{0}'.format(ii+1)
                                   for ii in range(num_dmdips)]
