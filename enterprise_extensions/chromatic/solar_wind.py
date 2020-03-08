@@ -248,6 +248,8 @@ def theta_impact(planetssb,sunssb,pos_t):
 
     ::param :planetssb Solar system barycenter timeseries supplied with
         enterprise.Pulsar objects.
+    ::param :sunssb Solar system sun-to-barycenter timeseries supplied with
+        enterprise.Pulsar objects.
     ::param :pos_t Unit vector to pulsar position over time in ecliptic
         coordinates. Supplied with enterprise.Pulsar objects.
 
@@ -255,9 +257,9 @@ def theta_impact(planetssb,sunssb,pos_t):
     """
     earth = planetssb[:, 2, :3]
     sun = sunssb[:,:3]
-    earthsun = earth-sun
-    R_earth = np.sqrt(np.einsum('ij,ij->i',earthsun, earthsun))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earthsun, pos_t)
+    earthsun = earth - sun
+    R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
+    Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun, pos_t)
 
     theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
 
