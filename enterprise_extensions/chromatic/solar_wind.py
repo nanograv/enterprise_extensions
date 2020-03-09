@@ -72,8 +72,11 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 
             bin_mask = np.logical_and(toas >= bin, toas <= edges[ii + 1])
             earth = planetssb[bin_mask, 2, :3]
-            R_earth = np.sqrt(np.einsum('ij,ij->i', earth, earth))
-            Re_cos_theta_impact = np.einsum('ij,ij->i', earth, pos_t[bin_mask])
+            sun = sunssb[bin_mask,:3]
+            earthsun = earth - sun
+            R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
+            Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun,
+                                            pos_t[bin_mask])
             theta = np.arccos(-Re_cos_theta_impact / R_earth)
             dm_sol_wind = dm_solar(n_earth[ii], theta, R_earth)
 
@@ -89,7 +92,8 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 
 # linear interpolation basis in time with nu^-2 scaling
 @signal_base.function
-def linear_interp_basis_sw_dm(toas, freqs, planetssb, pos_t, dt=7*86400):
+def linear_interp_basis_sw_dm(toas, freqs, planetssb, sunssb,
+                              pos_t, dt=7*86400):
 
     # get linear interpolation basis in time
     U, avetoas = utils.linear_interp_basis(toas, dt=dt)
@@ -103,7 +107,7 @@ def linear_interp_basis_sw_dm(toas, freqs, planetssb, pos_t, dt=7*86400):
 
 
 @signal_base.function
-def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t,
+def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
                                        modes=None, nmodes=30,
                                        Tspan=None, logf=True, fmin=None,
                                        fmax=None):
