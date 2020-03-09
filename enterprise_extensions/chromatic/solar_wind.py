@@ -16,7 +16,8 @@ yr_in_sec = 365.25*24*3600
 
 
 @signal_base.function
-def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
+def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
+               n_earth=5, n_earth_bins=None,
                t_init=None, t_final=None):
 
     """
