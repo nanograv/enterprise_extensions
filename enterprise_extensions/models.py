@@ -881,7 +881,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
+    s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
+                        prior=amp_prior,
                         Tspan=Tspan, components=components)
 
     # common red noise block
