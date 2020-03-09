@@ -41,7 +41,7 @@ def solar_wind(toas, freqs, planetssb, pos_t, n_earth=5, n_earth_bins=None,
     """
 
     if n_earth_bins is None:
-        theta, R_earth = theta_impact(planetssb, pos_t)
+        theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
         dm_sol_wind = dm_solar(n_earth, theta, R_earth)
         dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
 
@@ -94,7 +94,7 @@ def linear_interp_basis_sw_dm(toas, freqs, planetssb, pos_t, dt=7*86400):
     U, avetoas = utils.linear_interp_basis(toas, dt=dt)
 
     # scale with radio frequency
-    theta, R_earth = theta_impact(planetssb, pos_t)
+    theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
     dt_DM = dm_sol_wind * 4.148808e3  / (freqs**2)
 
@@ -129,7 +129,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t,
                                                     modes=modes,
                                                     Tspan=Tspan, logf=logf,
                                                     fmin=fmin, fmax=fmax)
-    theta, R_earth = theta_impact(planetssb,pos_t)
+    theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
     dt_DM = dm_sol_wind * 4.148808e3 /(freqs**2)
 
