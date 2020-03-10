@@ -10,6 +10,7 @@ from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 
+class JumpProposal(object):
     def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
@@ -53,7 +54,7 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
         # empirical distributions
         if empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
-                with open(empirical_distr, 'rb') as f:
+                with open(empirical_distr, "rb") as f:
                     pickled_distr = pickle.load(f)
             except:
                 try:
@@ -88,11 +89,11 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
             else:
                 self.empirical_distr = None
 
-        #F-statistic map
+        # F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
             npzfile = np.load(f_stat_file)
-            self.fe_freqs = npzfile['freqs']
-            self.fe = npzfile['fe']
+            self.fe_freqs = npzfile["freqs"]
+            self.fe = npzfile["fe"]
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -626,63 +627,72 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
         q = x.copy()
         lqxy = 0
-        
+
         fe_limit = np.max(self.fe)
-        
-        #draw skylocation and frequency from f-stat map
+
+        # draw skylocation and frequency from f-stat map
         accepted = False
-        while accepted==False:
-            log_f_new = self.params[self.pimap['log10_fgw']].sample()
+        while accepted == False:
+            log_f_new = self.params[self.pimap["log10_fgw"]].sample()
             f_idx = (np.abs(np.log10(self.fe_freqs) - log_f_new)).argmin()
 
-            gw_theta = np.arccos(self.params[self.pimap['cos_gwtheta']].sample())
-            gw_phi = self.params[self.pimap['gwphi']].sample()
+            gw_theta = np.arccos(self.params[self.pimap["cos_gwtheta"]].sample())
+            gw_phi = self.params[self.pimap["gwphi"]].sample()
             hp_idx = hp.ang2pix(hp.get_nside(self.fe), gw_theta, gw_phi)
 
             fe_new_point = self.fe[f_idx, hp_idx]
-            if np.random.uniform()<(fe_new_point/fe_limit):
+            if np.random.uniform() < (fe_new_point / fe_limit):
                 accepted = True
 
-        #draw other parameters from prior
-        cos_inc = self.params[self.pimap['cos_inc']].sample()
-        psi = self.params[self.pimap['psi']].sample()
-        phase0 = self.params[self.pimap['phase0']].sample()
-        log10_h = self.params[self.pimap['log10_h']].sample()
-        
+        # draw other parameters from prior
+        cos_inc = self.params[self.pimap["cos_inc"]].sample()
+        psi = self.params[self.pimap["psi"]].sample()
+        phase0 = self.params[self.pimap["phase0"]].sample()
+        log10_h = self.params[self.pimap["log10_h"]].sample()
 
-        #put new parameters into q
-        signal_name = 'cw'
-        for param_name, new_param in zip(['log10_fgw','gwphi','cos_gwtheta','cos_inc','psi','phase0','log10_h'],
-                                           [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
+        # put new parameters into q
+        signal_name = "cw"
+        for param_name, new_param in zip(
+            [
+                "log10_fgw",
+                "gwphi",
+                "cos_gwtheta",
+                "cos_inc",
+                "psi",
+                "phase0",
+                "log10_h",
+            ],
+            [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h],
+        ):
             q[self.pimap[param_name]] = new_param
-        
-        #calculate Hastings ratio
-        log_f_old = x[self.pimap['log10_fgw']]
+
+        # calculate Hastings ratio
+        log_f_old = x[self.pimap["log10_fgw"]]
         f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
-        
-        gw_theta_old = np.arccos(x[self.pimap['cos_gwtheta']])
-        gw_phi_old = x[self.pimap['gwphi']]
+
+        gw_theta_old = np.arccos(x[self.pimap["cos_gwtheta"]])
+        gw_phi_old = x[self.pimap["gwphi"]]
         hp_idx_old = hp.ang2pix(hp.get_nside(self.fe), gw_theta_old, gw_phi_old)
-        
+
         fe_old_point = self.fe[f_idx_old, hp_idx_old]
-        if fe_old_point>fe_limit:
+        if fe_old_point > fe_limit:
             fe_old_point = fe_limit
-            
-        log10_h_old = x[self.pimap['log10_h']]
-        phase0_old = x[self.pimap['phase0']]
-        psi_old = x[self.pimap['psi']]
-        cos_inc_old = x[self.pimap['cos_inc']]
-        
-        hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(log10_h_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['log10_h']].get_pdf(log10_h)
-        hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(phase0_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['phase0']].get_pdf(phase0)
-        hastings_extra_factor = self.params[self.pimap['psi']].get_pdf(psi_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['psi']].get_pdf(psi)
-        hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(cos_inc_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)        
-        
-        lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
+
+        log10_h_old = x[self.pimap["log10_h"]]
+        phase0_old = x[self.pimap["phase0"]]
+        psi_old = x[self.pimap["psi"]]
+        cos_inc_old = x[self.pimap["cos_inc"]]
+
+        hastings_extra_factor = self.params[self.pimap["log10_h"]].get_pdf(log10_h_old)
+        hastings_extra_factor *= 1 / self.params[self.pimap["log10_h"]].get_pdf(log10_h)
+        hastings_extra_factor = self.params[self.pimap["phase0"]].get_pdf(phase0_old)
+        hastings_extra_factor *= 1 / self.params[self.pimap["phase0"]].get_pdf(phase0)
+        hastings_extra_factor = self.params[self.pimap["psi"]].get_pdf(psi_old)
+        hastings_extra_factor *= 1 / self.params[self.pimap["psi"]].get_pdf(psi)
+        hastings_extra_factor = self.params[self.pimap["cos_inc"]].get_pdf(cos_inc_old)
+        hastings_extra_factor *= 1 / self.params[self.pimap["cos_inc"]].get_pdf(cos_inc)
+
+        lqxy = np.log(fe_old_point / fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
 
@@ -743,6 +753,7 @@ def get_cw_groups(pta):
 
     return groups
 
+
 def get_timing_groups(pta):
     """Utility function to get parameter groups for timing sampling.
     These groups should be appended to the usual get_parameter_groups()
@@ -756,7 +767,7 @@ def get_timing_groups(pta):
     gr_groups = []
     dmx_groups = []
     for pta_pars in pta.param_names:
-        split_pars = pta_pars.split('_')
+        split_pars = pta_pars.split("_")
         if "pos" in split_pars:
             pos_groups.append(pta.param_names.index(pta_pars))
         elif "pm" in split_pars:
@@ -769,7 +780,14 @@ def get_timing_groups(pta):
             gr_groups.append(pta.param_names.index(pta_pars))
         elif "DMX" in split_pars:
             dmx_groups.append(pta.param_names.index(pta_pars))
-    for sub_group in [pos_groups,pm_groups,spin_groups,kep_groups,gr_groups,dmx_groups]:
+    for sub_group in [
+        pos_groups,
+        pm_groups,
+        spin_groups,
+        kep_groups,
+        gr_groups,
+        dmx_groups,
+    ]:
         if len(sub_group) > 0:
             groups.append(sub_group)
     return groups

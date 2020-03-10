@@ -29,34 +29,67 @@ from enterprise_extensions import dropout as do
 PTA models from paper
 """
 
-def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
-                          tmparam_list=None,
-                          red_var=True, psd='powerlaw', red_select=None,
-                          noisedict=None, tm_svd=False, tm_norm=True,
-                          white_vary=True, components=30, upper_limit=False,
-                          wideband=False, gamma_val=None, dm_var=False,
-                          dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
-                          dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, chrom_gp=False,
-                          chrom_gp_kernel='nondiag',
-                          chrom_psd='powerlaw', chrom_idx=4,
-                          chrom_kernel='periodic',
-                          dm_expdip=False, dmexp_sign='negative',
-                          dm_expdip_idx=2,
-                          dm_expdip_tmin=None, dm_expdip_tmax=None,
-                          num_dmdips=1, dmdip_seqname=None,
-                          dm_cusp=False, dm_cusp_sign='negative',
-                          dm_cusp_idx=2, dm_cusp_sym=False,
-                          dm_cusp_tmin=None, dm_cusp_tmax=None,
-                          num_dm_cusps=1, dm_cusp_seqname=None,
-                          dm_dual_cusp=False, dm_dual_cusp_tmin=None,
-                          dm_dual_cusp_tmax=None, dm_dual_cusp_sym=False,
-                          dm_dual_cusp_idx1=2, dm_dual_cusp_idx2=4,
-                          dm_dual_cusp_sign='negative', num_dm_dual_cusps=1,
-                          dm_dual_cusp_seqname=None,
-                          dm_sw_deter=False, dm_sw_gp=False,
-                          swgp_prior=None, swgp_basis=None,
-                          coefficients=False, extra_sigs=None):
+
+def model_singlepsr_noise(
+    psr,
+    tm_var=False,
+    tm_linear=False,
+    tmparam_list=None,
+    red_var=True,
+    psd="powerlaw",
+    red_select=None,
+    noisedict=None,
+    tm_svd=False,
+    tm_norm=True,
+    white_vary=True,
+    components=30,
+    upper_limit=False,
+    wideband=False,
+    gamma_val=None,
+    dm_var=False,
+    dm_type="gp",
+    dmgp_kernel="diag",
+    dm_psd="powerlaw",
+    dm_nondiag_kernel="periodic",
+    dmx_data=None,
+    dm_annual=False,
+    gamma_dm_val=None,
+    chrom_gp=False,
+    chrom_gp_kernel="nondiag",
+    chrom_psd="powerlaw",
+    chrom_idx=4,
+    chrom_kernel="periodic",
+    dm_expdip=False,
+    dmexp_sign="negative",
+    dm_expdip_idx=2,
+    dm_expdip_tmin=None,
+    dm_expdip_tmax=None,
+    num_dmdips=1,
+    dmdip_seqname=None,
+    dm_cusp=False,
+    dm_cusp_sign="negative",
+    dm_cusp_idx=2,
+    dm_cusp_sym=False,
+    dm_cusp_tmin=None,
+    dm_cusp_tmax=None,
+    num_dm_cusps=1,
+    dm_cusp_seqname=None,
+    dm_dual_cusp=False,
+    dm_dual_cusp_tmin=None,
+    dm_dual_cusp_tmax=None,
+    dm_dual_cusp_sym=False,
+    dm_dual_cusp_idx1=2,
+    dm_dual_cusp_idx2=4,
+    dm_dual_cusp_sign="negative",
+    num_dm_dual_cusps=1,
+    dm_dual_cusp_seqname=None,
+    dm_sw_deter=False,
+    dm_sw_gp=False,
+    swgp_prior=None,
+    swgp_basis=None,
+    coefficients=False,
+    extra_sigs=None,
+):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -137,7 +170,13 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         for key in psr.tmparams_orig:
             psr.tmparams_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
         if not tm_linear:
-            s = timing_block(tmparam_list=tmparam_list)
+            s = timing_block(
+                tmparam_list=tmparam_list,
+                prior_type="bounded-normal",
+                prior_sigma=2.0,
+                prior_lower_bound=-3.0,
+                prior_upper_bound=3.0,
+            )
         else:
             pass
 
@@ -202,14 +241,18 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             if dmdip_seqname is not None:
                 dmdipname_base = "dmexp_" + dmdip_seqname + "_"
             else:
-                dmdipname_base = 'dmexp_'
-            dm_expdip_idx = (dm_expdip_idx if isinstance(dm_expdip_idx,list)
-                                           else [dm_expdip_idx])
-            for dd in range(1,num_dmdips+1):
-                s += chrom.dm_exponential_dip(tmin=tmin[dd-1], tmax=tmax[dd-1],
-                                              idx=dm_expdip_idx[dd-1],
-                                              sign=dmexp_sign,
-                                              name=dmdipname_base+str(dd))
+                dmdipname_base = "dmexp_"
+            dm_expdip_idx = (
+                dm_expdip_idx if isinstance(dm_expdip_idx, list) else [dm_expdip_idx]
+            )
+            for dd in range(1, num_dmdips + 1):
+                s += chrom.dm_exponential_dip(
+                    tmin=tmin[dd - 1],
+                    tmax=tmax[dd - 1],
+                    idx=dm_expdip_idx[dd - 1],
+                    sign=dmexp_sign,
+                    name=dmdipname_base + str(dd),
+                )
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
@@ -224,16 +267,19 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             if dm_cusp_seqname is not None:
                 cusp_name_base = "dm_cusp_" + dm_cusp_seqname + "_"
             else:
-                cusp_name_base = 'dm_cusp_'
-            dm_cusp_idx = (dm_cusp_idx if isinstance(dm_cusp_idx,list)
-                                           else [dm_cusp_idx])
-            for dd in range(1,num_dm_cusps+1):
-                s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
-                                               tmax=tmax[dd-1],
-                                               idx=dm_cusp_idx,
-                                               sign=dm_cusp_sign,
-                                               symmetric=dm_cusp_sym,
-                                               name=cusp_name_base+str(dd))
+                cusp_name_base = "dm_cusp_"
+            dm_cusp_idx = (
+                dm_cusp_idx if isinstance(dm_cusp_idx, list) else [dm_cusp_idx]
+            )
+            for dd in range(1, num_dm_cusps + 1):
+                s += chrom.dm_exponential_cusp(
+                    tmin=tmin[dd - 1],
+                    tmax=tmax[dd - 1],
+                    idx=dm_cusp_idx,
+                    sign=dm_cusp_sign,
+                    symmetric=dm_cusp_sym,
+                    name=cusp_name_base + str(dd),
+                )
         if dm_dual_cusp:
             if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
@@ -366,10 +412,20 @@ def model_1(
 
     return pta
 
-def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, select='backend',
-             pshift=False):
+
+def model_2a(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    be_type="orbel",
+    wideband=False,
+    select="backend",
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -416,9 +472,15 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        name="gw",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -451,21 +513,50 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     return pta
 
-def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-                  common_psd='powerlaw', red_psd='powerlaw', orf=None,
-                  common_components=30, red_components=30, dm_components=30,
-                  modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None,
-                  tm_svd=False, tm_norm=True, gamma_common=None,
-                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
-                  upper_limit_common=None,
-                  bayesephem=False, be_type='orbel', wideband=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw',
-                  dm_annual=False,
-                  white_vary=False, gequad=False, dm_chrom=False,
-                  dmchrom_psd='powerlaw', dmchrom_idx=4,
-                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
-                  coefficients=False, pshift=False):
+
+def model_general(
+    psrs,
+    tm_var=False,
+    tm_linear=False,
+    tmparam_list=None,
+    common_var=True,
+    common_psd="powerlaw",
+    red_psd="powerlaw",
+    orf=None,
+    common_components=30,
+    red_components=30,
+    dm_components=30,
+    modes=None,
+    wgts=None,
+    logfreq=False,
+    nmodes_log=10,
+    noisedict=None,
+    tm_svd=False,
+    tm_norm=True,
+    gamma_common=None,
+    upper_limit=False,
+    upper_limit_red=None,
+    upper_limit_dm=None,
+    upper_limit_common=None,
+    bayesephem=False,
+    be_type="orbel",
+    wideband=False,
+    dm_var=False,
+    dm_type="gp",
+    dm_psd="powerlaw",
+    dm_annual=False,
+    white_vary=False,
+    gequad=False,
+    dm_chrom=False,
+    dmchrom_psd="powerlaw",
+    dmchrom_idx=4,
+    red_var=True,
+    red_select=None,
+    red_breakflat=False,
+    red_breakflat_fq=None,
+    coefficients=False,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -532,7 +623,13 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             for key in p.tmparams_orig:
                 p.tmparams_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
         if not tm_linear:
-            s = timing_block(tmparam_list=tmparam_list)
+            s = timing_block(
+                tmparam_list=tmparam_list,
+                prior_type="bounded-normal",
+                prior_sigma=2.0,
+                prior_lower_bound=-3.0,
+                prior_upper_bound=3.0,
+            )
         else:
             pass
 
@@ -664,9 +761,18 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     return pta
 
-def model_2b(psrs, psd='powerlaw', noisedict=None, components=30,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, pshift=False):
+
+def model_2b(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    wideband=False,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2B from the analysis paper:
@@ -709,9 +815,16 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # dipole
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='dipole', name='dipole', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="dipole",
+        name="dipole",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -848,9 +961,18 @@ def model_2c(
 
     return pta
 
-def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             wideband=False, pshift=False):
+
+def model_2d(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    wideband=False,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2D from the analysis paper:
@@ -893,9 +1015,16 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # monopole
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='monopole', name='monopole', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="monopole",
+        name="monopole",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -926,9 +1055,20 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
     return pta
 
-def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False, pshift=False):
+
+def model_3a(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    be_type="orbel",
+    wideband=False,
+    correlationsonly=False,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -973,13 +1113,23 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     Tspan = model_utils.get_tspan(psrs)
 
     # red noise
-    s = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
-                        Tspan=Tspan, components=components)
+    s = red_noise_block(
+        prior="infinitepower" if correlationsonly else amp_prior,
+        Tspan=Tspan,
+        components=components,
+    )
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='hd', name='gw', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="hd",
+        name="gw",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -1344,9 +1494,18 @@ def model_3d(
 
     return pta
 
-def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
-                     gamma_common=None, upper_limit=False, wideband=False,
-                     k_threshold=0.5, pshift=False):
+
+def model_2a_drop_be(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    wideband=False,
+    k_threshold=0.5,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1394,9 +1553,15 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        name="gw",
+        pshift=pshift,
+    )
 
     # ephemeris model
     s += do.Dropout_PhysicalEphemerisSignal(
@@ -1429,9 +1594,18 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, components=30,
     return pta
 
 
-def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
-                      gamma_common=None, upper_limit=False, bayesephem=False,
-                      wideband=False, k_threshold=0.5, pshift=False):
+def model_2a_drop_crn(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    wideband=False,
+    k_threshold=0.5,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1498,10 +1672,12 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
 
     k_drop = parameter.Uniform(0.0, 1.0)  # per-pulsar
 
-    drop_pl = do.dropout_powerlaw(log10_A=log10_Agw, gamma=gamma_gw,
-                                  k_drop=k_drop, k_threshold=k_threshold)
-    crn = gp_signals.FourierBasisGP(drop_pl, components=components,
-                                    Tspan=Tspan, name='gw', pshift=pshift)
+    drop_pl = do.dropout_powerlaw(
+        log10_A=log10_Agw, gamma=gamma_gw, k_drop=k_drop, k_threshold=k_threshold
+    )
+    crn = gp_signals.FourierBasisGP(
+        drop_pl, components=components, Tspan=Tspan, name="gw", pshift=pshift
+    )
     s += crn
 
     # ephemeris model
@@ -1534,10 +1710,20 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 # Does not yet work with IPTA datasets due to white-noise modeling issues.
-def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
-                    gamma_common=None, upper_limit=False, bayesephem=False,
-                    wideband=False, pshift=False,
-                    idx=4, chromatic_psd='powerlaw', c_psrs=['J1713+0747']):
+def model_chromatic(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    wideband=False,
+    pshift=False,
+    idx=4,
+    chromatic_psd="powerlaw",
+    c_psrs=["J1713+0747"],
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper + additional
@@ -1599,9 +1785,15 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, components=30,
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        name="gw",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:

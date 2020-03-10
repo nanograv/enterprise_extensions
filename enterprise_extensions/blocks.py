@@ -127,8 +127,14 @@ def red_noise_block(
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
-               'tprocess', 'tprocess_adapt', 'infinitepower']:
+    if psd in [
+        "powerlaw",
+        "powerlaw_genmodes",
+        "turnover",
+        "tprocess",
+        "tprocess_adapt",
+        "infinitepower",
+    ]:
         # parameters shared by PSD functions
         if prior == "uniform":
             log10_A = parameter.LinearExp(-20, -11)
@@ -160,15 +166,16 @@ def red_noise_block(
             pl = gpp.t_process(log10_A=log10_A, gamma=gamma, alphas=alphas)
         elif psd == "tprocess_adapt":
             df = 2
-            alpha_adapt = gpp.InvGamma(df/2, df/2, size=1)
-            nfreq = parameter.Uniform(-0.5, 10-0.5)
-            pl = gpp.t_process_adapt(log10_A=log10_A, gamma=gamma,
-                                    alphas_adapt=alpha_adapt, nfreq=nfreq)
-        elif psd == 'infinitepower':
+            alpha_adapt = gpp.InvGamma(df / 2, df / 2, size=1)
+            nfreq = parameter.Uniform(-0.5, 10 - 0.5)
+            pl = gpp.t_process_adapt(
+                log10_A=log10_A, gamma=gamma, alphas_adapt=alpha_adapt, nfreq=nfreq
+            )
+        elif psd == "infinitepower":
             pl = gpp.infinitepower()
 
-    if psd == 'spectrum':
-        if prior == 'uniform':
+    if psd == "spectrum":
+        if prior == "uniform":
             log10_rho = parameter.LinearExp(-10, -4, size=components)
         elif prior == "log-uniform":
             log10_rho = parameter.Uniform(-10, -4, size=components)
@@ -526,10 +533,17 @@ def chromatic_noise_block(
     return cgp
 
 
-def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False,
-                           pshift=False):
+def common_red_noise_block(
+    psd="powerlaw",
+    prior="log-uniform",
+    Tspan=None,
+    components=30,
+    gamma_val=None,
+    orf=None,
+    name="gw",
+    coefficients=False,
+    pshift=False,
+):
     """
     Returns common red noise model:
 
@@ -621,14 +635,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
-        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
-                                        components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift)
+        crn = gp_signals.FourierBasisGP(
+            cpl,
+            coefficients=coefficients,
+            components=components,
+            Tspan=Tspan,
+            name=name,
+            pshift=pshift,
+        )
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                              components=components,
-                                              Tspan=Tspan,
-                                              name=name, pshift=pshift)
+        crn = gp_signals.FourierBasisCommonGP(
+            cpl, orfs[orf], components=components, Tspan=Tspan, name=name, pshift=pshift
+        )
     else:
         raise ValueError("ORF {} not recognized".format(orf))
 

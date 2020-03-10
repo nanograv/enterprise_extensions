@@ -7,18 +7,18 @@ from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
 from scipy.stats import truncnorm
 
+import time
+
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
     """Prior function for InvGamma parameters."""
     low, up = (pmin - mu) / sigma, (pmax - mu) / sigma
-    print("BoundNormPrior call")
     return truncnorm.pdf(value, loc=mu, scale=sigma, a=low, b=up)
 
 
 def BoundNormSampler(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
     """Sampling function for Uniform parameters."""
     low, up = (pmin - mu) / sigma, (pmax - mu) / sigma
-    print("BoundNormSampler call")
     return truncnorm.rvs(loc=mu, scale=sigma, a=low, b=up, size=size)
 
 
@@ -37,7 +37,7 @@ def BoundedNormal(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
         _pmax = pmax
 
         def __repr__(self):
-            return '{}: BoundedNormal({},{}, [{},{}])'.format(
+            return "{}: BoundedNormal({},{}, [{},{}])".format(
                 self.name, mu, sigma, pmin, pmax
             ) + ("" if self._size is None else "[{}]".format(self._size))
 
@@ -73,8 +73,6 @@ def tm_delay(
     Based on params in input param list, set parameter prior distribution
     Feed the priors and param list into tm_delay function
     """
-    print('tm_delay!')
-    print(spin_params)
     residuals = t2pulsar.residuals()
 
     # grab original timing model parameters and errors in dictionary
@@ -82,46 +80,33 @@ def tm_delay(
     tm_params_rescaled = {}
     for tm_category, tm_param_keys in param_dict.items():
         if tm_category == "pos":
-            for i, tm_param in enumerate(tm_param_keys):
-                orig_params[tm_param] = tmparams_orig[tm_param][0]
-                tm_params_rescaled[tm_param] = (
-                    pos_params[i] * tmparams_orig[tm_param][1]
-                    + tmparams_orig[tm_param][0]
-                )
+            normed_params = pos_params
         elif tm_category == "pm":
-            for i, tm_param in enumerate(tm_param_keys):
-                orig_params[tm_param] = tmparams_orig[tm_param][0]
-                tm_params_rescaled[tm_param] = (
-                    pm_params[i] * tmparams_orig[tm_param][1]
-                    + tmparams_orig[tm_param][0]
-                )
+            normed_params = pm_params
         elif tm_category == "spin":
-            for i, tm_param in enumerate(tm_param_keys):
-                orig_params[tm_param] = tmparams_orig[tm_param][0]
-                tm_params_rescaled[tm_param] = (
-                    spin_params[i] * tmparams_orig[tm_param][1]
-                    + tmparams_orig[tm_param][0]
-                )
+            normed_params = spin_params
         elif tm_category == "kep":
-            for i, tm_param in enumerate(tm_param_keys):
-                orig_params[tm_param] = tmparams_orig[tm_param][0]
+            normed_params = kep_params
+        elif tm_category == "gr":
+            normed_params = gr_params
+        else:
+            normed_params = None
+        for i, tm_param in enumerate(tm_param_keys):
+            orig_params[tm_param] = tmparams_orig[tm_param][0]
+            if isinstance(normed_params, (list, np.ndarray)):
                 tm_params_rescaled[tm_param] = (
-                    kep_params[i] * tmparams_orig[tm_param][1]
+                    normed_params[i] * tmparams_orig[tm_param][1]
                     + tmparams_orig[tm_param][0]
                 )
-        elif tm_category == "gr":
-            for i, tm_param in enumerate(tm_param_keys):
-                orig_params[tm_param] = tmparams_orig[tm_param][0]
-                if isinstance(gr_params, (list, np.ndarray)):
-                    tm_params_rescaled[tm_param] = (
-                        gr_params[i] * tmparams_orig[tm_param][1]
-                        + tmparams_orig[tm_param][0]
-                    )
-                else:
-                    tm_params_rescaled[tm_param] = (
-                        gr_params * tmparams_orig[tm_param][1]
-                        + tmparams_orig[tm_param][0]
-                    )
+            elif isinstance(normed_params, (float, int)):
+                tm_params_rescaled[tm_param] = (
+                    normed_params * tmparams_orig[tm_param][1]
+                    + tmparams_orig[tm_param][0]
+                )
+            else:
+                raise ValueError(
+                    "sampled parameters cannot by of type ", type(normed_params)
+                )
 
     # set to new values
     t2pulsar.vals(tm_params_rescaled)
@@ -137,11 +122,21 @@ def tm_delay(
 # Model component building blocks #
 
 
-def timing_block(tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"],
-    ):
+def timing_block(
+    tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"],
+    prior_type="bounded-normal",
+    prior_sigma=2.0,
+    prior_lower_bound=-3.0,
+    prior_upper_bound=3.0,
+):
     """
     Returns the timing model block of the model
+
     :param tmparam_list: a list of parameters to vary in the model
+    :param prior_type: prior on timing parameters. Default is a bounded normal, can be "uniform"
+    :param prior_sigma: Sets the sigma on timing parameters for normal distribution draws
+    :param prior_lower_bound: Sets the lower bound on timing parameters for bounded normal and uniform distribution draws
+    :param prior_upper_bound: Sets the upper bound on timing parameters for bounded normal and uniform distribution draws
     """
     param_dict = defaultdict(list)
     for par in tmparam_list:
@@ -191,35 +186,102 @@ def timing_block(tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"]
             else:
                 print(par, " is not currently a modelled parameter.")
 
-    # default 3-sigma prior above and below the parfile mean
+    # default 2-sigma prior above and below the parfile mean
     if len(param_dict["pos"]) != 0:
-        pos_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["pos"])
-        )
+        if prior_type == "bounded-normal":
+            pos_params = BoundedNormal(
+                mu=0.0,
+                sigma=prior_sigma,
+                pmin=prior_lower_bound,
+                pmax=prior_upper_bound,
+                size=len(param_dict["pos"]),
+            )
+        elif prior_type == "uniform":
+            pos_params = parameter.Uniform(
+                prior_lower_bound, prior_upper_bound, size=len(param_dict["pos"])
+            )
+        else:
+            raise ValueError(
+                "prior_type can only be uniform or bounded-normal, not ", prior_type
+            )
     else:
         pos_params = None
+
     if len(param_dict["pm"]) != 0:
-        pm_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["pm"])
-        )
+        if prior_type == "bounded-normal":
+            pm_params = BoundedNormal(
+                mu=0.0,
+                sigma=prior_sigma,
+                pmin=prior_lower_bound,
+                pmax=prior_upper_bound,
+                size=len(param_dict["pm"]),
+            )
+        elif prior_type == "uniform":
+            pm_params = parameter.Uniform(
+                prior_lower_bound, prior_upper_bound, size=len(param_dict["pm"])
+            )
+        else:
+            raise ValueError(
+                "prior_type can only be uniform or bounded-normal, not ", prior_type
+            )
     else:
         pm_params = None
+
     if len(param_dict["spin"]) != 0:
-        spin_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["spin"])
-        )
+        if prior_type == "bounded-normal":
+            spin_params = BoundedNormal(
+                mu=0.0,
+                sigma=prior_sigma,
+                pmin=prior_lower_bound,
+                pmax=prior_upper_bound,
+                size=len(param_dict["spin"]),
+            )
+        elif prior_type == "uniform":
+            spin_params = parameter.Uniform(
+                prior_lower_bound, prior_upper_bound, size=len(param_dict["spin"])
+            )
+        else:
+            raise ValueError(
+                "prior_type can only be uniform or bounded-normal, not ", prior_type
+            )
     else:
         spin_params = None
     if len(param_dict["kep"]) != 0:
-        kep_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["kep"])
-        )
+        if prior_type == "bounded-normal":
+            kep_params = BoundedNormal(
+                mu=0.0,
+                sigma=prior_sigma,
+                pmin=prior_lower_bound,
+                pmax=prior_upper_bound,
+                size=len(param_dict["kep"]),
+            )
+        elif prior_type == "uniform":
+            kep_params = parameter.Uniform(
+                prior_lower_bound, prior_upper_bound, size=len(param_dict["kep"])
+            )
+        else:
+            raise ValueError(
+                "prior_type can only be uniform or bounded-normal, not ", prior_type
+            )
     else:
         kep_params = None
     if len(param_dict["gr"]) != 0:
-        gr_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["gr"])
-        )
+        if prior_type == "bounded-normal":
+            gr_params = BoundedNormal(
+                mu=0.0,
+                sigma=prior_sigma,
+                pmin=prior_lower_bound,
+                pmax=prior_upper_bound,
+                size=len(param_dict["gr"]),
+            )
+        elif prior_type == "uniform":
+            gr_params = parameter.Uniform(
+                prior_lower_bound, prior_upper_bound, size=len(param_dict["gr"])
+            )
+        else:
+            raise ValueError(
+                "prior_type can only be uniform or bounded-normal, not ", prior_type
+            )
     else:
         gr_params = None
 
