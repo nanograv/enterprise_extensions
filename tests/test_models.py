@@ -61,8 +61,32 @@ def test_model_singlepsr_noise_sw(nodmx_psrs, caplog):
     x0 = {pname: p.sample() for pname, p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
 
+def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    dip_kwargs = {'dm_expdip':True,
+                  'dmexp_sign': 'negative',
+                  'num_dmdips':2,
+                  'dm_cusp_idx':[2,4],
+                  'dm_expdip_tmin':[54700,57450],
+                  'dm_expdip_tmax':[54850,57560],
+                  'dmdip_seqname':'ism',
+                  'dm_cusp':False,
+                  'dm_cusp_sign':'negative',
+                  'dm_cusp_idx':[2,4],
+                  'dm_cusp_sym':False,
+                  'dm_cusp_tmin':None,
+                  'dm_cusp_tmax':None,
+                  'num_dm_cusps':2, 
+                  'dm_dual_cusp':True,
+                  'dm_dual_cusp_tmin':[54700,57450],
+                  'dm_dual_cusp_tmax':[54850,57560],}
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
+                                   dm_sw_gp=True,**dip_kwargs)
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
 
-def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs, caplog):
+def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m = models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True)
     assert hasattr(m, "get_lnlikelihood")
