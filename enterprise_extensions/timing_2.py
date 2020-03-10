@@ -50,11 +50,6 @@ def tm_delay(
     t2pulsar,
     tmparams_orig,
     param_dict,
-    pos_params,
-    pm_params,
-    spin_params,
-    kep_params,
-    gr_params,
 ):
     """
     Compute difference in residuals due to perturbed timing model.
@@ -74,43 +69,48 @@ def tm_delay(
     Feed the priors and param list into tm_delay function
     """
     print('tm_delay!')
-    print(spin_params)
+    #print(param_dict)
     residuals = t2pulsar.residuals()
 
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
     tm_params_rescaled = {}
-    for tm_category, tm_param_keys in param_dict.items():
+    for tm_category, tm_params in param_dict.items():
+        for tm_key, tm_val in tm_params.items():
+            orig_params[tm_key] = tmparams_orig[tm_key][0]
+            tm_params_rescaled[tm_key] = (tm_val * tmparams_orig[tm_key][1]
+                + tmparams_orig[tm_key][0])
+    """                
         if tm_category == "pos":
-            for i, tm_param in enumerate(tm_param_keys):
+            for i, tm_param in enumerate(param_dict["pos"].keys()):
                 orig_params[tm_param] = tmparams_orig[tm_param][0]
                 tm_params_rescaled[tm_param] = (
-                    pos_params[i] * tmparams_orig[tm_param][1]
+                    tm_category[tm_param] * tmparams_orig[tm_param][1]
                     + tmparams_orig[tm_param][0]
                 )
         elif tm_category == "pm":
-            for i, tm_param in enumerate(tm_param_keys):
+            for i, tm_param in enumerate(param_dict["pm"].keys()):
                 orig_params[tm_param] = tmparams_orig[tm_param][0]
                 tm_params_rescaled[tm_param] = (
                     pm_params[i] * tmparams_orig[tm_param][1]
                     + tmparams_orig[tm_param][0]
                 )
         elif tm_category == "spin":
-            for i, tm_param in enumerate(tm_param_keys):
+            for i, tm_param in enumerate(param_dict["spin"].keys()):
                 orig_params[tm_param] = tmparams_orig[tm_param][0]
                 tm_params_rescaled[tm_param] = (
                     spin_params[i] * tmparams_orig[tm_param][1]
                     + tmparams_orig[tm_param][0]
                 )
         elif tm_category == "kep":
-            for i, tm_param in enumerate(tm_param_keys):
+            for i, tm_param in enumerate(param_dict["kep"].keys()):
                 orig_params[tm_param] = tmparams_orig[tm_param][0]
                 tm_params_rescaled[tm_param] = (
                     kep_params[i] * tmparams_orig[tm_param][1]
                     + tmparams_orig[tm_param][0]
                 )
         elif tm_category == "gr":
-            for i, tm_param in enumerate(tm_param_keys):
+            for i, tm_param in enumerate(param_dict["gr"].keys()):
                 orig_params[tm_param] = tmparams_orig[tm_param][0]
                 if isinstance(gr_params, (list, np.ndarray)):
                     tm_params_rescaled[tm_param] = (
@@ -122,7 +122,8 @@ def tm_delay(
                         gr_params * tmparams_orig[tm_param][1]
                         + tmparams_orig[tm_param][0]
                     )
-
+    """
+    print(tm_params_rescaled)
     # set to new values
     t2pulsar.vals(tm_params_rescaled)
     new_res = t2pulsar.residuals()
@@ -143,14 +144,23 @@ def timing_block(tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"]
     Returns the timing model block of the model
     :param tmparam_list: a list of parameters to vary in the model
     """
-    param_dict = defaultdict(list)
+    param_dict = {}
     for par in tmparam_list:
         if par in ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]:
-            param_dict["pos"].append(par)
+            if "pos" not in param_dict.keys():
+                param_dict["pos"] = {}   
+            vars()['pos_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+            param_dict["pos"][par] = vars()['pos_params_{}'.format(par)]
         elif par in ["PMDEC", "PMRA", "PMRV", "PMBETA", "PMLAMBDA"]:
-            param_dict["pm"].append(par)
+            if "pm" not in param_dict.keys():
+                param_dict["pm"] = {}
+            vars()['pm_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+            param_dict["pm"][par] = vars()['pm_params_{}'.format(par)]
         elif par in ["F", "F0", "F1", "F2", "P", "P1"]:
-            param_dict["spin"].append(par)
+            if "spin" not in param_dict.keys():
+                param_dict["spin"] = {}
+            vars()['spin_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+            param_dict["spin"][par] = vars()['spin_params_{}'.format(par)]
         elif par in [
             "PB",
             "T0",
@@ -170,7 +180,10 @@ def timing_block(tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"]
             "X2DOT",
             "EDOT",
         ]:
-            param_dict["kep"].append(par)
+            if "kep" not in param_dict.keys():
+                    param_dict["kep"] = {}
+            vars()['kep_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+            param_dict["kep"][par] = vars()['kep_params_{}'.format(par)]
         elif par in [
             "H3",
             "H4",
@@ -184,54 +197,60 @@ def timing_block(tmparam_list=["RAJ", "DECJ", "F0", "F1", "PMRA", "PMDEC", "PX"]
             "DR",
             "DTHETA",
         ]:
-            param_dict["gr"].append(par)
+            if "gr" not in param_dict.keys():
+                param_dict["gr"] = {}
+            vars()['gr_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+            param_dict["gr"][par] = vars()['gr_params_{}'.format(par)]
         else:
             if "DMX" in ["".join(list(x)[0:3]) for x in par.split("_")][0]:
-                param_dict["dmx"].append(par)
+                if "dmx" not in param_dict.keys():
+                    param_dict["dmx"] = {}
+                vars()['dmx_params_{}'.format(par)] = BoundedNormal(mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)
+                param_dict["dmx"][par] = vars()['dmx_params_{}'.format(par)]
             else:
                 print(par, " is not currently a modelled parameter.")
 
+    print(param_dict['spin']['F0'].name)
     # default 3-sigma prior above and below the parfile mean
-    if len(param_dict["pos"]) != 0:
-        pos_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["pos"])
-        )
-    else:
-        pos_params = None
-    if len(param_dict["pm"]) != 0:
-        pm_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["pm"])
-        )
-    else:
-        pm_params = None
-    if len(param_dict["spin"]) != 0:
-        spin_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["spin"])
-        )
-    else:
-        spin_params = None
-    if len(param_dict["kep"]) != 0:
-        kep_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["kep"])
-        )
-    else:
-        kep_params = None
-    if len(param_dict["gr"]) != 0:
-        gr_params = BoundedNormal(
-            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0, size=len(param_dict["gr"])
-        )
-    else:
-        gr_params = None
+    """if len(param_dict["pos"]) != 0:
+                    for par in param_dict["pos"].keys():   
+                        pos_params = BoundedNormal(
+                            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)(par)
+                else:
+                    pos_params = None
+                if len(param_dict["pm"]) != 0:
+                    for par in param_dict["pm"]:
+                        pm_params = BoundedNormal(
+                            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)(par)
+                else:
+                    pm_params = None
+                if len(param_dict["spin"]) != 0:
+                    for par in param_dict["spin"]:
+                        spin_params = BoundedNormal(
+                            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)(par)
+                else:
+                    spin_params = None
+                if len(param_dict["kep"]) != 0:
+                    for par in param_dict["kep"]:
+                        kep_params = BoundedNormal(
+                            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)(par)
+                else:
+                    kep_params = None
+                if len(param_dict["gr"]) != 0:
+                    for par in param_dict["gr"]:
+                        gr_params = BoundedNormal(
+                            mu=0.0, sigma=2.0, pmin=-3.0, pmax=3.0)(par)
+                else:
+                    gr_params = None"""
 
+    print('timing_block!')
     # timing model
     tm_func = tm_delay(
         param_dict=param_dict,
-        pos_params=pos_params,
-        pm_params=pm_params,
-        spin_params=spin_params,
-        kep_params=kep_params,
-        gr_params=gr_params,
     )
-    tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
+    print('tm_func: ',tm_func)
 
+    print(dir(tm_func))
+    tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
+    print('tm: ',tm)
     return tm

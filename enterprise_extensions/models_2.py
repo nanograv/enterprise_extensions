@@ -13,7 +13,7 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 from enterprise_extensions import deterministic
-from enterprise_extensions.timing import timing_block
+from enterprise_extensions.timing_2 import timing_block
 from enterprise_extensions.blocks import (
     white_noise_block,
     red_noise_block,

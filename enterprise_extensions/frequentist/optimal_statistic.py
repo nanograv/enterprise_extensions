@@ -1,5 +1,4 @@
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 import scipy.linalg as sl
 
@@ -27,21 +26,33 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd',
-                 wideband=False, select=None, noisedict=None, pta=None):
+    def __init__(
+        self,
+        psrs,
+        bayesephem=True,
+        gamma_common=4.33,
+        orf="hd",
+        wideband=False,
+        select=None,
+        noisedict=None,
+        pta=None,
+    ):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
 
         if pta is None:
-            self.pta = models.model_2a(psrs, psd='powerlaw',
-                                       bayesephem=bayesephem,
-                                       gamma_common=gamma_common,
-                                       wideband=wideband,
-                                       select=select, noisedict=noisedict)
+            self.pta = models.model_2a(
+                psrs,
+                psd="powerlaw",
+                bayesephem=bayesephem,
+                gamma_common=gamma_common,
+                wideband=wideband,
+                select=select,
+                noisedict=noisedict,
+            )
         else:
             self.pta = pta
-
 
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
@@ -54,14 +65,14 @@ class OptimalStatistic(object):
         self.psrlocs = [p.pos for p in psrs]
 
         # overlap reduction function
-        if orf == 'hd':
+        if orf == "hd":
             self.orf = utils.hd_orf
-        elif orf == 'dipole':
+        elif orf == "dipole":
             self.orf = utils.dipole_orf
-        elif orf == 'monopole':
+        elif orf == "monopole":
             self.orf = utils.monopole_orf
         else:
-            raise ValueError('Unknown ORF!')
+            raise ValueError("Unknown ORF!")
 
     def compute_os(self, params=None):
         """
@@ -82,8 +93,10 @@ class OptimalStatistic(object):
         """
 
         if params is None:
-            params = {name: par.sample() for name, par
-                      in zip(self.pta.param_names, self.pta.params)}
+            params = {
+                name: par.sample()
+                for name, par in zip(self.pta.param_names, self.pta.params)
+            }
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -95,7 +108,9 @@ class OptimalStatistic(object):
         phiinvs = self.pta.get_phiinv(params, logdet=False)
 
         X, Z = [], []
-        for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
+        for TNr, TNT, FNr, FNF, FNT, phiinv in zip(
+            TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs
+        ):
 
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             try:
@@ -113,12 +128,12 @@ class OptimalStatistic(object):
         npsr = len(self.pta._signalcollections)
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
-            for jj in range(ii+1, npsr):
+            for jj in range(ii + 1, npsr):
 
-                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=13 / 3)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
-                bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
+                bot = np.trace(np.dot(Z[ii] * phiIJ[None, :], Z[jj] * phiIJ[None, :]))
 
                 # cross correlation and uncertainty
                 rho.append(top / bot)
@@ -134,7 +149,7 @@ class OptimalStatistic(object):
         sig = np.array(sig)
         ORF = np.array(ORF)
         xi = np.array(xi)
-        OS = (np.sum(rho*ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2))
+        OS = np.sum(rho * ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2)
         OS_sig = 1 / np.sqrt(np.sum(ORF ** 2 / sig ** 2))
 
         return xi, rho, sig, OS, OS_sig
@@ -157,7 +172,7 @@ class OptimalStatistic(object):
             setpars.update(self.pta.map_params(chain[idx, :-4]))
             _, _, _, opt[ii], sig[ii] = self.compute_os(params=setpars)
 
-        return (opt, opt/sig)
+        return (opt, opt / sig)
 
     def compute_noise_maximized_os(self, chain):
         """
@@ -179,7 +194,7 @@ class OptimalStatistic(object):
         setpars = self.pta.map_params(chain[idx, :-4])
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
-        return (xi, rho, sig, Opt, Opt/Sig)
+        return (xi, rho, sig, Opt, Opt / Sig)
 
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
@@ -187,19 +202,19 @@ class OptimalStatistic(object):
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise':
+                if signal.signal_name == "red noise":
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
 
         return Fmats
 
-    def _get_freqs(self,psrs):
+    def _get_freqs(self, psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise':
+            if sig.signal_name == "red noise":
                 sig._construct_basis()
-                freqs = np.array(sig._labels[''])
+                freqs = np.array(sig._labels[""])
                 break
         return freqs
 
@@ -217,7 +232,7 @@ class OptimalStatistic(object):
     def get_TNr(self, params={}):
         return self.pta.get_TNr(params=params)
 
-    @signal_base.cache_call(['white_params', 'delay_params'])
+    @signal_base.cache_call(["white_params", "delay_params"])
     def get_FNr(self, params={}):
         FNrs = []
         for ct, sc in enumerate(self.pta._signalcollections):
@@ -227,7 +242,7 @@ class OptimalStatistic(object):
             FNrs.append(N.solve(res, left_array=F))
         return FNrs
 
-    @signal_base.cache_call(['white_params'])
+    @signal_base.cache_call(["white_params"])
     def get_FNF(self, params={}):
         FNFs = []
         for ct, sc in enumerate(self.pta._signalcollections):
@@ -239,7 +254,7 @@ class OptimalStatistic(object):
     def get_TNT(self, params={}):
         return self.pta.get_TNT(params=params)
 
-    @signal_base.cache_call(['white_params', 'basis_params'])
+    @signal_base.cache_call(["white_params", "basis_params"])
     def get_FNT(self, params={}):
         FNTs = []
         for ct, sc in enumerate(self.pta._signalcollections):
