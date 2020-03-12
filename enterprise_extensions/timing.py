@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
+import os, glob, ephem
 import numpy as np
 from collections import defaultdict
 from enterprise.signals import parameter
 from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
 from scipy.stats import truncnorm
-
-import time
 
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
@@ -44,6 +43,55 @@ def BoundedNormal(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
     return BoundedNormal
 
 
+def get_default_physical_tm_priors():
+    """
+    "RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"
+    "PMDEC", "PMRA", "PMELONG", "PMELAT", "PMRV", "PMBETA", "PMLAMBDA"
+    "F", "F0", "F1", "F2", "P", "P1","PB","T0","A1","OM","EPS1","EPS2",
+    "EPS1DOT","EPS2DOT","FB","MTOT","M2","XDOT","X2DOT","EDOT","H3",
+    "H4","OMDOT","OM2DOT","XOMDOT","PBDOT","XPBDOT","GAMMA","PPNGAMMA",
+    "DR","DTHETA"
+    """
+    default_tm_priors = {}
+    default_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
+    default_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 1.0}
+    default_tm_priors["SINI"] = {"pmin": 0.0, "pmax": 1.0}
+    return
+
+
+def get_astrometric_priors():
+    astrometric_priors = {}
+
+
+def get_par_errors(t2psr, par):
+    """
+    Prevents nans in errors for some pulsars
+
+    :param psr: pulsar to pull error for
+    :param par: parameter to pull error from par file
+    """
+    filename = t2psr.parfile.split("/")[-1]
+    file = glob.glob("../../*/*/" + filename)[0]
+    with open(file, "r") as f:
+        for line in f.readlines():
+            if par == "ELONG":
+                # enterprise renames LAMBDA
+                if line.split()[0] in [par, "LAMBDA"]:
+                    error = line.split()[-1]
+                    return error
+            elif par == "ELAT":
+                # enterprise renames BETA
+                if line.split()[0] in [par, "BETA"]:
+                    error = line.split()[-1]
+                    return error
+            else:
+                if line.split()[0] == par:
+                    error = line.split()[-1]
+                    return error
+                else:
+                    raise ValueError(par, " not in file!")
+
+
 # timing model delay
 @signal_base.function
 def tm_delay(
@@ -78,6 +126,7 @@ def tm_delay(
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
     tm_params_rescaled = {}
+    error_pos = {}
     for tm_category, tm_param_keys in param_dict.items():
         if tm_category == "pos":
             normed_params = pos_params
@@ -91,22 +140,78 @@ def tm_delay(
             normed_params = gr_params
         else:
             normed_params = None
+
         for i, tm_param in enumerate(tm_param_keys):
             orig_params[tm_param] = tmparams_orig[tm_param][0]
-            if isinstance(normed_params, (list, np.ndarray)):
-                tm_params_rescaled[tm_param] = (
-                    normed_params[i] * tmparams_orig[tm_param][1]
-                    + tmparams_orig[tm_param][0]
+            # Section because there are incorrect handlings of errors for ecliptic coordinates, idk why
+            if tm_param in ["ELONG", "LAMBDA"]:
+                error_pos["ELONG"] = {
+                    "err": get_par_errors(t2pulsar, tm_param),
+                    "param_iter": i,
+                }
+            elif tm_param in ["ELAT", "BETA"]:
+                error_pos["ELAT"] = {
+                    "err": get_par_errors(t2pulsar, tm_param),
+                    "param_iter": i,
+                }
+
+            if tm_param in ["ELONG", "LAMBDA", "ELAT", "BETA"] and error_pos.keys() >= {
+                "ELAT",
+                "ELONG",
+            }:
+                ec_errors = ephem.Ecliptic(
+                    error_pos["ELONG"]["err"], error_pos["ELAT"]["err"]
                 )
-            elif isinstance(normed_params, (float, int)):
-                tm_params_rescaled[tm_param] = (
-                    normed_params * tmparams_orig[tm_param][1]
-                    + tmparams_orig[tm_param][0]
+
+                tm_params_rescaled["ELONG"] = (
+                    normed_params[error_pos["ELONG"]["param_iter"]]
+                    * np.double(ec_errors.lon)
+                    + tmparams_orig["ELONG"][0]
                 )
+                tm_params_rescaled["ELAT"] = (
+                    normed_params[error_pos["ELAT"]["param_iter"]]
+                    * np.double(ec_errors.lat)
+                    + tmparams_orig["ELAT"][0]
+                )
+                # End of handling section
+                """
+                for key in error_pos.keys():
+                    print(key,': ')
+                    print(' Original Value: ', orig_params[key])
+                    print(' normed_params: ', normed_params[error_pos[key]["param_iter"]])
+                    if key == "ELONG":
+                        print(' tmparam Errors: ',np.double(ec_errors.lon))
+                    else:
+                        print(' tmparam Errors: ',np.double(ec_errors.lat))
+                    print(' tmparam Value: ',tmparams_orig[key][0])
+                    print(' New Value: ',tm_params_rescaled[key])
+                """
             else:
-                raise ValueError(
-                    "sampled parameters cannot by of type ", type(normed_params)
-                )
+                if isinstance(normed_params, (list, np.ndarray)):
+                    tm_params_rescaled[tm_param] = (
+                        normed_params[i] * tmparams_orig[tm_param][1]
+                        + tmparams_orig[tm_param][0]
+                    )
+                elif isinstance(normed_params, (float, int)):
+                    tm_params_rescaled[tm_param] = (
+                        normed_params * tmparams_orig[tm_param][1]
+                        + tmparams_orig[tm_param][0]
+                    )
+                # Making sanity checks
+                if tm_param in ["E", "ECC"]:  # ,"SINI"]:
+                    if tm_params_rescaled[tm_param] <= 0.0:
+                        tm_params_rescaled[tm_param] = 1e-9
+                    elif tm_params_rescaled[tm_param] >= 1.0:
+                        tm_params_rescaled[tm_param] = 1.0 - 1e-9
+                """
+                if tm_param not in ["ELONG","ELAT"]:
+                    print(tm_param,': ')
+                    print(' Original Value: ', orig_params[tm_param])
+                    print(' normed_params: ', normed_params)
+                    print(' tmparam Errors: ',tmparams_orig[tm_param][1])
+                    print(' tmparam Value: ',tmparams_orig[tm_param][0])
+                    print(' New Value: ',tm_params_rescaled[tm_param])
+                """
 
     # set to new values
     t2pulsar.vals(tm_params_rescaled)
@@ -142,7 +247,15 @@ def timing_block(
     for par in tmparam_list:
         if par in ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]:
             param_dict["pos"].append(par)
-        elif par in ["PMDEC", "PMRA", "PMRV", "PMBETA", "PMLAMBDA"]:
+        elif par in [
+            "PMDEC",
+            "PMRA",
+            "PMELONG",
+            "PMELAT",
+            "PMRV",
+            "PMBETA",
+            "PMLAMBDA",
+        ]:
             param_dict["pm"].append(par)
         elif par in ["F", "F0", "F1", "F2", "P", "P1"]:
             param_dict["spin"].append(par)

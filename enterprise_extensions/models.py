@@ -519,6 +519,7 @@ def model_general(
     tm_var=False,
     tm_linear=False,
     tmparam_list=None,
+    tm_prior="bounded-normal",
     common_var=True,
     common_psd="powerlaw",
     red_psd="powerlaw",
@@ -625,7 +626,7 @@ def model_general(
         if not tm_linear:
             s = timing_block(
                 tmparam_list=tmparam_list,
-                prior_type="bounded-normal",
+                prior_type=tm_prior,
                 prior_sigma=2.0,
                 prior_lower_bound=-3.0,
                 prior_upper_bound=3.0,
