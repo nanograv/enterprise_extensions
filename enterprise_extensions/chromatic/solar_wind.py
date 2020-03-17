@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import scipy.stats as sps
+import scipy.special as spsf
 import os
 from enterprise import constants as const
 from enterprise.signals import signal_base
@@ -42,7 +43,7 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
     """
 
     if n_earth_bins is None:
-        theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
+        theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
         dm_sol_wind = dm_solar(n_earth, theta, R_earth)
         dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
 
@@ -90,6 +91,32 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 
     return dt_DM
 
+
+@signal_base.function
+def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
+                      n_earth=5, power=4.39):
+
+    """
+    Construct DM-Solar Model fourier design matrix.
+
+    :param toas: vector of time series in seconds
+    :param planetssb: solar system bayrcenter positions
+    :param pos_t: pulsar position as 3-vector
+    :param freqs: radio frequencies of observations [MHz]
+    :param n_earth: The electron density from the solar wind at 1 AU.
+    :param power: Power of the density profile for the solar wind.
+
+    :return dt_DM: Chromatic time delay due to solar wind
+    """
+
+    theta, _, b, z_earth = theta_impact(planetssb, sunssb, pos_t)
+    dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power)
+    dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
+    dt_DM = np.array(dt_DM)
+
+    return dt_DM
+
+
 # linear interpolation basis in time with nu^-2 scaling
 @signal_base.function
 def linear_interp_basis_sw_dm(toas, freqs, planetssb, sunssb,
@@ -99,7 +126,7 @@ def linear_interp_basis_sw_dm(toas, freqs, planetssb, sunssb,
     U, avetoas = utils.linear_interp_basis(toas, dt=dt)
 
     # scale with radio frequency
-    theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
+    theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
     dt_DM = dm_sol_wind * 4.148808e3  / (freqs**2)
 
@@ -134,7 +161,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
                                                     modes=modes,
                                                     Tspan=Tspan, logf=logf,
                                                     fmin=fmin, fmax=fmax)
-    theta, R_earth = theta_impact(planetssb, sunssb, pos_t)
+    theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
     dt_DM = dm_sol_wind * 4.148808e3 /(freqs**2)
 
@@ -234,31 +261,56 @@ def _dm_solar(n_earth,theta,r_earth):
              / (r_earth * np.sin(theta))) )
 
 
-def dm_solar(n_earth,theta,r_earth):
+def dm_solar(n_earth, theta, r_earth):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
     ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
     ::param :theta: angle between sun and line-of-sight to pulsar (rad)
     ::param :r_earth :distance from Earth to Sun in (light seconds).
-    See You et al. 20007 for more details.
+    See You et al. 2007 for more details.
     """
     return np.where(np.pi - theta >= 1e-5,
                     _dm_solar(n_earth, theta, r_earth),
                     _dm_solar_close(n_earth, r_earth))
 
-def theta_impact(planetssb,sunssb,pos_t):
+
+def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
+    """
+    Calculates Dispersion measure due to 1/r^p solar wind density model.
+    ::param :n_earth Solar wind proton/electron density at Earth (1/cm^3)
+    ::param :theta: angle between sun and line-of-sight to pulsar (rad)
+    ::param :r_earth :distance from Earth to Sun in (light seconds).
+    See You et al. 20007 for more details.
+    """
+    return _dm_solar_r_to_p(n_earth, b, z_earth, p)
+    # return np.where(np.pi - theta >= 1e-8,
+    #                 _dm_solar_r_to_p(n_earth, b, z_earth, p),
+    #                 _dm_solar_close_r_to_p(n_earth, z_earth, p))
+
+def _dm_solar_close_r_to_p(n, z, p):
+    return n * (AU_light_sec / z)**(p - 1) * (AU_pc / p)
+
+def _dm_solar_r_to_p(n, b, z, p):
+    return (n * (AU_light_sec / b)**p * b / const.pc * const.c
+            * (_dm_p_int(b, 1e14, p) - _dm_p_int(b, -z, p)))
+
+def _dm_p_int(b, z, p):
+    return z / b * spsf.hyp2f1(0.5, p/2., 1.5, -z**2 / b**2)
+
+def theta_impact(planetssb, sunssb, pos_t):
     """
     Use the attributes of an enterprise Pulsar object to calculate the
     solar impact angle.
 
-    ::param :planetssb Solar system barycenter timeseries supplied with
+    ::param :planetssb Solar system barycenter time series supplied with
         enterprise.Pulsar objects.
     ::param :sunssb Solar system sun-to-barycenter timeseries supplied with
         enterprise.Pulsar objects.
     ::param :pos_t Unit vector to pulsar position over time in ecliptic
         coordinates. Supplied with enterprise.Pulsar objects.
 
-    returns: Solar impact angle (rad), Distance to Earth
+    returns: Solar impact angle (rad), Distance to Earth (R_earth),
+             impact distance (b), perpendicular distance (z_earth)
     """
     earth = planetssb[:, 2, :3]
     sun = sunssb[:,:3]
@@ -267,8 +319,9 @@ def theta_impact(planetssb,sunssb,pos_t):
     Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun, pos_t)
 
     theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
+    b = np.sqrt(R_earth**2 - Re_cos_theta_impact**2)
 
-    return theta_impact, R_earth
+    return theta_impact, R_earth, b, -Re_cos_theta_impact
 
 
 def sw_mask(psrs, angle_cutoff=None):
@@ -283,7 +336,7 @@ def sw_mask(psrs, angle_cutoff=None):
     solar_wind_mask = {}
     angle_cutoff = np.deg2rad(angle_cutoff)
     for ii,p in enumerate(psrs):
-        impact_ang = theta_impact(p)
+        impact_ang, _, _, _ = theta_impact(p)
         solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
                                            True, False)
 
