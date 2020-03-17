@@ -33,7 +33,7 @@ class FpStat(object):
         self.psrs = psrs
         self.params = params
                                    
-        self.Nmats = None
+        self.Nmats = self.get_Nmats()
 
     def get_Nmats(self):
         '''Makes the Nmatrix used in the fstatistic'''
@@ -61,10 +61,6 @@ class FpStat(object):
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
-        
-        if self.Nmats == None:
-            
-            self.Nmats = self.get_Nmats()
         
         N = np.zeros(2)
         M = np.zeros((2,2))
@@ -159,7 +155,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     TtN = Nvec.solve(other = np.eye(Nshape),left_array = T)
     
     #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other = np.eye(Nshape),left_array = np.eye(Nshape))
+    Ndiag = np.diag(1/Nvec)
     
     expval2 = sl.cho_solve(cf,TtN)
     #TtNt = np.transpose(TtN)
