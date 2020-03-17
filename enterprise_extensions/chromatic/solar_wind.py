@@ -94,7 +94,7 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 
 @signal_base.function
 def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
-                      n_earth=5, power=4.39):
+                      n_earth=5, power=4.39, log10_ne=False):
 
     """
     Construct DM-Solar Model fourier design matrix.
@@ -105,9 +105,14 @@ def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
     :param freqs: radio frequencies of observations [MHz]
     :param n_earth: The electron density from the solar wind at 1 AU.
     :param power: Power of the density profile for the solar wind.
+    :param log10_ne: Whether the provided value is log10 of the electron
+        density for this term. Suggested to set True for power much larger than
+        normal.
 
     :return dt_DM: Chromatic time delay due to solar wind
     """
+    if log10_ne:
+        n_earth = 10**n_earth
 
     theta, _, b, z_earth = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power)
