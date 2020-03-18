@@ -242,7 +242,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     TtN = Nvec.solve(other = np.eye(Nshape),left_array = T)
     
     #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other = np.eye(Nshape),left_array = np.eye(Nshape))
+    Ndiag = np.diag(1/Nvec)
     
     expval2 = sl.cho_solve(cf,TtN)
     #TtNt = np.transpose(TtN)
