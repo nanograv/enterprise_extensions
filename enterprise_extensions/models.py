@@ -336,7 +336,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, select='backend',
+             be_type='orbel', wideband=False, select='backend', rn_psrs='all',
              pshift=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -380,13 +380,16 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
-
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                               components=components, gamma_val=gamma_common,
+                               name='gw', pshift=pshift)
+
+    # red noise
+    rn = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+
+    if isinstance(rn_psrs, str) and rn_psrs=='all':
+        s += rn
 
     # ephemeris model
     if bayesephem:
@@ -398,12 +401,19 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
+        if isinstance(rn_psrs, list):
+            if p.name in rn_psrs:
+                ss = s + rn
+            else:
+                ss = s
+        else:
+            ss = s
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True,
+            s2 = ss + white_noise_block(vary=False, inc_ecorr=True,
                                        select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False,
+            s3 = ss + white_noise_block(vary=False, inc_ecorr=False,
                                        select=select)
             models.append(s3(p))
 
@@ -424,7 +434,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None,
+                  noisedict=None, rn_psrs='all',
                   tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
                   upper_limit_common=None,
@@ -516,11 +526,13 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     # red noise
-    s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
+    rn += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
                          components=red_components, modes=modes, wgts=wgts,
                          coefficients=coefficients,
                          select=red_select, break_flat=red_breakflat,
                          break_flat_fq=red_breakflat_fq)
+    if isinstance(rn_psrs, str) and rn_psrs=='all':
+        s += rn
 
     # common red noise block
     if orf is None:
@@ -558,9 +570,17 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # adding white-noise, and acting on psr objects
     models = []
+
     for p in psrs:
+        # The if/else statements either add achromatic RN to all psrs or
+        # a list of pulsars
+        if isinstance(rn_psrs, list):
+            if p.name in rn_psrs:
+                ss = s + rn
+            else:
+                ss = s
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            s2 = ss + white_noise_block(vary=white_vary, inc_ecorr=True)
             if gequad:
                 s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
                                                selection=selections.Selection(selections.no_selection),
@@ -574,7 +594,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             else:
                 models.append(s2(p))
         else:
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s4 = ss + white_noise_block(vary=white_vary, inc_ecorr=False)
             if gequad:
                 s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
                                                selection=selections.Selection(selections.no_selection),
@@ -849,7 +869,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False, pshift=False):
+             rn_psrs='all', be_type='orbel', wideband=False,
+             correlationsonly=False, pshift=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -893,14 +914,16 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-    # red noise
-    s = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
-                        Tspan=Tspan, components=components)
-
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=components, gamma_val=gamma_common,
                                 orf='hd', name='gw', pshift=pshift)
+
+    # intrinsic red noise
+    rn = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
+                        Tspan=Tspan, components=components)
+    if isinstance(rn_psrs, str) and rn_psrs=='all':
+        s += rn
 
     # ephemeris model
     if bayesephem:
@@ -912,11 +935,19 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
+        if isinstance(rn_psrs, list):
+            if p.name in rn_psrs:
+                ss = s + rn
+            else:
+                ss = s
+        else:
+            ss = s
+            
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = ss + white_noise_block(vary=False, inc_ecorr=True)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = ss + white_noise_block(vary=False, inc_ecorr=False)
             models.append(s3(p))
 
     # set up PTA
