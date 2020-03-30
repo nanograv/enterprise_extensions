@@ -2,6 +2,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
+import types
 
 from enterprise.signals import parameter
 from enterprise.signals import selections
@@ -565,6 +566,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                         name=name, pshift=pshift)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
+                                              components=components,
+                                              Tspan=Tspan,
+                                              name=name, pshift=pshift)
+    elif isinstance(orf, types.FunctionType):
+        crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
                                               Tspan=Tspan,
                                               name=name, pshift=pshift)
