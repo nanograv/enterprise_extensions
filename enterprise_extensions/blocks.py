@@ -114,7 +114,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'flat_powerlaw',
                'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
         if prior == 'uniform':
@@ -142,6 +142,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             lf0 = parameter.Uniform(-9, -7)
             pl = utils.turnover(log10_A=log10_A, gamma=gamma,
                                 lf0=lf0, kappa=kappa)
+        elif psd == 'flat_powerlaw':
+            log10_B = parameter.Uniform(-10, -4)
+            pl = gpp.flat_powerlaw(log10_A=log10_A, gamma=gamma, log10_B=log10_B)
         elif psd == 'tprocess':
             df = 2
             alphas = gpp.InvGamma(df/2, df/2, size=components)
@@ -232,7 +235,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
     """
     # dm noise parameters that are common
     if gp_kernel == 'diag':
-        if psd in ['powerlaw', 'turnover', 'tprocess', 'tprocess_adapt']:
+        if psd in ['powerlaw', 'turnover', 'flat_powerlaw',
+                   'tprocess', 'tprocess_adapt']:
             # parameters shared by PSD functions
             if prior == 'uniform':
                 log10_A_dm = parameter.LinearExp(-20, -11)
@@ -257,6 +261,10 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                 lf0_dm = parameter.Uniform(-9, -7)
                 dm_prior = utils.turnover(log10_A=log10_A_dm, gamma=gamma_dm,
                                           lf0=lf0_dm, kappa=kappa_dm)
+            elif psd == 'flat_powerlaw':
+                log10_B_dm = parameter.Uniform(-10, -4)
+                dm_prior = gpp.flat_powerlaw(log10_A=log10_A_dm, gamma=gamma_dm, 
+                                            log10_B=log10_B_dm)
             elif psd == 'tprocess':
                 df = 2
                 alphas_dm = gpp.InvGamma(df/2, df/2, size=components)
@@ -384,7 +392,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
     if gp_kernel=='diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
                                                             Tspan=Tspan)
-        if psd in ['powerlaw', 'turnover']:
+        if psd in ['powerlaw', 'turnover', 'flat_powerlaw']:
             if prior == 'uniform':
                 log10_A = parameter.LinearExp(-18, -11)
             elif prior == 'log-uniform':
@@ -399,6 +407,10 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 lf0 = parameter.Uniform(-9, -7)
                 chm_prior = utils.turnover(log10_A=log10_A, gamma=gamma,
                                            lf0=lf0, kappa=kappa)
+            elif psd == 'flat_powerlaw':
+                log10_B = parameter.Uniform(-10, -4)
+                chm_prior = gpp.flat_powerlaw(log10_A=log10_A, gamma=gamma,
+                                              log10_B=log10_B)
 
         if psd == 'spectrum':
             if prior == 'uniform':
@@ -509,7 +521,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
+    if psd in ['powerlaw', 'turnover', 'turnover_knee', 'flat_powerlaw']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -549,6 +561,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             cpl = gpp.turnover_knee(log10_A=log10_Agw, gamma=gamma_gw,
                                    lfb=lfb_gw, lfk=lfk_gw,
                                    kappa=kappa_gw, delta=delta_gw)
+        elif psd == 'flat_powerlaw':
+            bmp_name = '{}_log10_B'.format(name)
+            log10_Bgw = parameter.Uniform(-10, -4)(bmp_name)
+            cpl = gpp.flat_powerlaw(log10_A=log10_Agw, gamma=gamma_gw,
+                                   log10_B=log10_Bgw)
 
     if psd == 'spectrum':
         rho_name = '{}_log10_rho'.format(name)
