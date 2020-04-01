@@ -337,7 +337,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
-             pshift=False):
+             pshift=False, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -373,6 +373,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param psr_models:
+        Return list of psr models rather than signal_base.PTA object.
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -407,17 +409,20 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                                        select=select)
             models.append(s3(p))
 
-    # set up PTA
-    pta = signal_base.PTA(models)
-
-    # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
+    if psr_models:
+        return models
     else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+        # set up PTA
+        pta = signal_base.PTA(models)
 
-    return pta
+        # set white noise parameters
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
+
+        return pta
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
@@ -849,7 +854,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False, pshift=False):
+             be_type='orbel', wideband=False, correlationsonly=False,
+             pshift=False, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -886,6 +892,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param correlationsonly:
         Give infinite power (well, 1e40) to pulsar red noise, effectively
         canceling out also GW diagonal terms
+    :param psr_models:
+        Return list of psr models rather than signal_base.PTA object.
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -920,17 +928,20 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             models.append(s3(p))
 
-    # set up PTA
-    pta = signal_base.PTA(models)
-
-    # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
+    if psr_models:
+        return models
     else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+        # set up PTA
+        pta = signal_base.PTA(models)
 
-    return pta
+        # set white noise parameters
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
+
+        return pta
 
 
 def model_3b(psrs, psd='powerlaw', noisedict=None, components=30,
