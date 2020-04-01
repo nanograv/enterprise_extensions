@@ -38,7 +38,7 @@ class OptimalStatistic(object):
                                        bayesephem=bayesephem,
                                        gamma_common=gamma_common,
                                        wideband=wideband,
-                                       select=select, noisedict=noisedict)
+                                       select='backend', noisedict=noisedict)
         else:
             self.pta = pta
 
