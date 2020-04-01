@@ -336,13 +336,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              gamma_common=None, upper_limit=False, bayesephem=False,
-<<<<<<< HEAD
              be_type='orbel', wideband=False, select='backend', rn_psrs='all',
-             pshift=False):
-=======
-             be_type='orbel', wideband=False, select='backend',
              pshift=False, psr_models=False):
->>>>>>> master
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
