@@ -13,6 +13,7 @@ from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
 from . import gp_kernels as gpk
 from . import chromatic as chrom
+from . import dropout as dropout
 
 __all__ = ['white_noise_block',
            'red_noise_block',
@@ -94,7 +95,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
                     select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None):
+                    break_flat=False, break_flat_fq=None,
+                    dropout=False, k_threshold=0.5):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies
@@ -133,7 +135,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             gamma = parameter.Uniform(0, 7)
 
         # different PSD function parameters
-        if psd == 'powerlaw':
+        if psd == 'powerlaw' and dropout:
+            k_drop = parameter.Uniform(0, 1)
+            pl = dropout.dropout_powerlaw(log10_A=log10_A, gamma=gamma,
+                                          k_drop=k_drop,
+                                          k_threshold=k_threshold)
+        elif psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
         elif psd == 'powerlaw_genmodes':
             pl = gpp.powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
