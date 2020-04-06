@@ -114,6 +114,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess red noise
     :param coefficients: include latent coefficients in GP model?
+    :param dropout: Use a dropout analysis for intrinsic red noise models.
+        Currently only supports power law option.
+    :param k_threshold: Threshold for dropout analysis. 
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
