@@ -335,6 +335,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
+             n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
              pshift=False, psr_models=False):
@@ -375,6 +376,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
     :param psr_models:
         Return list of psr models rather than signal_base.PTA object.
+    :param n_rnfreqs:
+        Number of frequencies to use in achromatic rednoise model.
+    :param n_gwbfreqs:
+        Number of frequencies to use in the GWB model. 
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -382,12 +387,18 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
+
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
+                                components=n_gwbfreqs, gamma_val=gamma_common,
                                 name='gw', pshift=pshift)
 
     # ephemeris model
@@ -853,6 +864,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
+             n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, correlationsonly=False,
              pshift=False, psr_models=False):
@@ -901,14 +913,19 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
     # red noise
     s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
                         prior=amp_prior,
-                        Tspan=Tspan, components=components)
+                        Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
+                                components=n_gwbfreqs, gamma_val=gamma_common,
                                 orf='hd', name='gw', pshift=pshift)
 
     # ephemeris model
