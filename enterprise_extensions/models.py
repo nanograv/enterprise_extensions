@@ -338,7 +338,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
-             pshift=False, psr_models=False):
+             pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -379,7 +379,12 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param n_rnfreqs:
         Number of frequencies to use in achromatic rednoise model.
     :param n_gwbfreqs:
-        Number of frequencies to use in the GWB model. 
+        Number of frequencies to use in the GWB model.
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -399,7 +404,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+                                name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
@@ -867,7 +872,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, correlationsonly=False,
-             pshift=False, psr_models=False):
+             pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -904,6 +909,11 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param correlationsonly:
         Give infinite power (well, 1e40) to pulsar red noise, effectively
         canceling out also GW diagonal terms
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
     :param psr_models:
         Return list of psr models rather than signal_base.PTA object.
     """
@@ -926,7 +936,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
-                                orf='hd', name='gw', pshift=pshift)
+                                orf='hd', name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
