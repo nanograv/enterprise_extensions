@@ -239,10 +239,10 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
 
-    TtN = Nvec.solve(other = np.eye(Nshape),left_array = T)
+    TtN = np.multiply((1/Nvec)[:,None], T).T
     
     #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other = np.eye(Nshape),left_array = np.eye(Nshape))
+    Ndiag = np.diag(1/Nvec)
     
     expval2 = sl.cho_solve(cf,TtN)
     #TtNt = np.transpose(TtN)
