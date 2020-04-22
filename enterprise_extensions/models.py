@@ -399,10 +399,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         n_rnfreqs = components
 
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
+    rn = red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
                                 name='gw', pshift=pshift, pseed=pseed)
 
@@ -892,7 +892,6 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
-
              rn_psrs='all', be_type='orbel', wideband=False,
              correlationsonly=False, pshift=False, pseed=None,
              psr_models=False):
