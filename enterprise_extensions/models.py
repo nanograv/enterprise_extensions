@@ -950,19 +950,16 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     if n_rnfreqs is None:
         n_rnfreqs = components
-    # red noise
-    s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
-                        prior=amp_prior,
-                        Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
                                 orf='hd', name='gw', pshift=pshift, pseed=pseed)
 
     # intrinsic red noise
-    rn = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
-                        Tspan=Tspan, components=components)
+    rn = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
+                         prior=amp_prior,
+                         Tspan=Tspan, components=n_rnfreqs)
     if isinstance(rn_psrs, str) and rn_psrs=='all':
         s += rn
 
