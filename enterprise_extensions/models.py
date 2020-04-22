@@ -337,13 +337,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
-<<<<<<< HEAD
-             be_type='orbel', wideband=False, select='backend', rn_psrs='all',
-             pshift=False, psr_models=False):
-=======
-             be_type='orbel', wideband=False, select='backend',
+             be_type='setIII', wideband=False, select='backend', rn_psrs='all',
              pshift=False, pseed=None, psr_models=False):
->>>>>>> master
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -397,18 +392,6 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-<<<<<<< HEAD
-    # common red noise block
-    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                               components=components, gamma_val=gamma_common,
-                               name='gw', pshift=pshift)
-
-    # red noise
-    rn = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
-
-    if isinstance(rn_psrs, str) and rn_psrs=='all':
-        s += rn
-=======
     if n_gwbfreqs is None:
         n_gwbfreqs = components
 
@@ -422,7 +405,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
                                 name='gw', pshift=pshift, pseed=pseed)
->>>>>>> master
+
+    if isinstance(rn_psrs, str) and rn_psrs=='all':
+        s += rn
+
 
     # ephemeris model
     if bayesephem:
@@ -960,12 +946,6 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
-<<<<<<< HEAD
-    # common red noise block
-    s = common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='hd', name='gw', pshift=pshift)
-=======
     if n_gwbfreqs is None:
         n_gwbfreqs = components
 
@@ -980,7 +960,6 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
                                 orf='hd', name='gw', pshift=pshift, pseed=pseed)
->>>>>>> master
 
     # intrinsic red noise
     rn = red_noise_block(prior='infinitepower' if correlationsonly else amp_prior,
