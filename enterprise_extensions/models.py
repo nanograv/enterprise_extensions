@@ -213,7 +213,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
                                                tmax=tmax[dd-1],
                                                idx=dm_cusp_idx,
-                                               sign=dm_cusp_sign,
+                                               sign=dm_cusp_sign[dd-1],
                                                symmetric=dm_cusp_sym,
                                                name=cusp_name_base+str(dd))
         if dm_dual_cusp:
