@@ -116,7 +116,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     :param dropout: Use a dropout analysis for intrinsic red noise models.
         Currently only supports power law option.
-    :param k_threshold: Threshold for dropout analysis. 
+    :param k_threshold: Threshold for dropout analysis.
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
