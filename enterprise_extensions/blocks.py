@@ -71,17 +71,18 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
     # white noise signals
     ef = white_signals.MeasurementNoise(efac=efac,
-                                        selection=backend, name=name)
+                                        selection=backend)
     eq = white_signals.EquadNoise(log10_equad=equad,
-                                  selection=backend, name=name)
+                                  selection=backend)
     if inc_ecorr:
         if gp_ecorr:
+            if name is None:
+                name = ''
             ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                            selection=backend_ng, name=name)
+                                            selection=backend_ng)
         else:
             ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
-                                                selection=backend_ng,
-                                                name=name)
+                                                selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
