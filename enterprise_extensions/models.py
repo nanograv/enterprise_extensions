@@ -241,7 +241,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-    if 'NANOGrav' in psr.flags['pta'] and not wideband:
+    if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
         model = s2(psr)
     else:
