@@ -69,14 +69,14 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
                   'dm_cusp_idx':[2,4],
                   'dm_expdip_tmin':[54700,57450],
                   'dm_expdip_tmax':[54850,57560],
-                  'dmdip_seqname':'ism',
+                  'dmdip_seqname':['1st_ism','2nd_ism'],
                   'dm_cusp':False,
                   'dm_cusp_sign':'negative',
                   'dm_cusp_idx':[2,4],
                   'dm_cusp_sym':False,
                   'dm_cusp_tmin':None,
                   'dm_cusp_tmax':None,
-                  'num_dm_cusps':2, 
+                  'num_dm_cusps':2,
                   'dm_dual_cusp':True,
                   'dm_dual_cusp_tmin':[54700,57450],
                   'dm_dual_cusp_tmax':[54850,57560],}
@@ -124,8 +124,20 @@ def test_model2a(dmx_psrs, caplog):
     assert hasattr(m2a, "get_lnlikelihood")
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_model2b(dmx_psrs, caplog):
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_pshift(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs,noisedict=noise_dict,pshift=True,pseed=42)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_5gwb(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs, n_gwbfreqs=5, noisedict=noise_dict)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2b(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m2b = models.model_2b(dmx_psrs, noisedict=noise_dict)
     assert hasattr(m2b, "get_lnlikelihood")
@@ -152,8 +164,20 @@ def test_model3a(dmx_psrs, caplog):
     assert hasattr(m3a, "get_lnlikelihood")
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_model3b(dmx_psrs, caplog):
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_pshift(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs,noisedict=noise_dict,pshift=True,pseed=42)
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_5rnfreqs(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs, n_rnfreqs=5, noisedict=noise_dict)
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3b(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m3b = models.model_3b(dmx_psrs)
     assert hasattr(m3b, "get_lnlikelihood")

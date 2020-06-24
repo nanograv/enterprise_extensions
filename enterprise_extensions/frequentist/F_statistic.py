@@ -38,8 +38,8 @@ class FpStat(object):
 
         self.psrs = psrs
         self.params = params
-
-        self.Nmats = None
+                                   
+        self.Nmats = self.get_Nmats()
 
     def get_Nmats(self):
         """Makes the Nmatrix used in the fstatistic"""
@@ -70,11 +70,7 @@ class FpStat(object):
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
-
-        if self.Nmats == None:
-
-            self.Nmats = self.get_Nmats()
-
+        
         N = np.zeros(2)
         M = np.zeros((2, 2))
         fstat = 0
@@ -165,14 +161,14 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
-
-    TtN = Nvec.solve(other=np.eye(Nshape), left_array=T)
-
-    # Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other=np.eye(Nshape), left_array=np.eye(Nshape))
-
-    expval2 = sl.cho_solve(cf, TtN)
-    # TtNt = np.transpose(TtN)
-
-    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T, expval2)
+    
+    TtN = np.multiply((1/Nvec)[:,None], T).T
+    
+    #Put pulsar's autoerrors in a diagonal matrix
+    Ndiag = np.diag(1/Nvec)
+    
+    expval2 = sl.cho_solve(cf,TtN)
+    #TtNt = np.transpose(TtN)
+    
+    #An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
+    return Ndiag - np.dot(TtN.T,expval2)

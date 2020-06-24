@@ -255,13 +255,13 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
 
-    TtN = Nvec.solve(other=np.eye(Nshape), left_array=T)
-
-    # Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other=np.eye(Nshape), left_array=np.eye(Nshape))
-
-    expval2 = sl.cho_solve(cf, TtN)
-    # TtNt = np.transpose(TtN)
-
-    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T, expval2)
+    TtN = np.multiply((1/Nvec)[:,None], T).T
+    
+    #Put pulsar's autoerrors in a diagonal matrix
+    Ndiag = np.diag(1/Nvec)
+    
+    expval2 = sl.cho_solve(cf,TtN)
+    #TtNt = np.transpose(TtN)
+    
+    #An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
+    return Ndiag - np.dot(TtN.T,expval2)
