@@ -759,37 +759,14 @@ def get_timing_groups(pta):
     These groups should be appended to the usual get_parameter_groups()
     output.
     """
+    timing_pars = ['pos','spin','kep','gr','pm','DMX']
+
     groups = []
-    pos_groups = []
-    pm_groups = []
-    spin_groups = []
-    kep_groups = []
-    gr_groups = []
-    dmx_groups = []
-    for pta_pars in pta.param_names:
-        split_pars = pta_pars.split("_")
-        if "pos" in split_pars:
-            pos_groups.append(pta.param_names.index(pta_pars))
-        elif "pm" in split_pars:
-            pm_groups.append(pta.param_names.index(pta_pars))
-        elif "spin" in split_pars:
-            spin_groups.append(pta.param_names.index(pta_pars))
-        elif "kep" in split_pars:
-            kep_groups.append(pta.param_names.index(pta_pars))
-        elif "gr" in split_pars:
-            gr_groups.append(pta.param_names.index(pta_pars))
-        elif "DMX" in split_pars:
-            dmx_groups.append(pta.param_names.index(pta_pars))
-    for sub_group in [
-        pos_groups,
-        pm_groups,
-        spin_groups,
-        kep_groups,
-        gr_groups,
-        dmx_groups,
-    ]:
-        if len(sub_group) > 0:
-            groups.append(sub_group)
+    for pars in timing_pars:
+        group = group_from_params(pta, [pars])
+        if len(group):
+            groups.append(group)
+
     return groups
 
 

@@ -154,6 +154,7 @@ def tm_delay(t2pulsar, tmparams_orig, **kwargs):
             tm_params_rescaled[tm_param] = (
                 tm_scaled_val * tmparams_orig[tm_param][1] + tmparams_orig[tm_param][0]
             )
+            """
             # Making sanity checks
             if tm_param in ["E", "ECC"]:  # ,"SINI"]:
                 if tm_params_rescaled[tm_param] <= 0.0:
@@ -163,6 +164,7 @@ def tm_delay(t2pulsar, tmparams_orig, **kwargs):
             if tm_param in ["PX","M2"]:
                 if tm_params_rescaled[tm_param] <= 0.0:
                     tm_params_rescaled[tm_param] = 1e-9
+            """
 
     # set to new values
     t2pulsar.vals(tm_params_rescaled)
