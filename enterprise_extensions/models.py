@@ -34,11 +34,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           white_vary=True, components=30, upper_limit=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
-                          dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, chrom_gp=False,
-                          chrom_gp_kernel='nondiag',
+                          dm_nondiag_kernel='periodic', dm_dt=15,
+                          dmx_data=None, dm_annual=False, gamma_dm_val=None, 
+                          chrom_gp=False, chrom_gp_kernel='nondiag',
                           chrom_psd='powerlaw', chrom_idx=4,
-                          chrom_kernel='periodic',
+                          chrom_kernel='periodic', chrom_dt=15,
                           dm_expdip=False, dmexp_sign='negative',
                           dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
@@ -76,6 +76,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dmgp_kernel: diagonal in frequency or non-diagonal
     :param dm_psd: power-spectral density of DM variations
     :param dm_nondiag_kernel: type of time-domain DM GP kernel
+    :param dm_dt: linear_interp_basis size in units of days
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
     :param gamma_dm_val: spectral index of power-law DM variations
@@ -86,6 +87,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_idx: frequency scaling of chromatic noise
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
+    :param chrom_dt: linear_interp_basis size in units of days
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -156,7 +158,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
-                                    coefficients=coefficients)
+                                    coefficients=coefficients, dm_dt=dm_dt)
         elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
@@ -164,9 +166,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         if chrom_gp:
             s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
                                        psd=chrom_psd, idx=chrom_idx,
-                                       components=components,
+                                       components=components, 
                                        nondiag_kernel=chrom_kernel,
-                                       coefficients=coefficients)
+                                       coefficients=coefficients,
+                                       chrom_dt=chrom_dt)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
