@@ -227,7 +227,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
-                   prior='log-uniform', Tspan=None, components=30,
+                   prior='log-uniform', Tspan=None, components=30, dm_dt=15,
                    gamma_val=None, coefficients=False):
     """
     Returns DM noise model:
@@ -244,6 +244,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
         use overall time span for indivicual pulsar.
     :param components:
         Number of frequencies in sampling of DM-variations.
+    :param dm_dt:
+        Step size for linear_interpolation_basis in units of days.
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess DM-variations
@@ -308,7 +310,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                            log10_ell=log10_ell,
                                            log10_gam_p=log10_gam_p,
@@ -322,7 +324,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=dm_dt*86400,
                                                       dm=True)
             dm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
@@ -334,7 +336,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
@@ -344,7 +346,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=dm_dt*86400,
                                                       dm=True)
             dm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
@@ -354,7 +356,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=30*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
@@ -368,7 +370,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           prior='log-uniform',
                           idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
-                          coefficients=False):
+                          chrom_dt=15, coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -395,6 +397,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Tspan from which to calculate frequencies for PSD-based GPs.
     :param components:
         Number of frequencies to use in 'diag' GPs.
+    :param chrom_dt:
+        Step size for linear_interpolation_basis in units of days.
     :param coefficients:
         Whether to keep coefficients of the GP.
 
@@ -433,7 +437,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=15*86400)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=chrom_dt*86400)
             chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
                                             log10_gam_p=log10_gam_p,
@@ -448,7 +452,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            chm_basis = gpk.get_tf_quantization_matrix(df=200, dt=chrom_dt*86400,
                                                        dm=True, idx=idx)
             chm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
                                       log10_ell=log10_ell,
@@ -462,7 +466,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=15*86400, idx=idx)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=chrom_dt*86400, idx=idx)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                          log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
@@ -472,7 +476,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=chrom_dt*86400,
                                                       dm=True, idx=idx)
             dm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
