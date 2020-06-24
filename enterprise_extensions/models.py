@@ -168,7 +168,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components, 
                                        nondiag_kernel=chrom_kernel,
-                                       coefficients=coefficients
+                                       coefficients=coefficients,
                                        chrom_dt=chrom_dt)
 
         if dm_expdip:
