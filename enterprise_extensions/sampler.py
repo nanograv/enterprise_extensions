@@ -510,12 +510,12 @@ class JumpProposal(object):
         draw.name_list = par_list
         return draw
 
-    def draw_from_par_log_uniform(self, par_dict):
+    def draw_from_par_distribution(self, par_dict):
         # Preparing and comparing par_dict.keys() with PTA parameters
         par_list = []
         name_list = []
         for par_name in par_dict.keys():
-            pn_list = [n for n in self.plist if par_name in n and 'log' in n]
+            pn_list = [n for n in self.plist if par_name in n]
             if pn_list:
                 par_list.append(pn_list)
                 name_list.append(par_name)
@@ -525,9 +525,10 @@ class JumpProposal(object):
         par_list = np.concatenate(par_list,axis=None)
 
         def draw(x, iter, beta):
-            """log uniform prior draw function generator for custom par_names.
-            par_dict: dictionary with {"par_names":(lower bound,upper bound)}
-                                      { "string":(float,float)}
+            """distribution prior draw function generator for custom par_names.
+            par_dict: dictionary with {"par_names":(distribution,value,value)}
+                                      { "string":(string,float,float)}
+            distribution: "normal", "uniform"
 
             The function signature is specific to PTMCMCSampler.
             """
@@ -538,12 +539,16 @@ class JumpProposal(object):
             # draw parameter from signal model
             idx_name = np.random.choice(par_list)
             idx = self.plist.index(idx_name)
-            q[idx] = np.random.uniform(par_dict[par_name][0],par_dict[par_name][1])
-
+            if par_dict[idx_name][0] == "uniform":
+                q[idx] = np.random.uniform(par_dict[idx_name][1],par_dict[idx_name][2])
+            elif par_dict[idx_name][0] == "normal":
+                q[idx] = np.random.normal(par_dict[idx_name][1],par_dict[idx_name][2])
+            else:
+                raise UserWarning("distribution must be uniform or normal.")
             return q, 0
 
         name_string = '_'.join(name_list)
-        draw.__name__ = 'draw_from_{}_log_uniform'.format(name_string[:40])
+        draw.__name__ = 'draw_from_{}_distribution'.format(name_string[:40])
         draw.name_list = par_list
         return draw
 
