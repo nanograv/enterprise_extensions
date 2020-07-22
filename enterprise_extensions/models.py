@@ -335,9 +335,10 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
+             n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
-             pshift=False):
+             pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -373,6 +374,17 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         orbel, orbel-v2, setIII
     :param wideband:
         Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param psr_models:
+        Return list of psr models rather than signal_base.PTA object.
+    :param n_rnfreqs:
+        Number of frequencies to use in achromatic rednoise model.
+    :param n_gwbfreqs:
+        Number of frequencies to use in the GWB model.
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -380,13 +392,19 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
+
     # red noise
-    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+                                components=n_gwbfreqs, gamma_val=gamma_common,
+                                name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
@@ -407,17 +425,20 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                                        select=select)
             models.append(s3(p))
 
-    # set up PTA
-    pta = signal_base.PTA(models)
-
-    # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
+    if psr_models:
+        return models
     else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+        # set up PTA
+        pta = signal_base.PTA(models)
 
-    return pta
+        # set white noise parameters
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
+
+        return pta
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
@@ -848,8 +869,10 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
+             n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False, pshift=False):
+             be_type='orbel', wideband=False, correlationsonly=False,
+             pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -886,6 +909,13 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param correlationsonly:
         Give infinite power (well, 1e40) to pulsar red noise, effectively
         canceling out also GW diagonal terms
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
+    :param psr_models:
+        Return list of psr models rather than signal_base.PTA object.
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -893,15 +923,20 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
 
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
     # red noise
     s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
                         prior=amp_prior,
-                        Tspan=Tspan, components=components)
+                        Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='hd', name='gw', pshift=pshift)
+                                components=n_gwbfreqs, gamma_val=gamma_common,
+                                orf='hd', name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
@@ -920,17 +955,20 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             models.append(s3(p))
 
-    # set up PTA
-    pta = signal_base.PTA(models)
-
-    # set white noise parameters
-    if noisedict is None:
-        print('No noise dictionary provided!...')
+    if psr_models:
+        return models
     else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+        # set up PTA
+        pta = signal_base.PTA(models)
 
-    return pta
+        # set white noise parameters
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
+
+        return pta
 
 
 def model_3b(psrs, psd='powerlaw', noisedict=None, components=30,

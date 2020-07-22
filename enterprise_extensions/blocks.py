@@ -489,7 +489,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
                            orf=None, name='gw', coefficients=False,
-                           pshift=False):
+                           pshift=False, pseed=None):
     """
     Returns common red noise model:
 
@@ -513,6 +513,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
         values are ['hd', 'dipole', 'monopole'].
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
     :param name: Name of common red process
 
     """
@@ -580,17 +585,19 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift)
+                                        name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
                                               Tspan=Tspan,
-                                              name=name, pshift=pshift)
+                                              name=name, pshift=pshift,
+                                              pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
                                               Tspan=Tspan,
-                                              name=name, pshift=pshift)
+                                              name=name, pshift=pshift,
+                                              pseed=pseed)
     else:
         raise ValueError('ORF {} not recognized'.format(orf))
 
