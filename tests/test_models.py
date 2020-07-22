@@ -189,7 +189,7 @@ def test_jumpproposal(dmx_psrs,caplog):
     assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
     assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
             'draw_from_J1713+0747_prior')
-    assert (jp.draw_from_par_log_uniform({'gw':(-20,-10)}).__name__ ==
-            'draw_from_gw_log_uniform')
+    assert (jp.draw_from_par_distribution({'gw':("uniform",-20,-10)})
+            .__name__ == 'draw_from_gw_distribution')
     assert (jp.draw_from_signal('red noise').__name__ ==
             'draw_from_red noise_signal')
