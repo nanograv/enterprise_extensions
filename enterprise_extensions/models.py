@@ -335,9 +335,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, select='backend',
+             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None, 
+             upper_limit=False, bayesephem=False, be_type='setIII', 
+             sat_orb_elements=False, wideband=False, select='backend',
              pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -408,7 +408,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type,
+                                                           sat_orb_elements=sat_orb_elements)
 
     # timing model
     s += gp_signals.TimingModel()
@@ -445,13 +446,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None,
-                  tm_svd=False, tm_norm=True, gamma_common=None,
+                  noisedict=None, tm_svd=False, tm_norm=True, gamma_common=None,
                   upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
-                  upper_limit_common=None,
-                  bayesephem=False, be_type='orbel', wideband=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw',
-                  dm_annual=False,
+                  upper_limit_common=None, bayesephem=False, be_type='setIII',
+                  sat_orb_elements=False, wideband=False, dm_var=False,
+                  dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
@@ -575,7 +574,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type,
+                                                           sat_orb_elements=sat_orb_elements)
 
     # adding white-noise, and acting on psr objects
     models = []
@@ -869,9 +869,9 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False,
+             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
+             upper_limit=False, bayesephem=False, be_type='setIII',
+             sat_orb_elements=False, wideband=False, correlationsonly=False,
              pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -940,7 +940,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type,
+                                                           sat_orb_elements=sat_orb_elements)
 
     # timing model
     s += gp_signals.TimingModel()

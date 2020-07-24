@@ -59,6 +59,6 @@ def timing_block(tmparam_list=['RAJ', 'DECJ', 'F0', 'F1',
 
     # timing model
     tm_func = tm_delay(tmparams=tm_params, which=tmparam_list)
-    tm = deterministic_signals.Deterministic(tm_func, name='timing model')
+    tm = deterministic_signals.Deterministic(tm_func, name='timing_model')
 
     return tm
