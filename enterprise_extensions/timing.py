@@ -43,7 +43,11 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
                                   np.atleast_1d(np.double(orig_params[:,0])))))
 
     # Return the time-series for the pulsar
-    return new_res - residuals
+
+    # Sort the residuals
+    isort = np.argsort(t2pulsar.toas(),kind='mergesort')
+
+    return new_res[isort] - residuals
 
 # Model component building blocks #
 
