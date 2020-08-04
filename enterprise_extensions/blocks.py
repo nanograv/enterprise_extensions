@@ -79,9 +79,13 @@ def white_noise_block(
     eq = white_signals.EquadNoise(log10_equad=equad, selection=backend, name=name)
     if inc_ecorr:
         if gp_ecorr:
-            ec = gp_signals.EcorrBasisModel(
-                log10_ecorr=ecorr, selection=backend_ng, name=name
-            )
+            if name is None:
+                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                                selection=backend_ng)
+            else:
+                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                                selection=backend_ng, name=name)
+
         else:
             ec = white_signals.EcorrKernelNoise(
                 log10_ecorr=ecorr, selection=backend_ng, name=name

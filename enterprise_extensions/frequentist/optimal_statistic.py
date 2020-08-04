@@ -42,15 +42,11 @@ class OptimalStatistic(object):
         # and powerlaw red and gw signal
 
         if pta is None:
-            self.pta = models.model_2a(
-                psrs,
-                psd="powerlaw",
-                bayesephem=bayesephem,
-                gamma_common=gamma_common,
-                wideband=wideband,
-                select=select,
-                noisedict=noisedict,
-            )
+            self.pta = models.model_2a(psrs, psd='powerlaw',
+                                       bayesephem=bayesephem,
+                                       gamma_common=gamma_common,
+                                       wideband=wideband,
+                                       select='backend', noisedict=noisedict)
         else:
             self.pta = pta
 
@@ -202,7 +198,7 @@ class OptimalStatistic(object):
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == "red noise":
+                if signal.signal_name == 'red noise' and signal.signal_id =='gw':
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -212,7 +208,7 @@ class OptimalStatistic(object):
     def _get_freqs(self, psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == "red noise":
+            if sig.signal_name == 'red noise' and sig.signal_id == 'gw':
                 sig._construct_basis()
                 freqs = np.array(sig._labels[""])
                 break
