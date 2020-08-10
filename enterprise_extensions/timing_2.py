@@ -319,6 +319,9 @@ def timing_block(
             "XDOT",
             "X2DOT",
             "EDOT",
+            "KOM",
+            "KIN",
+            "TASC"
         ]:
             key_string = "kep_param_" + par
             tm_delay_kwargs[key_string] = get_prior(
