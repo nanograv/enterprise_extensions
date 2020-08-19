@@ -84,7 +84,7 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
                                                 pos_t)
             dm_sol_wind = dm_solar(n_earth[ii], theta[bin_mask],
                                    R_earth[bin_mask])
-            print(n_earth[ii],R_earth[bin_mask], dm_sol_wind.size, np.sum(bin_mask))
+            print(n_earth[ii], R_earth[bin_mask].size, dm_sol_wind.size, np.sum(bin_mask))
             if dm_sol_wind.size != 0:
                 dt_DM.extend((dm_sol_wind)
                              * 4.148808e3 / freqs[bin_mask]**2)
