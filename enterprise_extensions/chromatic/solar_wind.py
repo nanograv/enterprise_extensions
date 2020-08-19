@@ -72,6 +72,7 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
         for ii, bin in enumerate(edges[:-1]):
 
             bin_mask = np.logical_and(toas >= bin, toas <= edges[ii + 1])
+            print('Min,Max,bin_low,bin_high ',toas.min(),toas.max(),bin, edges[ii + 1])
             # earth = planetssb[bin_mask, 2, :3]
             # sun = sunssb[bin_mask,:3]
             # earthsun = earth - sun
