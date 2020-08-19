@@ -63,11 +63,11 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
             edges = n_earth_bins
 
         dt_DM = []
-        if hasattr(n_earth, 'sample'):
-            # Sample if enterprise parameter object, else pass array
-            n_earth = n_earth().sample()
-        else:
-            pass
+        # if hasattr(n_earth, 'sample'):
+        #     # Sample if enterprise parameter object, else pass array
+        #     n_earth = n_earth().sample()
+        # else:
+        #     pass
 
         for ii, bin in enumerate(edges[:-1]):
 
@@ -92,6 +92,8 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
                 pass
 
         dt_DM = np.array(dt_DM)
+        if dt_DM.size!=toas.size:
+            raise ValueError('dt_DM does not match number of TOAs!!!')
 
     return dt_DM
 
