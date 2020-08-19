@@ -93,7 +93,9 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 
         dt_DM = np.array(dt_DM)
         if dt_DM.size!=toas.size:
-            raise ValueError('dt_DM does not match number of TOAs!!!')
+            err_msg = 'dt_DM ({0}) does not '.format(dt_DM.size)
+            err_msg +='match number of TOAs ({0})!!!'.format(toas.size)
+            raise ValueError(err_msg)
 
     return dt_DM
 
