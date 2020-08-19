@@ -72,14 +72,18 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
         for ii, bin in enumerate(edges[:-1]):
 
             bin_mask = np.logical_and(toas >= bin, toas <= edges[ii + 1])
-            earth = planetssb[bin_mask, 2, :3]
-            sun = sunssb[bin_mask,:3]
-            earthsun = earth - sun
-            R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
-            Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun,
-                                            pos_t[bin_mask])
-            theta = np.arccos(-Re_cos_theta_impact / R_earth)
-            dm_sol_wind = dm_solar(n_earth[ii], theta, R_earth)
+            # earth = planetssb[bin_mask, 2, :3]
+            # sun = sunssb[bin_mask,:3]
+            # earthsun = earth - sun
+            # R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
+            # Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun,
+            #                                 pos_t[bin_mask])
+            # theta = np.arccos(-Re_cos_theta_impact / R_earth)
+            theta, R_earth, _, _ = theta_impact(planetssb,
+                                                sunssb,
+                                                pos_t)
+            dm_sol_wind = dm_solar(n_earth[ii], theta[bin_mask],
+                                   R_earth[bin_mask])
 
             if dm_sol_wind.size != 0:
                 dt_DM.extend((dm_sol_wind)
