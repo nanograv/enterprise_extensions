@@ -63,29 +63,15 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
             edges = n_earth_bins
 
         dt_DM = []
-        # if hasattr(n_earth, 'sample'):
-        #     # Sample if enterprise parameter object, else pass array
-        #     n_earth = n_earth().sample()
-        # else:
-        #     pass
 
         for ii, bin in enumerate(edges[:-1]):
 
             bin_mask = np.logical_and(toas >= bin, toas <= edges[ii + 1])
-            print('Min,Max,bin_low,bin_high ',toas.min(),toas.max(),bin, edges[ii + 1])
-            # earth = planetssb[bin_mask, 2, :3]
-            # sun = sunssb[bin_mask,:3]
-            # earthsun = earth - sun
-            # R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
-            # Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun,
-            #                                 pos_t[bin_mask])
-            # theta = np.arccos(-Re_cos_theta_impact / R_earth)
             theta, R_earth, _, _ = theta_impact(planetssb,
                                                 sunssb,
                                                 pos_t)
             dm_sol_wind = dm_solar(n_earth[ii], theta[bin_mask],
                                    R_earth[bin_mask])
-            print(n_earth[ii], R_earth[bin_mask].size, dm_sol_wind.size, np.sum(bin_mask))
             if dm_sol_wind.size != 0:
                 dt_DM.extend((dm_sol_wind)
                              * 4.148808e3 / freqs[bin_mask]**2)
