@@ -582,8 +582,8 @@ class JumpProposal(object):
             # draw parameter from signal model
             param = np.random.choice(signal_list)
             if param.size:
-                idx2 = np.random.randint(0, param.size)
-                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+                for idx2 in range(param.size):
+                    q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
             # scalar parameter
             else:
