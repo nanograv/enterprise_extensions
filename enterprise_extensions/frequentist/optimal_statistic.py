@@ -63,12 +63,15 @@ class OptimalStatistic(object):
         else:
             raise ValueError('Unknown ORF!')
 
-    def compute_os(self, params=None):
+    def compute_os(self, params=None, include_auto=False):
         """
         Computes the optimal statistic values given an
         `enterprise` parameter dictionary.
 
         :param params: `enterprise` parameter dictionary.
+        :param include_auto: whether to include the autocorrelation terms
+                             when computing the optimal statistic
+                             (DEFAULT: false)
 
         :returns:
             xi: angular separation [rad] for each pulsar pair
@@ -134,10 +137,35 @@ class OptimalStatistic(object):
         sig = np.array(sig)
         ORF = np.array(ORF)
         xi = np.array(xi)
-        OS = (np.sum(rho*ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2))
-        OS_sig = 1 / np.sqrt(np.sum(ORF ** 2 / sig ** 2))
+        
+        if include_auto:
+            
+            rho_ii, sig_ii = [], []
+            for ii in range(npsr):
 
-        return xi, rho, sig, OS, OS_sig
+                phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+
+                top = np.dot(X[ii], phiII * X[ii])
+                bot = np.trace(np.dot(Z[ii]*phiII[None,:], Z[ii]*phiII[None,:]))
+
+                # auto correlation and uncertainty
+                rho_ii.append(top / bot)
+                sig_ii.append(1 / np.sqrt(bot))
+
+            rho_ii = np.array(rho_ii)
+            sig_ii = np.array(sig_ii)
+            
+            OS = (np.sum(rho_ii/sig_ii**2) + np.sum(rho*ORF/sig**2)) / (np.sum(1/sig_ii**2) + np.sum(ORF**2/sig**2))
+            OS_sig = np.sqrt(1/(np.sum(1/sig_ii**2) + np.sum(ORF**2/sig**2)))
+            
+            return xi, rho, sig, rho_ii, sig_ii, OS, OS_sig
+            
+        else:
+        
+            OS = (np.sum(rho*ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2))
+            OS_sig = 1 / np.sqrt(np.sum(ORF ** 2 / sig ** 2))
+
+            return xi, rho, sig, OS, OS_sig
 
     def compute_noise_marginalized_os(self, chain, N=10000):
         """
