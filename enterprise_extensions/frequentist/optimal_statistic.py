@@ -181,6 +181,74 @@ class OptimalStatistic(object):
 
         return (xi, rho, sig, Opt, Opt/Sig)
 
+    def compute_os_autocorr(self, params=None):
+        """
+        Computes the autocorrelation optimal statistic values given an
+        `enterprise` parameter dictionary. This version of the optimal statistic
+        is analogous to the Bayesian model-2a analysis.
+
+        :param params: `enterprise` parameter dictionary.
+
+        :returns:
+            xi: angular separation [rad] for each pulsar pair
+            rho: correlation coefficient for each pulsar pair
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair.
+            OS: Optimal statistic value (units of A_gw^2)
+            OS_sig: 1-sigma uncertainty on OS
+
+        .. note:: SNR is computed as OS / OS_sig.
+
+        """
+
+        if params is None:
+            params = {name: par.sample() for name, par
+                        in zip(self.pta.param_names, self.pta.params)}
+
+        # get matrix products
+        TNrs = self.get_TNr(params=params)
+        TNTs = self.get_TNT(params=params)
+        FNrs = self.get_FNr(params=params)
+        FNFs = self.get_FNF(params=params)
+        FNTs = self.get_FNT(params=params)
+
+        phiinvs = self.pta.get_phiinv(params, logdet=False)
+
+        X, Z = [], []
+        for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
+
+            Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+            try:
+                cf = sl.cho_factor(Sigma)
+                SigmaTNr = sl.cho_solve(cf, TNr)
+                SigmaTNF = sl.cho_solve(cf, FNT.T)
+            except np.linalg.LinAlgError:
+                SigmaTNr = np.linalg.solve(Sigma, TNr)
+                SigmaTNF = np.linalg.solve(Sigma, FNT.T)
+
+            FNTSigmaTNr = np.dot(FNT, SigmaTNr)
+            X.append(FNr - FNTSigmaTNr)
+            Z.append(FNF - np.dot(FNT, SigmaTNF))
+
+        npsr = len(self.pta._signalcollections)
+        rho, sig = [], []
+        for ii in range(npsr):
+
+            phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+
+            top = np.dot(X[ii], phiII * X[ii])
+            bot = np.trace(np.dot(Z[ii]*phiII[None,:], Z[ii]*phiII[None,:]))
+
+            # auto correlation and uncertainty
+            rho.append(top / bot)
+            sig.append(1 / np.sqrt(bot))
+
+        rho = np.array(rho)
+        sig = np.array(sig)
+        OS = (np.sum(rho / sig ** 2) / np.sum(1 / sig ** 2))
+        OS_sig = 1 / np.sqrt(np.sum(1 / sig ** 2))
+
+        return rho, sig, OS, OS_sig
+
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
         Fmats = []
