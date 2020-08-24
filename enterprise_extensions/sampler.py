@@ -513,22 +513,25 @@ class JumpProposal(object):
     def draw_from_par_distribution(self, par_dict):
         # Preparing and comparing par_dict.keys() with PTA parameters
         par_list = []
-        name_list = []
+        idx_list = []
         for par_name in par_dict.keys():
             pn_list = [n for n in self.plist if par_name in n]
             if pn_list:
                 par_list.append(pn_list)
-                name_list.append(par_name)
+                idx_list.append([par_name]*len(pn_list))
         if not par_list:
             raise UserWarning("No parameter dictionary match found between {} and PTA.object."
                               .format(par_dict.keys()))
         par_list = np.concatenate(par_list,axis=None)
+        idx_list = np.concatenate(idx_list,axis=None)
+        name_list = np.unique(idx_list)
 
         def draw(x, iter, beta):
-            """distribution prior draw function generator for custom par_names.
-            par_dict: dictionary with {"par_names":(distribution,value,value)}
-                                      { "string":(string,float,float)}
+            """Distribution prior draw function generator for custom parameters.
+            par_dict: dictionary with {par_name:(distribution,index,value,value)}
+                                      {string:(string,int,float,float)}
             distribution: "normal", "uniform"
+            index: -1 for all
 
             The function signature is specific to PTMCMCSampler.
             """
@@ -536,29 +539,34 @@ class JumpProposal(object):
             q = x.copy()
             lqxy = 0
 
-            # draw parameter from signal model
-            idx_name = np.random.choice(par_list)
-            idx = self.plist.index(idx_name)
+            # randomly choose parameter
+            idx = np.random.randint(0, len(par_list))
+            idx_par = par_list[idx]
+            idx_name = idx_list[idx]
+            idx = self.plist.index(idx_par)
 
             # if vector parameter jump in random component
             param = self.params[idx]
             if param.size:
-                idx2 = np.random.randint(0, param.size)
+                if par_dict[idx_name][1] == -1:
+                    idx2 = np.random.randint(0, param.size)
+                else:
+                    idx2 = par_dict[idx_name][1]
                 if par_dict[idx_name][0] == "uniform":
-                    q[self.pmap[str(param)]][idx2] = np.random.uniform(par_dict[idx_name][1],
-                                                                       par_dict[idx_name][2])
+                    q[self.pmap[str(param)]][idx2] = np.random.uniform(par_dict[idx_name][2],
+                                                                       par_dict[idx_name][3])
                 elif par_dict[idx_name][0] == "normal":
-                    q[self.pmap[str(param)]][idx2] = np.random.normal(par_dict[idx_name][1],
-                                                                      par_dict[idx_name][2])
+                    q[self.pmap[str(param)]][idx2] = np.random.normal(par_dict[idx_name][2],
+                                                                      par_dict[idx_name][3])
                 else:
                     raise UserWarning("Distribution must be uniform or normal.")
 
             # scalar parameter
             else:
                 if par_dict[idx_name][0] == "uniform":
-                    q[idx] = np.random.uniform(par_dict[idx_name][1],par_dict[idx_name][2])
+                    q[idx] = np.random.uniform(par_dict[idx_name][2],par_dict[idx_name][3])
                 elif par_dict[idx_name][0] == "normal":
-                    q[idx] = np.random.normal(par_dict[idx_name][1],par_dict[idx_name][2])
+                    q[idx] = np.random.normal(par_dict[idx_name][2],par_dict[idx_name][3])
                 else:
                     raise UserWarning("Distribution must be uniform or normal.")
 
