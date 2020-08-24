@@ -539,12 +539,29 @@ class JumpProposal(object):
             # draw parameter from signal model
             idx_name = np.random.choice(par_list)
             idx = self.plist.index(idx_name)
-            if par_dict[idx_name][0] == "uniform":
-                q[idx] = np.random.uniform(par_dict[idx_name][1],par_dict[idx_name][2])
-            elif par_dict[idx_name][0] == "normal":
-                q[idx] = np.random.normal(par_dict[idx_name][1],par_dict[idx_name][2])
+
+            # if vector parameter jump in random component
+            param = self.params[idx]
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                if par_dict[idx_name][0] == "uniform":
+                    q[self.pmap[str(param)]][idx2] = np.random.uniform(par_dict[idx_name][1],
+                                                                       par_dict[idx_name][2])
+                elif par_dict[idx_name][0] == "normal":
+                    q[self.pmap[str(param)]][idx2] = np.random.normal(par_dict[idx_name][1],
+                                                                      par_dict[idx_name][2])
+                else:
+                    raise UserWarning("Distribution must be uniform or normal.")
+
+            # scalar parameter
             else:
-                raise UserWarning("distribution must be uniform or normal.")
+                if par_dict[idx_name][0] == "uniform":
+                    q[idx] = np.random.uniform(par_dict[idx_name][1],par_dict[idx_name][2])
+                elif par_dict[idx_name][0] == "normal":
+                    q[idx] = np.random.normal(par_dict[idx_name][1],par_dict[idx_name][2])
+                else:
+                    raise UserWarning("Distribution must be uniform or normal.")
+
             return q, 0
 
         name_string = '_'.join(name_list)
