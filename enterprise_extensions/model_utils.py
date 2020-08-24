@@ -1158,6 +1158,837 @@ class HyperModel(object):
 
         return ret
 
+###### Modified Hyper Model ########
+# with adapting log-weights
+
+class HyperModel2(object):
+    """
+    Class to define hyper-model that is the concatenation of all models.
+    Boris:
+    I am trying to find such log-weights, so that we balance counts between models
+    on-the fly. This helps estimate Bayes factor for the cases when it's to big, 
+    and we would otherwise only get counts for one of the models in a limited time,
+    and would only get a lower limit on a Bayes factor.
+    Two steps:
+    1. Initial guess by taking the difference of nsamp_avg medians of sampled log-likelihoods
+    for two models, for burn_in(_guess) steps. Median, but not mean - to avoid outliers.
+    2. Fine-tuning by looking at last num_nmodel_elements in chain output, for every new
+    num_nmodel_elements chain updates.
+    
+    
+    MAIN PROBLEM: when true odds ratio is large, this methods gets MCMC stuck in
+    one point of parameter space quickly, for some reason.
+    """
+
+    def __init__(self, models, output_dir, burn_in=10000, nsamp_avg=1000, num_nmodel_elements=1000):
+        self.models = models
+        self.num_models = len(self.models)
+        self._log_weights = np.linspace(0,0,self.num_models)
+        #self._log_weights = dict.fromkeys(np.arange(self.num_models),0)
+        
+        # Getting ready to adjust log-weights
+        self.log_weights_guess = None
+        self.fine_tune_go = False
+        
+        self.num_nmodel_elements = num_nmodel_elements
+        self._n_chains = 0
+        self.nmodel_chain = np.array([],dtype=int)
+        self.nsamp = 0
+        self.nsamp_m = dict()
+        self.burn_in = burn_in
+        self.nsamp_avg = nsamp_avg
+        #self.lnlike_history = dict.fromkeys(np.arange(self.num_models), np.empty(nsamp_avg))
+        self.lnlike_history = dict.fromkeys(np.arange(self.num_models))
+        
+        #self.nmodel_history = np.empty(nsamp_avg)
+        #self.nmodel_history.fill(np.nan)
+        self.extra_factor_from_nmodel = 0
+        
+        # Saving history of last nsamp_avg likelihoods, for each model
+        for key in self.lnlike_history.keys():
+            #self.lnlike_history[key] = np.empty(nsamp_avg)
+            #self.lnlike_history[key].fill(np.nan)
+            self.nsamp_m[key] = 0
+            self.lnlike_history[key] = np.array([])
+        self.output_dir = output_dir
+        fw=open(self.output_dir+'/log_weight_evolution.txt','w')
+        fw.write("")
+        fw.close()
+
+        #########
+        self.param_names, ind = np.unique(np.concatenate([p.param_names
+                                                     for p in self.models.values()]),
+                                     return_index=True)
+        self.param_names = self.param_names[np.argsort(ind)]
+        self.param_names = np.append(self.param_names, 'nmodel').tolist()
+        #########
+
+        #########
+        self.params = [p for p in self.models[0].params] # start of param list
+        uniq_params = [str(p) for p in self.models[0].params] # which params are unique
+        for model in self.models.values():
+            # find differences between next model and concatenation of previous
+            param_diffs = np.setdiff1d([str(p) for p in model.params], uniq_params)
+            mask = np.array([str(p) in param_diffs for p in model.params])
+            # concatenate for next loop iteration
+            uniq_params = np.union1d([str(p) for p in model.params], uniq_params)
+            # extend list of unique parameters
+            self.params.extend([pp for pp in np.array(model.params)[mask]])
+        #########
+
+        #########
+        # get signal collections
+        self.snames = dict.fromkeys(np.unique(sum(sum([[[qq.signal_name for qq in pp._signals]
+                                                        for pp in self.models[mm]._signalcollections]
+                                                       for mm in self.models], []), [])))
+        for key in self.snames: self.snames[key] = []
+
+        for mm in self.models:
+            for sc in self.models[mm]._signalcollections:
+                for signal in sc._signals:
+                    self.snames[signal.signal_name].extend(signal.params)
+        for key in self.snames: self.snames[key] = list(set(self.snames[key]))
+
+        for key in self.snames:
+            uniq_params, ind = np.unique([p.name for p in self.snames[key]],
+                                         return_index=True)
+            uniq_params = uniq_params[np.argsort(ind)].tolist()
+            all_params = [p.name for p in self.snames[key]]
+
+            self.snames[key] = np.array(self.snames[key])[[all_params.index(q)
+                                                           for q in uniq_params]].tolist()
+        #########
+
+    @property
+    def n_chains(self):
+        return self._n_chains
+    
+    @n_chains.setter
+    def n_chains(self,value):
+        if value > self._n_chains:
+            self._n_chains = value
+            self.nmodel_chain = np.append( self.nmodel_chain, int( \
+                                np.rint(self.sampler._chain[value-1,-1])) )
+            self.nmodel_chain = self.nmodel_chain[-self.num_nmodel_elements:]
+            
+            # Condition to start fine-tuning
+            if np.mod(value,self.num_nmodel_elements)==0 and self.log_weights_guess is not None:
+                self.fine_tune_go = True
+            else:
+                self.fine_tune_go = False
+
+    @property
+    def log_weights(self):
+        return self._log_weights
+        
+    @log_weights.setter
+    def log_weights(self,value):
+    
+        fw=open(self.output_dir+'/log_weight_evolution.txt','a')
+        np.savetxt(fw,np.array(value,ndmin=2),delimiter=';')
+        #fw.write("\n")
+        fw.close()
+        
+        self._log_weights = value
+
+    def get_lnlikelihood(self, x):
+
+        # find model index variable
+        idx = list(self.param_names).index('nmodel')
+        nmodel = int(np.rint(x[idx]))
+
+        # find parameters of active model
+        q = []
+        for par in self.models[nmodel].param_names:
+            idx = self.param_names.index(par)
+            q.append(x[idx])
+
+        # only active parameters enter likelihood
+        active_lnlike = self.models[nmodel].get_lnlikelihood(q)
+        
+        #nsamp_rotate_general = np.mod(self.nsamp,self.nsamp_avg)
+        #self.nmodel_history[nsamp_rotate_general] = nmodel
+        
+        # Updating a number of output chains and last values of nmodel parameter:
+        self.n_chains = np.sum(self.sampler._lnlike!=0)
+        
+        # Step 1. Collecting log-likelihoods and doing a guess, unless made
+        if self.log_weights_guess is None and self.nsamp > self.burn_in:
+            nsamp_rotate = np.mod(self.nsamp_m[nmodel],self.nsamp_avg)
+            lnlike_noinf = ~np.isinf(active_lnlike)*active_lnlike # inf to nan, if equal to
+            #self.lnlike_history[nmodel][nsamp_rotate] = lnlike_noinf
+            self.lnlike_history[nmodel] = np.append(self.lnlike_history[nmodel], lnlike_noinf)
+            self.lnlike_history[nmodel] = self.lnlike_history[nmodel][-self.nsamp_avg:]
+            
+            print('Lengths of lnlike history: ',len(self.lnlike_history[0]), len(self.lnlike_history[1]), self.nsamp_avg) # DELETE ME
+            
+            if len(self.lnlike_history[0])==self.nsamp_avg and \
+                       len(self.lnlike_history[1])==self.nsamp_avg:
+                self.log_weights_guess = np.nanmedian(self.lnlike_history[0]) - \
+                                         np.nanmedian(self.lnlike_history[1])
+                print('Log-weights guess value (Model 0 over Model 1): ', self.log_weights_guess)
+        # Step 2. Fine-tuning log-weights
+        elif self.fine_tune_go:
+            counts_models = np.array([ np.sum(self.nmodel_chain==0,dtype=float) , \
+                                       np.sum(self.nmodel_chain==1,dtype=float) ])
+            counts_models = np.where(counts_models==0, 1, counts_models)
+            fine_tune_val = np.log( counts_models[0] / counts_models[1] )
+                                    
+            self.extra_factor_from_nmodel += fine_tune_val
+            
+            self.log_weights = [0, self.log_weights_guess + self.extra_factor_from_nmodel]
+            
+            self.fine_tune_go = False # Re-set after fine-tuning complete
+                 
+            #print('Fine-tuning performed') # DELETE ME
+            #print('Log-weights: ', self.log_weights) # DELETE ME
+            #print('Initial guess dLogL: ', self.log_weights_guess) # DELETE ME
+            #print('Extra factor from nmodel: ', self.extra_factor_from_nmodel) # DELETE ME
+        
+        # Change log-weights only once per nsamp_avg, and only when burned in
+        #if np.mod(self.nsamp, self.nsamp_avg)==0 and self.nsamp > self.burn_in:
+        #
+        #    #n_chains = np.sum(self.sampler._lnlike!=0) 
+        #    #nmodel_chain = self.sampler._chain[:,-1]
+        #    
+        #    # Old direction did not work
+        #    #direction = np.log( np.sum(self.nmodel_history==1,dtype=float) / \
+        #    #                np.sum(self.nmodel_history==0,dtype=float) )
+        #    # New direction
+        #
+        #    print('Extra factor: ',self.extra_factor_from_nmodel) # DELETE ME
+        #    print('Log-weights: ',self.log_weights) # DELETE ME
+        #    
+        #    if self.n_chains >= self.num_nmodel_elements:
+        #        direction = np.log( np.sum(self.nmodel_chain==1,dtype=float) / \
+        #                            np.sum(self.nmodel_chain==0,dtype=float) )
+        #        self.extra_factor_from_nmodel += direction
+        #    
+        #    self.log_weights = [0, np.nanmedian(self.lnlike_history[0]) - \
+        #         np.nanmedian(self.lnlike_history[1]) - self.extra_factor_from_nmodel]
+        #    
+        #    # More general case for the future
+        #    #self.log_weights = [ np.nanmedian(self.lnlike_history[0]) - \
+        #    #    np.nanmedian(self.lnlike_history[model_idx]) for model_idx \
+        #    #    in np.arange(self.num_models) ]
+        #    # Another example for the same operation
+        #    #for model_idx in np.arange(1,self.num_models):
+        #    #    self.log_weights = [0, np.nanmedian(self.lnlike_history[0]) - \
+        #    #                               np.nanmedian(self.lnlike_history[model_idx])]
+
+        if self.log_weights is not None:
+            active_lnlike += self.log_weights[nmodel]
+            
+        self.nsamp+=1
+        self.nsamp_m[nmodel] += 1
+
+        return active_lnlike
+
+    def get_lnprior(self, x):
+
+        # find model index variable
+        idx = list(self.param_names).index('nmodel')
+        nmodel = int(np.rint(x[idx]))
+
+        if nmodel not in self.models.keys():
+            return -np.inf
+        else:
+            lnP = 0
+            for p in self.models.values():
+                q = []
+                for par in p.param_names:
+                    idx = self.param_names.index(par)
+                    q.append(x[idx])
+                lnP += p.get_lnprior(np.array(q))
+
+            return lnP
+
+    def get_parameter_groups(self):
+
+        groups = []
+        for p in self.models.values():
+            groups.extend(get_parameter_groups(p))
+        list(np.unique(groups))
+
+        groups.extend([[len(self.param_names)-1]]) # nmodel
+
+        return groups
+
+    def initial_sample(self):
+        """
+        Draw an initial sample from within the hyper-model prior space.
+        """
+
+        x0 = [np.array(p.sample()).ravel().tolist() for p in self.models[0].params]
+        uniq_params = [str(p) for p in self.models[0].params]
+
+        for model in self.models.values():
+            param_diffs = np.setdiff1d([str(p) for p  in model.params], uniq_params)
+            mask = np.array([str(p) in param_diffs for p in model.params])
+            x0.extend([np.array(pp.sample()).ravel().tolist() for pp in np.array(model.params)[mask]])
+
+            uniq_params = np.union1d([str(p) for p in model.params], uniq_params)
+
+        x0.extend([[0.1]])
+
+        return np.array([p for sublist in x0 for p in sublist])
+
+    def draw_from_nmodel_prior(self, x, iter, beta):
+        """
+        Model-index uniform distribution prior draw.
+        """
+
+        q = x.copy()
+
+        idx = list(self.param_names).index('nmodel')
+        q[idx] = np.random.uniform(-0.5,self.num_models-0.5)
+
+        lqxy = 0
+
+        return q, float(lqxy)
+
+    def setup_sampler(self, outdir='chains', resume=False):
+        """
+        Sets up an instance of PTMCMC sampler.
+
+        We initialize the sampler the likelihood and prior function
+        from the PTA object. We set up an initial jump covariance matrix
+        with fairly small jumps as this will be adapted as the MCMC runs.
+
+        We will setup an output directory in `outdir` that will contain
+        the chain (first n columns are the samples for the n parameters
+        and last 4 are log-posterior, log-likelihood, acceptance rate, and
+        an indicator variable for parallel tempering but it doesn't matter
+        because we aren't using parallel tempering).
+
+        We then add several custom jump proposals to the mix based on
+        whether or not certain parameters are in the model. These are
+        all either draws from the prior distribution of parameters or
+        draws from uniform distributions.
+        """
+
+        # dimension of parameter space
+        ndim = len(self.param_names)
+
+        # initial jump covariance matrix
+        cov = np.diag(np.ones(ndim) * 0.1**2)
+
+        # parameter groupings
+        groups = self.get_parameter_groups()
+
+        sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
+                         groups=groups, outDir=outdir, resume=resume)
+        np.savetxt(outdir+'/pars.txt', self.param_names, fmt='%s')
+        np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
+
+        # additional jump proposals
+        jp = JumpProposal(self, self.snames)
+
+        # always add draw from prior
+        sampler.addProposalToCycle(jp.draw_from_prior, 5)
+
+        # Red noise prior draw
+        if 'red noise' in self.snames:
+            print('Adding red noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
+
+        # DM GP noise prior draw
+        if 'dm_gp' in self.snames:
+            print('Adding DM GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
+
+        # DM annual prior draw
+        if 'dm_s1yr' in jp.snames:
+            print('Adding DM annual prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
+        # DM dip prior draw
+        if 'dmexp' in '\t'.join(jp.snames):
+            print('Adding DM exponential dip prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
+    
+        # DM cusp prior draw
+        if 'dm_cusp' in jp.snames:
+            print('Adding DM exponential cusp prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
+            
+        # DM annual prior draw
+        if 'dmx_signal' in jp.snames:
+            print('Adding DMX prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+
+        # Ephemeris prior draw
+        if 'd_jupiter_mass' in self.param_names:
+            print('Adding ephemeris model prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
+
+        # GWB uniform distribution draw
+        if 'gw_log10_A' in self.param_names:
+            print('Adding GWB uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
+
+        # Dipole uniform distribution draw
+        if 'dipole_log10_A' in self.param_names:
+            print('Adding dipole uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
+
+        # Monopole uniform distribution draw
+        if 'monopole_log10_A' in self.param_names:
+            print('Adding monopole uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
+
+        # BWM prior draw
+        if 'bwm_log10_A' in self.param_names:
+            print('Adding BWM prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+        # CW prior draw
+        if 'cw_log10_h' in self.param_names:
+            print('Adding CW prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+
+        # Model index distribution draw
+        if 'nmodel' in self.param_names:
+            print('Adding nmodel uniform distribution draws...\n')
+            sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
+
+        self.sampler = sampler
+        #return sampler
+
+
+    def get_process_timeseries(self, psr, chain, burn, comp='DM',
+                               mle=False, model=0):
+        """
+        Construct a time series realization of various constrained processes.
+        :param psr: etnerprise pulsar object
+        :param chain: MCMC chain from sampling all models
+        :param burn: desired number of initial samples to discard
+        :param comp: which process to reconstruct? (red noise or DM) [default=DM]
+        :param mle: create time series from ML of GP hyper-parameters? [default=False]
+        :param model: which sub-model within the super-model to reconstruct from? [default=0]
+
+        :return ret: time-series of the reconstructed process
+        """
+
+        wave = 0
+        pta = self.models[model]
+        model_chain = chain[np.rint(chain[:,-5])==model,:]
+
+        # get parameter dictionary
+        if mle:
+            ind = np.argmax(model_chain[:, -4])
+        else:
+            ind = np.random.randint(burn, model_chain.shape[0])
+        params = {par: model_chain[ind, ct]
+                  for ct, par in enumerate(self.param_names)
+                  if par in pta.param_names}
+
+        # deterministic signal part
+        wave += pta.get_delay(params=params)[0]
+
+        # get linear parameters
+        Nvec = pta.get_ndiag(params)[0]
+        phiinv = pta.get_phiinv(params, logdet=False)[0]
+        T = pta.get_basis(params)[0]
+
+        d = pta.get_TNr(params)[0]
+        TNT = pta.get_TNT(params)[0]
+
+        # Red noise piece
+        Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+
+        try:
+            u, s, _ = sl.svd(Sigma)
+            mn = np.dot(u, np.dot(u.T, d)/s)
+            Li = u * np.sqrt(1/s)
+        except np.linalg.LinAlgError:
+
+            Q, R = sl.qr(Sigma)
+            Sigi = sl.solve(R, Q.T)
+            mn = np.dot(Sigi, d)
+            u, s, _ = sl.svd(Sigi)
+            Li = u * np.sqrt(1/s)
+
+        b = mn + np.dot(Li, np.random.randn(Li.shape[0]))
+
+        # find basis indices
+        pardict = {}
+        for sc in pta._signalcollections:
+            ntot = 0
+            for sig in sc._signals:
+                if sig.signal_type == 'basis':
+                    basis = sig.get_basis(params=params)
+                    nb = basis.shape[1]
+                    pardict[sig.signal_name] = np.arange(ntot, nb+ntot)
+                    ntot += nb
+
+        # DM quadratic + GP
+        if comp == 'DM':
+            idx = pardict['dm_gp']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
+        elif comp == 'red':
+            idx = pardict['red noise']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'FD':
+            idx = pardict['FD']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'all':
+            wave += np.dot(T, b)
+            ret = wave
+        else:
+            ret = wave
+
+        return ret
+
+
+######### Modified HyperModel #######
+## just to keep log-likelihood values for sampled models
+
+class HyperModel3(object):
+    """
+    Class to define hyper-model that is the concatenation of all models.
+    
+    In this modification, we just keep log-likelihoods for the two models recorded
+    """
+
+    def __init__(self, models, log_weights=None, num_lnlike_el=1000):
+        self.models = models
+        self.num_models = len(self.models)
+        self.log_weights = log_weights
+        
+        self.lnlike_history = dict.fromkeys(np.arange(self.num_models))
+        self.num_lnlike_el = num_lnlike_el
+        
+
+        #########
+        self.param_names, ind = np.unique(np.concatenate([p.param_names
+                                                     for p in self.models.values()]),
+                                     return_index=True)
+        self.param_names = self.param_names[np.argsort(ind)]
+        self.param_names = np.append(self.param_names, 'nmodel').tolist()
+        #########
+
+        #########
+        self.params = [p for p in self.models[0].params] # start of param list
+        uniq_params = [str(p) for p in self.models[0].params] # which params are unique
+        for model in self.models.values():
+            # find differences between next model and concatenation of previous
+            param_diffs = np.setdiff1d([str(p) for p in model.params], uniq_params)
+            mask = np.array([str(p) in param_diffs for p in model.params])
+            # concatenate for next loop iteration
+            uniq_params = np.union1d([str(p) for p in model.params], uniq_params)
+            # extend list of unique parameters
+            self.params.extend([pp for pp in np.array(model.params)[mask]])
+        #########
+
+        #########
+        # get signal collections
+        self.snames = dict.fromkeys(np.unique(sum(sum([[[qq.signal_name for qq in pp._signals]
+                                                        for pp in self.models[mm]._signalcollections]
+                                                       for mm in self.models], []), [])))
+        for key in self.snames: self.snames[key] = []
+
+        for mm in self.models:
+            for sc in self.models[mm]._signalcollections:
+                for signal in sc._signals:
+                    self.snames[signal.signal_name].extend(signal.params)
+        for key in self.snames: self.snames[key] = list(set(self.snames[key]))
+
+        for key in self.snames:
+            uniq_params, ind = np.unique([p.name for p in self.snames[key]],
+                                         return_index=True)
+            uniq_params = uniq_params[np.argsort(ind)].tolist()
+            all_params = [p.name for p in self.snames[key]]
+
+            self.snames[key] = np.array(self.snames[key])[[all_params.index(q)
+                                                           for q in uniq_params]].tolist()
+        #########
+
+    def get_lnlikelihood(self, x):
+
+        # find model index variable
+        idx = list(self.param_names).index('nmodel')
+        nmodel = int(np.rint(x[idx]))
+
+        # find parameters of active model
+        q = []
+        for par in self.models[nmodel].param_names:
+            idx = self.param_names.index(par)
+            q.append(x[idx])
+
+        # only active parameters enter likelihood
+        active_lnlike = self.models[nmodel].get_lnlikelihood(q)
+        
+        self.lnlike_history[nmodel] = np.append(self.lnlike_history[nmodel], active_lnlike)
+        self.lnlike_history[nmodel] = self.lnlike_history[nmodel][-self.num_lnlike_el:]
+
+        if self.log_weights is not None:
+            active_lnlike += self.log_weights[nmodel]
+
+        return active_lnlike
+
+    def get_lnprior(self, x):
+
+        # find model index variable
+        idx = list(self.param_names).index('nmodel')
+        nmodel = int(np.rint(x[idx]))
+
+        if nmodel not in self.models.keys():
+            return -np.inf
+        else:
+            lnP = 0
+            for p in self.models.values():
+                q = []
+                for par in p.param_names:
+                    idx = self.param_names.index(par)
+                    q.append(x[idx])
+                lnP += p.get_lnprior(np.array(q))
+
+            return lnP
+
+    def get_parameter_groups(self):
+
+        groups = []
+        for p in self.models.values():
+            groups.extend(get_parameter_groups(p))
+        list(np.unique(groups))
+
+        groups.extend([[len(self.param_names)-1]]) # nmodel
+
+        return groups
+
+    def initial_sample(self):
+        """
+        Draw an initial sample from within the hyper-model prior space.
+        """
+
+        x0 = [np.array(p.sample()).ravel().tolist() for p in self.models[0].params]
+        uniq_params = [str(p) for p in self.models[0].params]
+
+        for model in self.models.values():
+            param_diffs = np.setdiff1d([str(p) for p  in model.params], uniq_params)
+            mask = np.array([str(p) in param_diffs for p in model.params])
+            x0.extend([np.array(pp.sample()).ravel().tolist() for pp in np.array(model.params)[mask]])
+
+            uniq_params = np.union1d([str(p) for p in model.params], uniq_params)
+
+        x0.extend([[0.1]])
+
+        return np.array([p for sublist in x0 for p in sublist])
+
+    def draw_from_nmodel_prior(self, x, iter, beta):
+        """
+        Model-index uniform distribution prior draw.
+        """
+
+        q = x.copy()
+
+        idx = list(self.param_names).index('nmodel')
+        q[idx] = np.random.uniform(-0.5,self.num_models-0.5)
+
+        lqxy = 0
+
+        return q, float(lqxy)
+
+    def setup_sampler(self, outdir='chains', resume=False):
+        """
+        Sets up an instance of PTMCMC sampler.
+
+        We initialize the sampler the likelihood and prior function
+        from the PTA object. We set up an initial jump covariance matrix
+        with fairly small jumps as this will be adapted as the MCMC runs.
+
+        We will setup an output directory in `outdir` that will contain
+        the chain (first n columns are the samples for the n parameters
+        and last 4 are log-posterior, log-likelihood, acceptance rate, and
+        an indicator variable for parallel tempering but it doesn't matter
+        because we aren't using parallel tempering).
+
+        We then add several custom jump proposals to the mix based on
+        whether or not certain parameters are in the model. These are
+        all either draws from the prior distribution of parameters or
+        draws from uniform distributions.
+        """
+
+        # dimension of parameter space
+        ndim = len(self.param_names)
+
+        # initial jump covariance matrix
+        cov = np.diag(np.ones(ndim) * 0.1**2)
+
+        # parameter groupings
+        groups = self.get_parameter_groups()
+
+        sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
+                         groups=groups, outDir=outdir, resume=resume)
+        np.savetxt(outdir+'/pars.txt', self.param_names, fmt='%s')
+        np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
+
+        # additional jump proposals
+        jp = JumpProposal(self, self.snames)
+
+        # always add draw from prior
+        sampler.addProposalToCycle(jp.draw_from_prior, 5)
+
+        # Red noise prior draw
+        if 'red noise' in self.snames:
+            print('Adding red noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
+
+        # DM GP noise prior draw
+        if 'dm_gp' in self.snames:
+            print('Adding DM GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
+
+        # DM annual prior draw
+        if 'dm_s1yr' in jp.snames:
+            print('Adding DM annual prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
+
+        # DM dip prior draw
+        if 'dmexp' in '\t'.join(jp.snames):
+            print('Adding DM exponential dip prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
+    
+        # DM cusp prior draw
+        if 'dm_cusp' in jp.snames:
+            print('Adding DM exponential cusp prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
+            
+        # DM annual prior draw
+        if 'dmx_signal' in jp.snames:
+            print('Adding DMX prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+
+        # Ephemeris prior draw
+        if 'd_jupiter_mass' in self.param_names:
+            print('Adding ephemeris model prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
+
+        # GWB uniform distribution draw
+        if 'gw_log10_A' in self.param_names:
+            print('Adding GWB uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
+
+        # Dipole uniform distribution draw
+        if 'dipole_log10_A' in self.param_names:
+            print('Adding dipole uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
+
+        # Monopole uniform distribution draw
+        if 'monopole_log10_A' in self.param_names:
+            print('Adding monopole uniform distribution draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
+
+        # BWM prior draw
+        if 'bwm_log10_A' in self.param_names:
+            print('Adding BWM prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+        # CW prior draw
+        if 'cw_log10_h' in self.param_names:
+            print('Adding CW prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+
+        # Model index distribution draw
+        if 'nmodel' in self.param_names:
+            print('Adding nmodel uniform distribution draws...\n')
+            sampler.addProposalToCycle(self.draw_from_nmodel_prior, 20)
+
+        #return sampler
+        self.sampler = sampler
+
+
+    def get_process_timeseries(self, psr, chain, burn, comp='DM',
+                               mle=False, model=0):
+        """
+        Construct a time series realization of various constrained processes.
+        :param psr: etnerprise pulsar object
+        :param chain: MCMC chain from sampling all models
+        :param burn: desired number of initial samples to discard
+        :param comp: which process to reconstruct? (red noise or DM) [default=DM]
+        :param mle: create time series from ML of GP hyper-parameters? [default=False]
+        :param model: which sub-model within the super-model to reconstruct from? [default=0]
+
+        :return ret: time-series of the reconstructed process
+        """
+
+        wave = 0
+        pta = self.models[model]
+        model_chain = chain[np.rint(chain[:,-5])==model,:]
+
+        # get parameter dictionary
+        if mle:
+            ind = np.argmax(model_chain[:, -4])
+        else:
+            ind = np.random.randint(burn, model_chain.shape[0])
+        params = {par: model_chain[ind, ct]
+                  for ct, par in enumerate(self.param_names)
+                  if par in pta.param_names}
+
+        # deterministic signal part
+        wave += pta.get_delay(params=params)[0]
+
+        # get linear parameters
+        Nvec = pta.get_ndiag(params)[0]
+        phiinv = pta.get_phiinv(params, logdet=False)[0]
+        T = pta.get_basis(params)[0]
+
+        d = pta.get_TNr(params)[0]
+        TNT = pta.get_TNT(params)[0]
+
+        # Red noise piece
+        Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+
+        try:
+            u, s, _ = sl.svd(Sigma)
+            mn = np.dot(u, np.dot(u.T, d)/s)
+            Li = u * np.sqrt(1/s)
+        except np.linalg.LinAlgError:
+
+            Q, R = sl.qr(Sigma)
+            Sigi = sl.solve(R, Q.T)
+            mn = np.dot(Sigi, d)
+            u, s, _ = sl.svd(Sigi)
+            Li = u * np.sqrt(1/s)
+
+        b = mn + np.dot(Li, np.random.randn(Li.shape[0]))
+
+        # find basis indices
+        pardict = {}
+        for sc in pta._signalcollections:
+            ntot = 0
+            for sig in sc._signals:
+                if sig.signal_type == 'basis':
+                    basis = sig.get_basis(params=params)
+                    nb = basis.shape[1]
+                    pardict[sig.signal_name] = np.arange(ntot, nb+ntot)
+                    ntot += nb
+
+        # DM quadratic + GP
+        if comp == 'DM':
+            idx = pardict['dm_gp']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
+        elif comp == 'red':
+            idx = pardict['red noise']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'FD':
+            idx = pardict['FD']
+            wave += np.dot(T[:,idx], b[idx])
+            ret = wave
+        elif comp == 'all':
+            wave += np.dot(T, b)
+            ret = wave
+        else:
+            ret = wave
+
+        return ret
+
 #########Solar Wind Modeling########
 
 def mask_filter(psr, mask):

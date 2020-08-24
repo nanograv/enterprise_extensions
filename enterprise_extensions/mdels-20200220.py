@@ -168,19 +168,6 @@ def chrom_exp_decay(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
-def extra_fd(freqs, log10_c_fd = -4, idx_fd = 3, sign_fd = 0):
-    return (-1)**np.round(sign_fd)*10**log10_c_fd*np.log(freqs/1000)**idx_fd
-
-@signal_base.function
-def fd_01_system(freqs, slope = 1e-7, offset = 0):
-    return slope * (freqs - np.median(freqs)) + offset
-
-@signal_base.function
-def fd_system(freqs, slope = 1e-7, offset = 0, idx_fd = 1):
-    freq_median = freqs - np.median(freqs)
-    return np.sign(freq_median)**(idx_fd+1) * slope * freq_median**idx_fd+offset
-
-@signal_base.function
 def chrom_gaussian_bump(toas, freqs, log10_Amp=-2.5, sign_param=1.0,
                     t0=53890, sigma=81, idx=2):
     """
@@ -219,31 +206,6 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
         (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
     
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
-
-@signal_base.function
-def f2_waveform(toas, pepoch, coeff=1e-6):
-    """
-    Modelling error in F2 timing model parameter.
-    This error results in cubic trend in timing residuals.
-    """
-    return coeff * ((toas - pepoch)/const.yr)**3
-
-@signal_base.function
-def chrompol_signal_wf(toas, freqs, dmepoch, coeff=1e-6, idx=4, chrompol = 1):
-    """
-    Analogue of DM1 and DM2 signals, but for chromatic noise
-    (arbitrary frequency-dependent index)
-    """
-    return (1400 / freqs)**idx * coeff * (toas - dmepoch)**chrompol
-
-@signal_base.function
-def chrompol_2m_wf(toas, freqs, dmepoch, chr1=1e-6, chr2=1e-17, idx=4):
-    """
-    Analogue of DM1 and DM2 signals, but for chromatic noise
-    (arbitrary frequency-dependent index)
-    """
-    return (1400 / freqs)**idx * (chr1 * (toas - dmepoch)**1 + \
-                                  chr2 * (toas - dmepoch)**2 )
 
 @signal_base.function
 def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
@@ -334,73 +296,6 @@ def createfourierdesignmatrix_chromatic(toas, freqs, nmodes=30, Tspan=None,
     Dm = (1400/freqs) ** idx
 
     return F * Dm[:, None], Ffreqs
-
-@signal_base.function
-def createfourierdesignmatrix_chromatic_2m(toas, freqs, dmepoch, nmodes=30,
-                                        Tspan=None, logf=False, fmin=None,
-                                        fmax=None, idx=4, chr1=1e-6,
-                                        chr2=1e-17):
-
-    """
-    Construct Scattering-variation fourier design matrix.
-
-    :param toas: vector of time series in seconds
-    :param freqs: radio frequencies of observations [MHz]
-    :param nmodes: number of fourier coefficients to use
-    :param freq: option to output frequencies
-    :param Tspan: option to some other Tspan
-    :param logf: use log frequency spacing
-    :param fmin: lower sampling frequency
-    :param fmax: upper sampling frequency
-    :param idx: Index of chromatic effects
-
-    :return: F: Chromatic-variation fourier design matrix
-    :return: f: Sampling frequencies
-    """
-
-    # get base fourier design matrix and frequencies
-    F, Ffreqs = utils.createfourierdesignmatrix_red(
-        toas, nmodes=nmodes, Tspan=Tspan, logf=logf,
-        fmin=fmin, fmax=fmax)
-
-    # compute the DM-variation vectors
-    Dm = (1400/freqs) ** idx * (chr1 * (toas - dmepoch)**1 + \
-                                chr2 * (toas - dmepoch)**2 )
-
-    return F * Dm[:, None], Ffreqs
-
-def theta_impact(planetssb,pos_t):
-    """
-    Use the attributes of an enterprise Pulsar object to calculate the
-    solar impact angle.
-    ::param :planetssb Solar system barycenter timeseries supplied with
-        enterprise.Pulsar objects.
-    ::param :pos_t Unit vector to pulsar position over time in ecliptic
-        coordinates. Supplied with enterprise.Pulsar objects.
-    returns: Solar impact angle (rad), Distance to Earth
-    """
-    earth = planetssb[:, 2, :3]
-    R_earth = np.sqrt(np.einsum('ij,ij->i',earth, earth))
-    Re_cos_theta_impact = np.einsum('ij,ij->i',earth, pos_t)
-
-    theta_impact = np.arccos(-Re_cos_theta_impact / R_earth)
-
-    return theta_impact, R_earth
-
-@signal_base.function
-def createfourierdesignmatrix_solar_stoch(toas, freqs, planetssb, pos_t,
-                                       modes=None, nmodes=30,
-                                       Tspan=None, logf=True, fmin=None,
-                                       fmax=None):
-    F, Ffreqs = utils.createfourierdesignmatrix_red(toas, nmodes=nmodes,
-                                                    modes=modes,
-                                                    Tspan=Tspan, logf=logf,
-                                                    fmin=fmin, fmax=fmax)
-    theta, R_earth = theta_impact(planetssb,pos_t)
-    dm_sol_wind = model_utils.dm_solar(1.0, theta, R_earth)
-    dt_DM = dm_sol_wind * 4.148808e3 /(freqs**2)
-
-    return F * dt_DM[:, None], Ffreqs
 
 @signal_base.function
 def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, pos_t,
@@ -1175,7 +1070,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         include ECORR, needed for NANOGrav channelized TOAs
     :param gp_ecorr:
         whether to use the Gaussian process model for ECORR
-
+    :param efac1:
+        use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     """
 
     if select == 'backend':
@@ -1183,7 +1079,6 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         backend = selections.Selection(selections.by_backend)
         # define selection by nanograv backends
         backend_ng = selections.Selection(selections.nanograv_backends)
-        backend_noleg = selections.Selection(selections.backends_except_ppta_legacy)
     else:
         # define no selection
         backend = selections.Selection(selections.no_selection)
@@ -1209,9 +1104,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     eq = white_signals.EquadNoise(log10_equad=equad, selection=backend)
     if inc_ecorr:
         if gp_ecorr:
-            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_noleg)
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
         else:
-            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_noleg)
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
@@ -1232,28 +1127,10 @@ def optimal_num_components(toas,mask_select=None):
     n_components = int(np.round((1./60./const.day - 1/tobs)/(1/tobs)))
     return n_components
 
-def optumal_num_comp_from_sel_name(psr, select_band_names):
-    mask_select = return_mask_from_selection_name(psr,select_band_names)
-    if len(mask_select.keys())==1:
-      mask_select = mask_select.values()[0]
-    else:
-      raise NotImplementedError
-    return optimal_num_components(psr.toas, mask_select)
-
-@signal_base.function
-def powerlaw_v1_1(f, log10_A=-16, gamma=5, fc=-9):
-    # My own model of red noise with Lg of turnover frequency fc
-    # If fc<0 we assume we have lg(fc)
-    df = np.diff(np.concatenate((np.array([0]), f[::2])))
-    if fc < 0 : fc = 10**fc
-    return ((10**log10_A)**2 / 12.0 / np.pi**2 *
-            const.fyr**(-3) * ((f**2+fc**2)/const.fyr**2)**(-gamma/2) * np.repeat(df, 2))
-
 def red_noise_block(psr=None, psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=50, gamma_val=None, coefficients=False,
                     select=None, common=True, select_band_names=None,
-                    outdir=None, gamma_low = 0, gamma_high = 7,
-                    spin_turnover=False):
+                    outdir=None):
     """
     Returns red noise model:
 
@@ -1304,14 +1181,11 @@ def red_noise_block(psr=None, psd='powerlaw', prior='log-uniform', Tspan=None,
         if gamma_val is not None:
             gamma = parameter.Constant(gamma_val)
         else:
-            gamma = parameter.Uniform(gamma_low, gamma_high)
+            gamma = parameter.Uniform(0, 7)
 
         # different PSD function parameters
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
-            if spin_turnover:
-              fc = parameter.Uniform(-12, -6)
-              bpl = powerlaw_v1_1(log10_A=log10_A, gamma=gamma, fc=fc)
         elif psd == 'turnover':
             kappa = parameter.Uniform(0, 7)
             lf0 = parameter.Uniform(-9, -7)
@@ -1351,25 +1225,18 @@ def red_noise_block(psr=None, psd='powerlaw', prior='log-uniform', Tspan=None,
 
     if common or (select is not None):
         # then we select on our selection or add a common process
-        if not spin_turnover:
-          rn = gp_signals.FourierBasisGP(pl, components=components_all,
-                                       Tspan=Tspan, coefficients=coefficients,
-                                       selection=selection)
-        else:
-          rn = gp_signals.FourierBasisGP(bpl, components=components_all,
+        rn = gp_signals.FourierBasisGP(pl, components=components_all,
                                        Tspan=Tspan, coefficients=coefficients,
                                        selection=selection)
 
     if select_band_names is not None:
          if components == 'optimal':
-           #mask_select = return_mask_from_selection_name(psr,select_band_names)
-           #if len(mask_select.keys())==1:
-           #  mask_select = mask_select.values()[0]
-           #else:
-           #  raise NotImplementedError
-           #components_select = optimal_num_components(psr.toas, mask_select)
-           components_select = optumal_num_comp_from_sel_name( \
-                                                        psr, select_band_names)
+           mask_select = return_mask_from_selection_name(psr,select_band_names)
+           if len(mask_select.keys())==1:
+             mask_select = mask_select.values()[0]
+           else:
+             raise NotImplementedError
+           components_select = optimal_num_components(psr.toas, mask_select)
            if select_band_names=='custom':
              name_select_band = psr.flagval_bor
            elif select_band_names=='custom_1':
@@ -1405,7 +1272,7 @@ def red_noise_block(psr=None, psd='powerlaw', prior='log-uniform', Tspan=None,
 
 def dm_noise_block(psr=None,gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', Tspan=None, components=30, gamma_val=None,
-                   coefficients=False, gamma_low = 0, gamma_high = 7):
+                   coefficients=False):
     """
     Returns DM noise model:
 
@@ -1446,7 +1313,7 @@ def dm_noise_block(psr=None,gp_kernel='diag', psd='powerlaw', nondiag_kernel='pe
             if gamma_val is not None:
                 gamma_dm = parameter.Constant(gamma_val)
             else:
-                gamma_dm = parameter.Uniform(gamma_low, gamma_high)
+                gamma_dm = parameter.Uniform(0, 7)
 
             # different PSD function parameters
             if psd == 'powerlaw':
@@ -1514,46 +1381,6 @@ def dm_noise_block(psr=None,gp_kernel='diag', psd='powerlaw', nondiag_kernel='pe
 
     return dmgp
 
-def f2_signal(tobs_sec, name='f2', f2_coeff_amp=1e-6):
-    """
-    F2 parameter
-    """
-    f2_coeff = parameter.Uniform(-f2_coeff_amp, f2_coeff_amp)
-    wf = f2_waveform(coeff = f2_coeff)
-    f2_signal = deterministic_signals.Deterministic(wf, name=name)
-    return f2_signal
-
-def chrompol_signal(chrompol, chrompol_idx, tobs_sec, \
-                    name='chrompol',prioramp=2e-4):
-    """
-    Returns analogue of DM1 and DM2 parameters, but for a given
-    frequency-dependence.
-    """
-    name = name + '_' +str(int(chrompol))
-    if chrompol_idx=='vary':
-      chrompol_idx = parameter.Uniform(-6, 6)
-    chrompol_coeff = parameter.Uniform(-prioramp**chrompol/tobs_sec, \
-                                        prioramp**chrompol/tobs_sec)
-    wf = chrompol_signal_wf(coeff = chrompol_coeff, idx = chrompol_idx, \
-                            chrompol = chrompol)
-    cp_signal = deterministic_signals.Deterministic(wf, name=name)
-    return cp_signal
-
-def chrompol_2m(chrompol_idx, tobs_sec, \
-                    name='chrompol_2m',prioramp=2e-4):
-    """
-    Returns analogue of DM1 and DM2 parameters, but for a given
-    frequency-dependence.
-    """
-    if chrompol_idx=='vary':
-      chrompol_idx = parameter.Uniform(-6, 6)
-    chr1 = parameter.Uniform(-prioramp/tobs_sec, prioramp/tobs_sec)
-    chr2 = parameter.Uniform(-prioramp**2/tobs_sec, prioramp**2/tobs_sec)
-
-    wf = chrompol_2m_wf(chr1 = chr1, chr2 = chr2, idx = chrompol_idx)
-    cp_signal = deterministic_signals.Deterministic(wf, name=name)
-    return cp_signal
-
 def dm_annual_signal(idx=2, name='dm_s1yr'):
     """
     Returns chromatic annual signal (i.e. TOA advance):
@@ -1566,11 +1393,8 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
     :return dm1yr:
         chromatic annual waveform.
     """
-    name = name + '_' + str(idx)
     log10_Amp_dm1yr = parameter.Uniform(-10, -2)
     phase_dm1yr = parameter.Uniform(0, 2*np.pi)
-    if idx=='vary':
-      idx = parameter.Uniform(-6, 6)
 
     wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
                                phase=phase_dm1yr, idx=idx)
@@ -1602,8 +1426,6 @@ def dm_gaussian_bump(tmin, tmax, idx=2, sigma_min=20, sigma_max=140,
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
         sign_param = 1.0
-    if idx == 'vary':
-        idx = parameter.Uniform(0, 6)
     wf = chrom_gaussian_bump(log10_Amp=log10_Amp_dm_bump,
                          t0=t0_dm_bump, sigma=sigma_dm_bump,
                          sign_param=sign_param, idx=idx)
@@ -1611,44 +1433,7 @@ def dm_gaussian_bump(tmin, tmax, idx=2, sigma_min=20, sigma_max=140,
 
     return dm_bump
 
-def fd_01_system_block(psr, slope_range = 7e-7, select = None, idx = 1):
-    name = 'fd'+str(idx)+'_sys'
-    slope = parameter.Uniform(-slope_range,slope_range)
-    offset = 0
-    wf = fd_system(slope = slope, offset = offset, idx_fd = idx)
-
-    if select is None:
-        selection = selections.Selection(selections.no_selection)
-    else:
-        selection = return_band_selection_class_from_name(select)
-        name = name + '_' + select
-
-    fd_sys = deterministic_signals.Deterministic(wf, name=name,
-                                                   selection=selection)
-    return fd_sys
-
-def extra_fd_block(psr, log10_c_fd_max = -2, log10_c_fd_min = -10, idx = 3,
-                   select = None):
-    """
-    Returns deterministic signal for extra FD parameter (FDidx)
-    """
-    name = 'fd_'+str(idx)
-    log10_c_fd = parameter.Uniform(log10_c_fd_min, log10_c_fd_max)
-    sign_fd = parameter.Uniform(0, 1)
-    wf = extra_fd(log10_c_fd = log10_c_fd, idx_fd = idx, sign_fd = sign_fd)
-
-    if select is None:
-        selection = selections.Selection(selections.no_selection)
-    else:
-        selection = return_band_selection_class_from_name(select)
-        name = name + '_' + select
-
-    extra_fd_signal = deterministic_signals.Deterministic(wf, name=name,
-                                                   selection=selection)
-    return extra_fd_signal
-
-def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp',
-                       tau_min_10_pow = 5, tau_max_10_pow = 100):
+def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -1666,16 +1451,13 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp',
     """
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    log10_tau_dmexp = parameter.Uniform( np.log10(tau_min_10_pow), \
-                                         np.log10(tau_max_10_pow) )
+    log10_tau_dmexp = parameter.Uniform(np.log10(5), np.log10(100))
     if sign:
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
         sign_param = -1.0
     if idx=='vary':
         idx = parameter.Uniform(-7, 7)
-    elif idx=='vary_02':
-        idx = parameter.Uniform(0, 2)
     wf = chrom_exp_decay(log10_Amp=log10_Amp_dmexp,
                          t0=t0_dmexp, log10_tau=log10_tau_dmexp,
                          sign_param=sign_param, idx=idx)
@@ -1703,8 +1485,8 @@ def jump_in_backend(prior,prior_bounds,band_selection_name=None):
 
     return backend_jump
 
-def magnetosphere_exponential_dip(tmin, tmax, idx='vary', tau = 'regular',
-                                  sign=False, name='magneto_exp'):
+def magnetosphere_exponential_dip(tmin, tmax, idx='vary', sign=False,
+                                  name='magneto_exp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -1722,14 +1504,9 @@ def magnetosphere_exponential_dip(tmin, tmax, idx='vary', tau = 'regular',
     """
     t0_dmexp = parameter.Uniform(tmin,tmax)
     log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    if tau == 'regular':
-      log10_tau_dmexp = parameter.Uniform(np.log10(2), np.log10(1000))
-    elif tau == 'long':
-      log10_tau_dmexp = parameter.Uniform(2, 5)
+    log10_tau_dmexp = parameter.Uniform(np.log10(2), np.log10(1000))
     if idx == 'vary':
         idx = parameter.Uniform(-7, 7)
-    elif idx == 'vary_6':
-        idx = parameter.Uniform(4, 12)
     if sign:
         sign_param = parameter.Uniform(-1.0, 1.0)
     else:
@@ -1792,10 +1569,8 @@ def dmx_signal(dmx_data, name='dmx_signal'):
     return dmx_sig
 
 def chromatic_noise_block(psr=None, psd='powerlaw', idx=4, Tspan=None,
-                          name='chromatic', components=30, outdir = None,
-                          coefficients=False, quadratic=False,
-                          gamma_low = 0, gamma_high = 7, select=None,
-                          chr12=False, tobs_sec = None):
+                          name='chromatic', components=30,
+                          coefficients=False, quadratic=False):
     """
     Returns GP chromatic noise model :
 
@@ -1814,17 +1589,11 @@ def chromatic_noise_block(psr=None, psd='powerlaw', idx=4, Tspan=None,
     """
 
     if components == 'optimal':
-      if select is None:
-        components = optimal_num_components(psr.toas)
-      else:
-        components = optumal_num_comp_from_sel_name(psr, select)
-        if outdir is not None:
-          with open(outdir+select+'n_comp.txt', 'w') as comp_file:
-            comp_file.write(str(components))
+      components = optimal_num_components(psr.toas)
 
     if psd in ['powerlaw', 'turnover']:
         log10_A = parameter.Uniform(-18, -11)
-        gamma = parameter.Uniform(gamma_low, gamma_high)
+        gamma = parameter.Uniform(0, 7)
 
         # PSD
         if psd == 'powerlaw':
@@ -1842,12 +1611,6 @@ def chromatic_noise_block(psr=None, psd='powerlaw', idx=4, Tspan=None,
     # set up signal
     if idx == 'vary':
         idx = parameter.Uniform(0, 6)
-    elif idx == 'vary_0_12':
-        idx = parameter.Uniform(0, 12)
-    elif idx == 'vary_5_10':
-        idx = parameter.Uniform(5, 10)
-    elif idx == 'vary_5_12':
-        idx = parameter.Uniform(5, 12)
 
     # quadratic piece
     basis_quad = chromatic_quad_basis(idx=idx)
@@ -1855,39 +1618,10 @@ def chromatic_noise_block(psr=None, psd='powerlaw', idx=4, Tspan=None,
     cquad = gp_signals.BasisGP(prior_quad, basis_quad, name=name+'_quad')
 
     # Fourier piece
-    if chr12:
-      # Linear and quadratic trends
-      prioramp=2e-4
-      chr1 = parameter.Uniform(-prioramp/tobs_sec, prioramp/tobs_sec)
-      chr2 = parameter.Uniform(-prioramp**2/tobs_sec, prioramp**2/tobs_sec)
-      basis_gp = createfourierdesignmatrix_chromatic_2m(nmodes=components,
-                                                   Tspan=Tspan, idx=idx,
-                                                   chr1 = chr1, chr2 = chr2)
-    else:
-      basis_gp = createfourierdesignmatrix_chromatic(nmodes=components,
+    basis_gp = createfourierdesignmatrix_chromatic(nmodes=components,
                                                    Tspan=Tspan, idx=idx)
-    if select is None:
-        selection = selections.Selection(selections.no_selection)
-    else:
-        selection = return_band_selection_class_from_name(select)
-        name = name + '_' + select
-
     cgp = gp_signals.BasisGP(cpl, basis_gp, name=name+'_gp',
-                             coefficients=coefficients, selection=selection)
-
-    #if chr12:
-    #  chr12_name='chrompol_2m'
-    #  prioramp=2e-4
-
-    #  chr1 = parameter.Uniform(-prioramp/tobs_sec, prioramp/tobs_sec)
-    #  chr2 = parameter.Uniform(-prioramp**2/tobs_sec, prioramp**2/tobs_sec)
-  
-    #  wf = chrompol_2m_wf(chr1 = chr1, chr2 = chr2, idx = idx)
-    #  #cp_signal = deterministic_signals.Deterministic(wf, name=name)
-
-    #  cgp = gp_signals.HybridDeterministicGP(cpl,basis_gp,wf,name=name+'_gp',coefficients=coefficients, selection=selection)
-
-    #  return cgp + cp_signal
+                             coefficients=coefficients)
 
     if quadratic:
       return cquad + cgp
@@ -2211,98 +1945,6 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
     return cw
 
-# quasi-periodic kernel for DM
-@signal_base.function
-def periodic_kernel_solar(avetoas, log10_sigma=-7, log10_ell=2,
-                    log10_gam_p=0, log10_p=0):
-
-    r = np.abs(avetoas[None, :] - avetoas[:, None])
-
-    # convert units to seconds
-    sigma = 10**log10_sigma
-    l = 10**log10_ell * 86400
-    p = 10**log10_p * 3.16e7
-    gam_p = 10**log10_gam_p
-    d = np.eye(r.shape[0]) * (sigma/500)**2
-    K = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2) + d
-    return K
-
-# squared-exponential kernel for DM
-@signal_base.function
-def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
-
-    r = np.abs(avetoas[None, :] - avetoas[:, None])
-
-    # Convert everything into seconds
-    l = 10**log10_ell * 86400
-    sigma = 10**log10_sigma
-    d = np.eye(r.shape[0]) * (sigma/500)**2
-    K = sigma**2 * np.exp(-r**2/2/l**2) + d
-    return K
-
-def solar_dm_block_stoch(psr, components=30, gamma_min=-7, gamma_max=7,
-                         swgp_basis='powerlaw', prior_dict = {}):
-
-    priors = type(str("PriorObject"), (object,), {})()
-    priors.log10_A_min = -20
-    priors.log10_A_max = 4
-    priors.gamma_min = -7
-    priors.gamma_max = 7
-    priors.log10_sigma_min = -10
-    priors.log10_sigma_max = -4
-    priors.log10_ell_min = 1
-    priors.log10_ell_max = 4
-    priors.log10_p_min = -4
-    priors.log10_p_max = 1
-    priors.log10_gam_p_min = -3
-    priors.log10_gam_p_max = 2
-
-    priors.gamma_min = gamma_min
-    priors.gamma_max = gamma_max
-
-    if prior_dict:
-      for prior_key, prior_val in prior_dict.items():
-        if prior_key in priors.__dict__.keys():
-          setattr(priors, prior_key, prior_val)
-        else:
-          raise ValueError('Unknown prior dict key for Solar Model:',prior_key)
-
-    if components == 'optimal':
-      components = optimal_num_components(psr.toas)
-      print('Optimal components Solar ',components)
-
-    if swgp_basis == 'powerlaw':
-      log10_A_dm_sw = parameter.Uniform(priors.log10_A_min,priors.log10_A_max)('log10_A_sol')
-      gamma_dm_sw = parameter.Uniform(priors.gamma_min,priors.gamma_max)('gamma_sol')
-      dm_sw_prior = utils.powerlaw(log10_A=log10_A_dm_sw, gamma=gamma_dm_sw)
-      dm_sw_basis = createfourierdesignmatrix_solar_stoch(nmodes=components)
-
-    elif swgp_basis == 'periodic':
-      # Periodic GP kernel for DM
-      log10_sigma = parameter.Uniform(priors.log10_sigma_min, priors.log10_sigma_max)
-      log10_ell = parameter.Uniform(priors.log10_ell_min, priors.log10_ell_max)
-      log10_p = parameter.Uniform(priors.log10_p_min, priors.log10_p_max)
-      log10_gam_p = parameter.Uniform(priors.log10_gam_p_min, priors.log10_gam_p_max)
-
-      dm_sw_basis = linear_interp_basis_dm(dt=6*86400)
-      dm_sw_prior = periodic_kernel_solar(log10_sigma=log10_sigma,
-                                     log10_ell=log10_ell,
-                                     log10_gam_p=log10_gam_p,
-                                     log10_p=log10_p)
-
-    elif swgp_basis == 'sq_exp':
-      # squared-exponential GP kernel for DM
-      log10_sigma = parameter.Uniform(priors.log10_sigma_min, priors.log10_sigma_max)
-      log10_ell = parameter.Uniform(priors.log10_ell_min, priors.log10_ell_max)
-
-      dm_sw_basis = linear_interp_basis_dm(dt=6*86400)
-      dm_sw_prior = se_dm_kernel(log10_sigma=log10_sigma,
-                                  log10_ell=log10_ell)
-
-    dm_sw = gp_signals.BasisGP(dm_sw_prior, dm_sw_basis, name='dm_sw')
-
-    return dm_sw
-
 def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                    components=30, gamma_val=None):
     """
@@ -2388,34 +2030,24 @@ def solar_dm_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 ###############################
 
 def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
-                 gamma_low = 0, gamma_high = 7, spin_psd='powerlaw',
-                 noisedict=None, tm_svd=False, tm_norm=True,
-                 white_vary=True, components=50, upper_limit=False,
-                 wideband=False, gamma_val=None, dm_var=False,
-                 dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
-                 dm_nondiag_kernel='periodic', dmx_data=None,
-                 dm_annual=False, dm_solar=False, dm_solar_stoch = None,
-                 sol_gamma_min = -7, sol_gamma_max = 7, solar_prior_dict = {}, 
-                 gamma_dm_val=None, dm_chrom=False, dmchrom_psd='powerlaw',
-                 dmchrom_idx=4, dm_expdip=False, dmexp_sign=False,
-                 dmchrom_select = None, dm_expdip_idx=2, dm_expdip_tmin=None,
-                 dm_expdip_tmax=None, dm_expdip_pow10_tau_min = None,
-                 dm_expdip_pow10_tau_max = None, dm_gauss = False,
-                 dm_gauss_tmin=None, dm_gauss_tmax=None, dm_gauss_idx=None,
-                 dmdip_seqname=None, dm_cusp=False, 
-                 dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
-                 dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
-                 magn_expdip_tmin=None, magn_expdip_tmax=None,
-                 magndip_seqname=None, magn_expdip_idx = 'vary',
-                 magndip_tau = 'regular', coefficients=False, red_select=None,
-                 select_band_names=None, red_common=True, f2_signal_inc=False,
-                 constant_jump_name=None,constant_jump_prior=None,
-                 constant_jump_prior_bounds=None, outdir=None,
-                 extra_fd = 0, extra_fd_sys = 1, log10_c_fd_min = -10,
-                 fd_select = None, log10_c_fd_max = -2, fd_sys_range = None,
-                 chrompol = 0, chrompol_idx = None, chrompol_multi = False,
-                 chrom_annual_idx = None, chromred_chr12 = False,
-                 inc_ecorr=False, gp_ecorr=False, spin_turnover=False):
+                          noisedict=None, tm_svd=False, tm_norm=True,
+                          white_vary=True, components=50, upper_limit=False,
+                          wideband=False, gamma_val=None, dm_var=False,
+                          dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
+                          dm_nondiag_kernel='periodic', dmx_data=None,
+                          dm_annual=False, dm_solar=False, gamma_dm_val=None, dm_chrom=False,
+                          dmchrom_psd='powerlaw', dmchrom_idx=4,
+                          dm_expdip=False, dmexp_sign=False, dm_expdip_idx=2,
+                          dm_expdip_tmin=None, dm_expdip_tmax=None,
+                          dm_gauss = False, dm_gauss_tmin=None, dm_gauss_tmax=None,  
+                          dmdip_seqname=None, dm_cusp=False, 
+                          dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
+                          dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
+                          magn_expdip_tmin=None, magn_expdip_tmax=None,
+                          magndip_seqname=None, coefficients=False, red_select=None,
+                          select_band_names=None, red_common=True,
+                          constant_jump_name=None,constant_jump_prior=None,
+                          constant_jump_prior_bounds=None, outdir=None):
 
     """
     Single pulsar noise model
@@ -2457,7 +2089,6 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
     :return s: single pulsar noise model
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
-    tobs_sec = psr.toas[-1] - psr.toas[0]
 
     # timing model
     s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
@@ -2469,145 +2100,19 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
 
     # red nois/
     if red_var and red_common is not None:
-        s += red_noise_block(psr=psr, psd=spin_psd, prior=amp_prior,
+        s += red_noise_block(psr=psr, psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
                             coefficients=coefficients, select=red_select,
                             select_band_names=None, common=red_common,
-                            outdir = outdir, gamma_low = gamma_low,
-                            gamma_high = gamma_high, 
-                            spin_turnover=spin_turnover)
+                            outdir = outdir)
 
-    if select_band_names is not None:
+    if red_var and select_band_names is not None:
       for band in select_band_names:
         s += red_noise_block(psr=psr, psd=psd, prior=amp_prior,
                             components=components, gamma_val=gamma_val,
                             coefficients=coefficients, select=red_select,
                             select_band_names=band, common=red_common,
-                            outdir = outdir, gamma_low = gamma_low,
-                            gamma_high = gamma_high)
-
-    if dm_annual:
-        s += dm_annual_signal()
-    if chrom_annual_idx is not None:
-        s += dm_annual_signal(idx = chrom_annual_idx)
-
-    if dm_chrom:
-        s += chromatic_noise_block(psr=psr, psd=dmchrom_psd, idx=dmchrom_idx,
-                                   name='chromatic', components=components,
-                                   coefficients=coefficients,
-                                   gamma_low = gamma_low, outdir = outdir,
-                                   gamma_high = gamma_high,
-                                   select = dmchrom_select, 
-                                   chr12 = chromred_chr12, tobs_sec = tobs_sec)
-
-    if chrompol != 0:
-      if chrompol_multi and chrompol==2:
-        s += chrompol_2m(chrompol_idx, tobs_sec)
-      else:
-        print('Adding chrompol ',chrompol)
-        s += chrompol_signal(chrompol, chrompol_idx, tobs_sec)
-
-    if f2_signal_inc:
-      s += f2_signal(tobs_sec)
-
-    if dm_expdip:
-       if dmdip_seqname is not None:
-           dmdipname_base = 'dmexp_'+dmdip_seqname+'_'
-       else:
-           dmdipname_base = 'dmexp_'
-
-       if len(dm_expdip_tmin)==len(dm_expdip_tmax):
-           num_dmdips = len(dm_expdip_tmin)
-       else:
-           print('DM exp dip: number of start times and end times should be the same!')
-           raise ValueError
-       if not hasattr(dm_expdip_idx,'__iter__'):
-           dm_expdip_idx = [dm_expdip_idx for ii in range(num_dmdips)]
-       if not hasattr(dmexp_sign,'__iter__'):
-           dmexp_sign = [dmexp_sign for ii in range(num_dmdips)]
-       if not hasattr(dm_expdip_tmin,'__iter__'):
-           dm_expdip_tmin = [dm_expdip_tmin for ii in range(num_dmdips)]
-       if not hasattr(dm_expdip_tmax,'__iter__'):
-           dm_expdip_tmax = [dm_expdip_tmax for ii in range(num_dmdips)]
-
-       for dd in range(num_dmdips):
-           if dm_expdip_tmin[dd] is None and dm_expdip_tmax[dd] is None:
-               tmin = psr.toas.min() / 86400
-               tmax = psr.toas.max() / 86400
-           else:
-               tmin = dm_expdip_tmin[dd]
-               tmax = dm_expdip_tmax[dd]
-
-           if dm_expdip_pow10_tau_min is None and \
-                                      dm_expdip_pow10_tau_max is None:
-               pow10_tau_min = 5
-               pow10_tau_max = 100
-           else:
-               pow10_tau_min = dm_expdip_pow10_tau_min[dd]
-               pow10_tau_max = dm_expdip_pow10_tau_max[dd]
-
-           s += dm_exponential_dip(tmin=tmin, tmax=tmax,
-                                   idx=dm_expdip_idx[dd],
-                                   sign=dmexp_sign[dd],
-                                   name=dmdipname_base+str(dd),
-                                   tau_min_10_pow=pow10_tau_min,
-                                   tau_max_10_pow=pow10_tau_max)
-
-
-    if dm_gauss:
-        if dm_gauss_tmin is None and dm_gauss_tmax is None:
-            tmin = psr.toas.min() / 86400
-            tmax = psr.toas.max() / 86400
-        else:
-            tmin = dm_gauss_tmin
-            tmax = dm_gauss_tmax
-        dmgaussname_base = 'dm_gauss_'
-        #for dd in range(1,num_dmgauss+1):
-        s += dm_gaussian_bump(tmin=tmin, tmax=tmax,
-                                    sigma_min=20, sigma_max=140,
-                                    log10_A_low=-6, log10_A_high=-1,
-                                    idx = dm_gauss_idx,
-                                    name=dmgaussname_base)#+str(dd))
-
-    if magn_expdip:
-        if not hasattr(magn_expdip_tmin,'__iter__'):
-            magn_expdip_tmin = [magn_expdip_tmin]
-        if not hasattr(magn_expdip_tmax,'__iter__'):
-            magn_expdip_tmax = [magn_expdip_tmax]
-        if not hasattr(magn_expdip_idx,'__iter__'):
-            magn_expdip_idx = [magn_expdip_idx]
-        if not hasattr(magndip_tau,'__iter__'):
-            magndip_tau = [magndip_tau]
-        magn_dip_count = 0
-        for magn_tmin, magn_tmax, magn_idx, magn_tau in \
-            zip(magn_expdip_tmin, magn_expdip_tmax, \
-                magn_expdip_idx, magndip_tau):
-
-            if magn_tmin is None and magn_tmax is None:
-                magn_tmin = psr.toas.min() / 86400
-                magn_tmax = psr.toas.max() / 86400
-            if magndip_seqname is not None:
-                magndipname_base = 'magnexp_'+magndip_seqname+'_'
-            else:
-                magndipname_base = 'magnexp_'
-            magndipname_base = str(magn_dip_count) + '_' + magndipname_base
-
-            s += magnetosphere_exponential_dip(tmin=magn_tmin, \
-                       tmax=magn_tmax, idx=magn_idx, tau = magn_tau, \
-                       sign=magnexp_sign,name=magndipname_base)
-            magn_dip_count += 1
-
-    if dm_cusp:
-        if dm_cusp_tmin is None and dm_cusp_tmax is None:
-            tmin = psr.toas.min() / 86400
-            tmax = psr.toas.max() / 86400
-        else:
-            tmin = dm_cusp_tmin
-            tmax = dm_cusp_tmax
-        s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
-                                    idx=dm_cusp_idx,
-                                    sign=dm_cusp_sign,
-                                    name='dm_cusp')
+                            outdir = outdir)
 
     # DM variations
     if dm_var:
@@ -2616,24 +2121,53 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                 s += dm_noise_block(psr=psr, gp_kernel=dmgp_kernel, psd=dm_psd,
                                     prior=amp_prior, components=components,
                                     gamma_val=gamma_dm_val,
-                                    coefficients=coefficients,
-                                    gamma_low = gamma_low,
-                                    gamma_high = gamma_high)
+                                    coefficients=coefficients)
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(psr=psr, gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
-                                    coefficients=coefficients,
-                                    gamma_low = gamma_low,
-                                    gamma_high = gamma_high)
+                                    coefficients=coefficients)
         elif dm_type == 'dmx':
             s += dmx_signal(dmx_data=dmx_data[psr.name])
+        if dm_annual:
+            s += dm_annual_signal()
+        if dm_solar:
+            s += solar_dm_block()
+        if dm_chrom:
+            s += chromatic_noise_block(psr=psr,psd=dmchrom_psd, idx=dmchrom_idx,
+                                       name='chromatic', components=components,
+                                       coefficients=coefficients)
+        if dm_expdip:
+            if dmdip_seqname is not None:
+                dmdipname_base = 'dmexp_'+dmdip_seqname+'_'
+            else:
+                dmdipname_base = 'dmexp_'
 
-        if dm_solar_stoch is not None:
-            s += solar_dm_block_stoch(psr, components=components, 
-                                      gamma_min = sol_gamma_min,
-                                      gamma_max = sol_gamma_max,
-                                      swgp_basis = dm_solar_stoch,
-                                      prior_dict = solar_prior_dict)
+            if len(dm_expdip_tmin)==len(dm_expdip_tmax):
+                num_dmdips = len(dm_expdip_tmin)
+            else:
+                print('DM exp dip: number of start times and end times should be the same!')
+                raise ValueError
+            if not hasattr(dm_expdip_idx,'__iter__'):
+                dm_expdip_idx = [dm_expdip_idx for ii in range(num_dmdips)]
+            if not hasattr(dmexp_sign,'__iter__'):
+                dmexp_sign = [dmexp_sign for ii in range(num_dmdips)]
+            if not hasattr(dm_expdip_tmin,'__iter__'):
+                dm_expdip_tmin = [dm_expdip_tmin for ii in range(num_dmdips)]
+            if not hasattr(dm_expdip_tmax,'__iter__'):
+                dm_expdip_tmax = [dm_expdip_tmax for ii in range(num_dmdips)]
+
+            for dd in range(num_dmdips):
+                if dm_expdip_tmin[dd] is None and dm_expdip_tmax[dd] is None:
+                    tmin = psr.toas.min() / 86400
+                    tmax = psr.toas.max() / 86400
+                else:
+                    tmin = dm_expdip_tmin[dd]
+                    tmax = dm_expdip_tmax[dd]
+
+                s += dm_exponential_dip(tmin=tmin, tmax=tmax,
+                                        idx=dm_expdip_idx[dd],
+                                        sign=dmexp_sign[dd],
+                                        name=dmdipname_base+str(dd))
 
         #if dm_expdip_2:
         #    if dm_expdip_tmin_2 is None and dm_expdip_tmax_2 is None:
@@ -2649,25 +2183,57 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
         #                                sign=dmexp_sign_2,
         #                                name=dmdipname_base_2+str(dd))
 
-    if fd_sys_range is not None:
-      for fd_sel in fd_select:
-        for idx in range(1, extra_fd_sys + 1):
-          s += fd_01_system_block(psr, slope_range=fd_sys_range,
-                                  select=fd_sel, idx = idx)
+        if dm_gauss:
+            if dm_gauss_tmin is None and dm_gauss_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_gauss_tmin
+                tmax = dm_gauss_tmax
+            dmgaussname_base = 'dm_gauss_'
+            #for dd in range(1,num_dmgauss+1):
+            s += dm_gaussian_bump(tmin=tmin, tmax=tmax,
+                                        sigma_min=20, sigma_max=140, 
+                                        log10_A_low=-6, log10_A_high=-1,
+                                        name=dmgaussname_base)#+str(dd))
 
-    if extra_fd != 0:
-      if fd_select is None:
-        existing_fd = psr.n_fd
-      else:
-        existing_fd = 0
-      for idx in range(existing_fd + 1, existing_fd + extra_fd + 1):
-        s += extra_fd_block(psr, log10_c_fd_min = log10_c_fd_min, \
-                            log10_c_fd_max = log10_c_fd_max, idx = idx, \
-                            select = fd_select)
+        if magn_expdip:
+            if not hasattr(magn_expdip_tmin,'__iter__'):
+                magn_expdip_tmin = [magn_expdip_tmin]
+            if not hasattr(magn_expdip_tmax,'__iter__'):
+                magn_expdip_tmax = [magn_expdip_tmax]
+            magn_dip_count = 0
+            for magn_tmin, magn_tmax in zip(magn_expdip_tmin, magn_expdip_tmax):
+
+                if magn_tmin is None and magn_tmax is None:
+                    magn_tmin = psr.toas.min() / 86400
+                    magn_tmax = psr.toas.max() / 86400
+                if magndip_seqname is not None:
+                    magndipname_base = 'magnexp_'+magndip_seqname+'_'
+                else:
+                    magndipname_base = 'magnexp_'
+                magndipname_base = str(magn_dip_count) + '_' + magndipname_base
+
+                s += magnetosphere_exponential_dip(tmin=magn_tmin, \
+                             tmax=magn_tmax, idx='vary', sign=magnexp_sign,
+                                              name=magndipname_base)
+                magn_dip_count += 1
+
+        if dm_cusp:
+            if dm_cusp_tmin is None and dm_cusp_tmax is None:
+                tmin = psr.toas.min() / 86400
+                tmax = psr.toas.max() / 86400
+            else:
+                tmin = dm_cusp_tmin
+                tmax = dm_cusp_tmax
+            s += dm_exponential_cusp(tmin=tmin, tmax=tmax,
+                                        idx=dm_cusp_idx,
+                                        sign=dm_cusp_sign,
+                                        name='dm_cusp')
+
     # adding white-noise, and acting on psr objects
-    if ('NANOGrav' in psr.flags['pta'] and not wideband) or inc_ecorr:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                   gp_ecorr=gp_ecorr)
+    if 'NANOGrav' in psr.flags['pta'] and not wideband:
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
         model = s2(psr)
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
@@ -2930,9 +2496,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components,
-                                       coefficients=coefficients,
-                                       gamma_low = gamma_low, 
-                                       gamma_high = gamma_high)
+                                       coefficients=coefficients)
 
     # ephemeris model
     if bayesephem:
@@ -4142,14 +3706,6 @@ def return_band_selection_fun_from_name(band):
         selection = selections.system_pdfb
     if band == 'band':
         selection = selections.by_band
-    if band == 'custom_s_1':
-        selection = selections.custom_selection_split_1
-    if band == 'custom_s_2':
-        selection = selections.custom_selection_split_2
-    if band == 'custom_m':
-        selection = selections.custom_selection_multi
-    if band == 'custom_s_mid':
-        selection = selections.custom_selection_split_mid
     if band == 'custom':
         selection = selections.custom_selection
     if band == 'custom_1':
@@ -4158,30 +3714,6 @@ def return_band_selection_fun_from_name(band):
         selection = selections.custom_selection_2
     if band == 'custom_3':
         selection = selections.custom_selection_3
-    if band == 'custom_4':
-        selection = selections.custom_selection_4
-    if band == 'custom_5':
-        selection = selections.custom_selection_5
-    if band == 'custom_6':
-        selection = selections.custom_selection_6
-    if band == 'custom_7':
-        selection = selections.custom_selection_7
-    if band == 'custom_8':
-        selection = selections.custom_selection_8
-    if band == 'custom_9':
-        selection = selections.custom_selection_9
-    if band == 'custom_10':
-        selection = selections.custom_selection_10
-    if band == 'custom_11':
-        selection = selections.custom_selection_11
-    if band == 'custom_12':
-        selection = selections.custom_selection_12
-    if band == 'custom_13':
-        selection = selections.custom_selection_13
-    if band == 'custom_14':
-        selection = selections.custom_selection_14
-    if band == 'custom_15':
-        selection = selections.custom_selection_15
     return selection
 
 def return_mask_from_selection_name(psr,band):
