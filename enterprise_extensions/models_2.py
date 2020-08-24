@@ -719,6 +719,43 @@ def model_general(
         s += deterministic_signals.PhysicalEphemerisSignal(
             use_epoch_toas=True, model=be_type
         )
+    if fixed_bayesephem:
+        #TODO: Allow for fixed ephem params in enterprise.deterministic_signals
+        #s += deterministic_signals.PhysicalEphemerisSignal(
+        #    use_epoch_toas=True, model=be_type
+        #)
+        if frame_drift_rate is True:
+        frame_drift_rate = parameter.Uniform(-1e-9, 1e-9)("frame_drift_rate")
+
+        d_jupiter_mass = parameter.Normal(0, 1.54976690e-11)("d_jupiter_mass")
+
+        d_saturn_mass = parameter.Normal(0, 8.17306184e-12)("d_saturn_mass")
+
+        d_uranus_mass = parameter.Normal(0, 5.71923361e-11)("d_uranus_mass")
+
+        d_neptune_mass = parameter.Normal(0, 7.96103855e-11)("d_neptune_mass")
+
+        jup_orb_elements = parameter.Uniform(-0.05, 0.05, size=6)("jup_orb_elements")
+
+        sat_orb_elements = parameter.Uniform(-0.5, 0.5, size=6)("sat_orb_elements")
+
+        # note: default prior for dynamical model is Uniform(-1e-4, 1e-4)
+        #       for each element.
+
+        times, jup_orbit, sat_orbit = utils.get_planet_orbital_elements(model)
+        wf = utils.physical_ephem_delay(
+            frame_drift_rate=frame_drift_rate,
+            d_jupiter_mass=d_jupiter_mass,
+            d_saturn_mass=d_saturn_mass,
+            d_uranus_mass=d_uranus_mass,
+            d_neptune_mass=d_neptune_mass,
+            jup_orb_elements=jup_orb_elements,
+            sat_orb_elements=sat_orb_elements,
+            times=times,
+            jup_orbit=jup_orbit,
+            sat_orbit=sat_orbit,
+        )
+        
 
     # adding white-noise, and acting on psr objects
     models = []
