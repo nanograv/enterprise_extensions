@@ -719,12 +719,12 @@ def model_general(
         s += deterministic_signals.PhysicalEphemerisSignal(
             use_epoch_toas=True, model=be_type
         )
+    fixed_bayesephem = False
     if fixed_bayesephem:
         #TODO: Allow for fixed ephem params in enterprise.deterministic_signals
         #s += deterministic_signals.PhysicalEphemerisSignal(
         #    use_epoch_toas=True, model=be_type
         #)
-        if frame_drift_rate is True:
         frame_drift_rate = parameter.Uniform(-1e-9, 1e-9)("frame_drift_rate")
 
         d_jupiter_mass = parameter.Normal(0, 1.54976690e-11)("d_jupiter_mass")
@@ -755,7 +755,7 @@ def model_general(
             jup_orbit=jup_orbit,
             sat_orbit=sat_orbit,
         )
-        
+
 
     # adding white-noise, and acting on psr objects
     models = []
