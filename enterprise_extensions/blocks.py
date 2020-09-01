@@ -102,7 +102,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
-                    select=None, modes=None, wgts=None,
+                    select=None, modes=None, wgts=None, combine=True,
                     break_flat=False, break_flat_fq=None,
                     dropout=False, k_threshold=0.5):
     """
@@ -203,24 +203,26 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
         rn = gp_signals.FourierBasisGP(pl, components=components_low,
                                        Tspan=Tspan, coefficients=coefficients,
-                                       selection=selection)
+                                       combine=combine, selection=selection)
 
         rn_flat = gp_signals.FourierBasisGP(pl_flat,
                                             modes=freqs[components_low:],
                                             coefficients=coefficients,
                                             selection=selection,
+                                            combine=combine,
                                             name='red_noise_hf')
         rn = rn + rn_flat
     else:
         rn = gp_signals.FourierBasisGP(pl, components=components,
                                        Tspan=Tspan,
+                                       combine=combine,
                                        coefficients=coefficients,
                                        selection=selection,
                                        modes=modes)
 
     if select == 'band+':  # Add the common component as well
         rn = rn + gp_signals.FourierBasisGP(pl, components=components,
-                                            Tspan=Tspan,
+                                            Tspan=Tspan, combine=combine,
                                             coefficients=coefficients)
 
     return rn
@@ -496,7 +498,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
     return cgp
 
 
-def common_red_noise_block(psd='powerlaw', prior='log-uniform',
+def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
                            Tspan=None, components=30, gamma_val=None,
                            orf=None, name='gw', coefficients=False,
                            pshift=False, pseed=None):
@@ -590,17 +592,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
+                                        combine=combine,
                                         name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
-                                              Tspan=Tspan,
+                                              Tspan=Tspan, combine=combine,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
-                                              Tspan=Tspan,
+                                              Tspan=Tspan, combine=combine,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
     else:
