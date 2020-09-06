@@ -197,7 +197,7 @@ def chrom_gaussian_bump(toas, freqs, log10_Amp=-2.5, sign_param=1.0,
     sigma *= const.day
     wf = 10**log10_Amp * np.exp(-(toas - t0)**2/2/sigma**2)
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
-  
+
 @signal_base.function
 def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
                     t0=54000, log10_tau=1.7, idx=2):
@@ -217,7 +217,7 @@ def chrom_exp_cusp(toas, freqs, log10_Amp=-7, sign_param=-1.0,
     wf = (10**log10_Amp * np.heaviside(toas - t0, 1) * \
         np.exp(- (toas - t0) / tau)) + (10**log10_Amp * \
         (1 - np.heaviside(toas - t0, 1)) * np.exp(- (t0 - toas) / tau))
-    
+
     return np.sign(sign_param) * wf * (1400 / freqs) ** idx
 
 @signal_base.function
@@ -578,12 +578,13 @@ def dropout_powerlaw(f, log10_A=-16, gamma=5, k_drop=0.5, k_threshold=0.5):
 
 @signal_base.function
 def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
+                                 d_mercury_mass=0, d_venus_mass=0, d_mars_mass=0,
                                  d_jupiter_mass=0, d_saturn_mass=0, d_uranus_mass=0,
                                  d_neptune_mass=0, jup_orb_elements=np.zeros(6),
                                  sat_orb_elements=np.zeros(6), inc_jupiter_orb=False,
                                  jup_orbelxyz=None, jup_mjd=None, inc_saturn_orb=False,
                                  sat_orbelxyz=None, sat_mjd=None, equatorial=True,
-                                 k_drop=0.5, k_threshold=0.5):
+                                 k_drop=0.5, k_threshold=0.5, minor_planets=False):
     """
     Dropout BayesEphem model. Switches BayesEphem on or off depending on
     whether k_drop exceeds k_threshold.
@@ -602,16 +603,26 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
     saturn = planetssb[:, 5, :3]
     uranus = planetssb[:, 6, :3]
     neptune = planetssb[:, 7, :3]
+    if minor_planets:
+        mercury = planetssb[:, 0, :3]
+        venus = planetssb[:, 1, :3]
+        mars = planetssb[:, 3, :3]
 
     # do frame rotation
     earth = utils.ss_framerotate(mjd, earth, 0.0, 0.0, 0.0, frame_drift_rate,
                            offset=None, equatorial=equatorial)
 
-    # mass perturbations
-    mpert = [(jupiter, d_jupiter_mass), (saturn, d_saturn_mass),
-             (uranus, d_uranus_mass), (neptune, d_neptune_mass)]
+   # mass perturbations
+    if not minor_planets:
+        mpert = [(jupiter, d_jupiter_mass), (saturn, d_saturn_mass),
+                 (uranus, d_uranus_mass), (neptune, d_neptune_mass)]
+    else:
+        mpert = [(mercury, d_mercury_mass), (venus, d_venus_mass),
+                 (mars, d_mars_mass), (jupiter, d_jupiter_mass),
+                 (saturn, d_saturn_mass), (uranus, d_uranus_mass),
+                 (neptune, d_neptune_mass)]
     for planet, dm in mpert:
-        earth += utils.dmass(planet, dm)
+        earth += dmass(planet, dm)
 
     # jupter orbital element perturbations
     if inc_jupiter_orb:
@@ -638,6 +649,9 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
 
 def Dropout_PhysicalEphemerisSignal(
     frame_drift_rate=parameter.Uniform(-1e-9, 1e-9)('frame_drift_rate'),
+    d_mercury_mass=parameter.Normal(0, 1.66-10)('d_mercury_mass'),
+    d_venus_mass=parameter.Normal(0, 2.45e-9)('d_venus_mass'),
+    d_mars_mass=parameter.Normal(0, 3.23e-10)('d_mars_mass'),
     d_jupiter_mass=parameter.Normal(0, 1.54976690e-11)('d_jupiter_mass'),
     d_saturn_mass=parameter.Normal(0, 8.17306184e-12)('d_saturn_mass'),
     d_uranus_mass=parameter.Normal(0, 5.71923361e-11)('d_uranus_mass'),
@@ -645,7 +659,8 @@ def Dropout_PhysicalEphemerisSignal(
     jup_orb_elements=parameter.Uniform(-0.05,0.05,size=6)('jup_orb_elements'),
     sat_orb_elements=parameter.Uniform(-0.5,0.5,size=6)('sat_orb_elements'),
     inc_jupiter_orb=True, inc_saturn_orb=False, use_epoch_toas=True,
-    k_drop=parameter.Uniform(0.0,1.0), k_threshold=0.5, name=''):
+    k_drop=parameter.Uniform(0.0,1.0), k_threshold=0.5, minor_planets=False,
+    name=''):
 
     """ Class factory for dropout physical ephemeris model signal."""
 
@@ -657,6 +672,9 @@ def Dropout_PhysicalEphemerisSignal(
     jup_mjd, jup_orbelxyz, sat_mjd, sat_orbelxyz = (
         utils.get_planet_orbital_elements())
     wf = dropout_physical_ephem_delay(frame_drift_rate=frame_drift_rate,
+                                        d_mercury_mass=d_mercury_mass,
+                                        d_venus_mass=d_venus_mass,
+                                        d_mars_mass=d_mars_mass,
                                         d_jupiter_mass=d_jupiter_mass,
                                         d_saturn_mass=d_saturn_mass,
                                         d_uranus_mass=d_uranus_mass,
@@ -668,7 +686,7 @@ def Dropout_PhysicalEphemerisSignal(
                                         jup_mjd=jup_mjd,
                                         inc_saturn_orb=inc_saturn_orb,
                                         sat_orbelxyz=sat_orbelxyz,
-                                        sat_mjd=sat_mjd,
+                                        sat_mjd=sat_mjd, minor_planets=minor_planets,
                                         k_drop=k_drop, k_threshold=k_threshold)
 
     BaseClass = deterministic_signals.Deterministic(wf, name=name)
@@ -1223,7 +1241,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def optimal_num_components(toas,mask_select=None):
     """ Number of components for red noise according to Lentati et al.
-        'Spin noise and systematics ...' paper. 
+        'Spin noise and systematics ...' paper.
         From 1/Tobs to 1/(60 days) with 1/Tobs spacing """
     if mask_select is None:
       mask_select = [True for toa in toas]
@@ -1682,7 +1700,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign=False, name='dmexp',
     dmexp = deterministic_signals.Deterministic(wf, name=name)
 
     return dmexp
-  
+
 def jump_in_backend(prior,prior_bounds,band_selection_name=None):
     ''' Time-independent JUMP in backend: a constant offset in one backend '''
     if band_selection_name==None:
@@ -1699,7 +1717,7 @@ def jump_in_backend(prior,prior_bounds,band_selection_name=None):
 
     wf = jump_constant_offset(Amp=Amp)
 
-    backend_jump = deterministic_signals.Deterministic(wf, name=name, selection=selection) 
+    backend_jump = deterministic_signals.Deterministic(wf, name=name, selection=selection)
 
     return backend_jump
 
@@ -1740,7 +1758,7 @@ def magnetosphere_exponential_dip(tmin, tmax, idx='vary', tau = 'regular',
     magnetoexp = deterministic_signals.Deterministic(wf, name=name)
 
     return magnetoexp
-  
+
 def dm_exponential_cusp(tmin, tmax, idx=2, sign=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
@@ -1881,7 +1899,7 @@ def chromatic_noise_block(psr=None, psd='powerlaw', idx=4, Tspan=None,
 
     #  chr1 = parameter.Uniform(-prioramp/tobs_sec, prioramp/tobs_sec)
     #  chr2 = parameter.Uniform(-prioramp**2/tobs_sec, prioramp**2/tobs_sec)
-  
+
     #  wf = chrompol_2m_wf(chr1 = chr1, chr2 = chr2, idx = idx)
     #  #cp_signal = deterministic_signals.Deterministic(wf, name=name)
 
@@ -2395,16 +2413,16 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                  dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                  dm_nondiag_kernel='periodic', dmx_data=None,
                  dm_annual=False, dm_solar=False, dm_solar_stoch = None,
-                 sol_gamma_min = -7, sol_gamma_max = 7, solar_prior_dict = {}, 
+                 sol_gamma_min = -7, sol_gamma_max = 7, solar_prior_dict = {},
                  gamma_dm_val=None, dm_chrom=False, dmchrom_psd='powerlaw',
                  dmchrom_idx=4, dm_expdip=False, dmexp_sign=False,
                  dmchrom_select = None, dm_expdip_idx=2, dm_expdip_tmin=None,
                  dm_expdip_tmax=None, dm_expdip_pow10_tau_min = None,
                  dm_expdip_pow10_tau_max = None, dm_gauss = False,
                  dm_gauss_tmin=None, dm_gauss_tmax=None, dm_gauss_idx=None,
-                 dmdip_seqname=None, dm_cusp=False, 
-                 dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None, 
-                 dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False, 
+                 dmdip_seqname=None, dm_cusp=False,
+                 dm_cusp_sign=False, dm_cusp_idx=2, dm_cusp_tmin=None,
+                 dm_cusp_tmax=None, magn_expdip=False, magnexp_sign=False,
                  magn_expdip_tmin=None, magn_expdip_tmax=None,
                  magndip_seqname=None, magn_expdip_idx = 'vary',
                  magndip_tau = 'regular', coefficients=False, red_select=None,
@@ -2474,7 +2492,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                             coefficients=coefficients, select=red_select,
                             select_band_names=None, common=red_common,
                             outdir = outdir, gamma_low = gamma_low,
-                            gamma_high = gamma_high, 
+                            gamma_high = gamma_high,
                             spin_turnover=spin_turnover)
 
     if select_band_names is not None:
@@ -2497,7 +2515,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
                                    coefficients=coefficients,
                                    gamma_low = gamma_low, outdir = outdir,
                                    gamma_high = gamma_high,
-                                   select = dmchrom_select, 
+                                   select = dmchrom_select,
                                    chr12 = chromred_chr12, tobs_sec = tobs_sec)
 
     if chrompol != 0:
@@ -2629,7 +2647,7 @@ def model_singlepsr_noise(psr, red_var=False, psd='powerlaw',
             s += dmx_signal(dmx_data=dmx_data[psr.name])
 
         if dm_solar_stoch is not None:
-            s += solar_dm_block_stoch(psr, components=components, 
+            s += solar_dm_block_stoch(psr, components=components,
                                       gamma_min = sol_gamma_min,
                                       gamma_max = sol_gamma_max,
                                       swgp_basis = dm_solar_stoch,
@@ -2847,7 +2865,7 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
                   dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
                   coefficients=False, select_psrs=None, chrom_events=True,
                   constant_jump_name=None,constant_jump_amin=None,
-                  constant_jump_amax=None):
+                  constant_jump_amax=None, minor_planets=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2931,13 +2949,14 @@ def model_general(psrs, psd='powerlaw', noisedict=None, tm_svd=False, tm_norm=Tr
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
                                        name='chromatic', components=components,
                                        coefficients=coefficients,
-                                       gamma_low = gamma_low, 
+                                       gamma_low = gamma_low,
                                        gamma_high = gamma_high)
 
     # ephemeris model
     if bayesephem:
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True,
-                                                           inc_saturn_orb=inc_saturn_orb)
+                                                           inc_saturn_orb=inc_saturn_orb,
+                                                           minor_planets=minor_planets)
 
     # adding white-noise, and extra events and red terms acting on psr objects
     models = []
@@ -3987,7 +4006,7 @@ def model_bwm(psrs, noisedict=None, tm_svd=False,
 
 
 def model_cw(psrs, upper_limit=False,
-             noisedict=None, rn_psd='powerlaw', components=30, 
+             noisedict=None, rn_psd='powerlaw', components=30,
              bayesephem=False, skyloc=None, log10_F=None, ecc=False,
              psrTerm=False, wideband=False):
     """
@@ -4190,4 +4209,4 @@ def return_mask_from_selection_name(psr,band):
     args_selfunc = inspect.getargspec(selfunc).args
     argdict = {attr: getattr(psr,attr) for attr in dir(psr) if attr in args_selfunc}
     return selfunc(**argdict)
-    
+
