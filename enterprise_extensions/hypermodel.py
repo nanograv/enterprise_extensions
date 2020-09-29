@@ -142,6 +142,34 @@ class HyperModel(object):
 
         return np.array([p for sublist in x0 for p in sublist])
 
+    def informed_sample(self, noisedict):
+        """
+        Take an initial sample from the noise file. Abscent parameters will be
+        sampled from the prior.
+        """
+
+        x0 = [np.array(p.sample()).ravel().tolist() \
+              if p.name not in noisedict.keys() \
+              else np.array(noisedict[p.name]).ravel().tolist() \
+              for p in self.models[0].params]
+        uniq_params = [str(p) for p in self.models[0].params]
+
+        for model in self.models.values():
+            param_diffs = np.setdiff1d([str(p) for p  in model.params], \
+                                        uniq_params)
+            mask = np.array([str(p) in param_diffs for p in model.params])
+            x0.extend([np.array(pp.sample()).ravel().tolist() \
+                       if pp.name not in noisedict.keys() \
+                       else np.array(noisedict[pp.name]).ravel().tolist() \
+                       for pp in np.array(model.params)[mask]])
+
+            uniq_params = np.union1d([str(p) for p in model.params], \
+                                      uniq_params)
+
+        x0.extend([[0.1]])
+
+        return np.array([p for sublist in x0 for p in sublist])
+
     def draw_from_nmodel_prior(self, x, iter, beta):
         """
         Model-index uniform distribution prior draw.
