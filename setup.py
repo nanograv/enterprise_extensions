@@ -43,10 +43,10 @@ setup(
     author='Stephen R. Taylor, Paul T. Baker, Jeffrey S. Hazboun',
     author_email='srtaylor@caltech.edu',
     license='MIT',
-<<<<<<< HEAD
+
     packages=['enterprise_extensions','enterprise_extensions.frequentist'],
     install_requires=['numpy','scipy','enterprise'],
-=======
+
     packages=['enterprise_extensions',
               'enterprise_extensions.frequentist',
               'enterprise_extensions.chromatic'],
@@ -56,7 +56,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     install_requires=requirements,
->>>>>>> 321e941210a10d08d4a276d74b3f6481dc895fc3
+
     include_package_data=True,
     zip_safe=False,
 )
