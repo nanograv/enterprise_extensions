@@ -1,4 +1,22 @@
-from setuptools import setup
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""The setup script."""
+
+from setuptools import setup, find_packages
+
+with open('README.rst') as readme_file:
+    readme = readme_file.read()
+
+with open('HISTORY.rst') as history_file:
+    history = history_file.read()
+
+requirements = ['numpy',
+                'scipy',]
+
+setup_requirements = ['pytest-runner', ]
+
+test_requirements = ['pytest', ]
 
 # Extract version
 def get_version():
@@ -11,7 +29,7 @@ setup(
     name='enterprise_extensions',
     version=get_version(),
     description='Extensions, model shortcuts, and utilities for the enterprise PTA analysis framework.',
-    long_description="See: `github.com/stevertaylor/enterprise_extensions <https://github.com/stevertaylor/enterprise_extensions>`_." ,
+    long_description=readme + '\n\n' + history,
     classifiers=[
         'Topic :: Scientific/Engineering :: Astronomy',
         'Topic :: Scientific/Engineering :: Physics',
@@ -27,9 +45,13 @@ setup(
     license='MIT',
     packages=['enterprise_extensions',
               'enterprise_extensions.frequentist',
-              'enterprise_extensions.electromagnetic'],
-    package_data={'enterprise_extensions.electromagnetic': ['ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt']},
-    install_requires=['numpy','scipy','enterprise'],
+              'enterprise_extensions.chromatic'],
+    package_data={'enterprise_extensions.chromatic':
+                  ['ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt']},
+    setup_requires=setup_requirements,
+    test_suite='tests',
+    tests_require=test_requirements,
+    install_requires=requirements,
     include_package_data=True,
     zip_safe=False,
 )
