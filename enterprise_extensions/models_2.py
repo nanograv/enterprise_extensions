@@ -13,7 +13,8 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 from enterprise_extensions import deterministic
-from enterprise_extensions.timing_2 import timing_block
+
+from enterprise_extensions.timing_2 import (timing_block,filter_Mmat)
 from enterprise_extensions.blocks import (
     white_noise_block,
     red_noise_block,
@@ -29,14 +30,13 @@ from enterprise_extensions import dropout as do
 PTA models from paper
 """
 
-
 def model_singlepsr_noise(
     psr,
     tm_var=False,
     tm_linear=False,
-    tm_param_list=None,
+    tm_param_list=[],
     tm_param_dict={},
-    tm_prior="bounded-normal",
+    tm_prior="uniform",
     red_var=True,
     psd="powerlaw",
     red_select=None,
@@ -523,9 +523,12 @@ def model_general(
     psrs,
     tm_var=False,
     tm_linear=False,
-    tm_param_list=None,
+    tm_param_list=[],
+    ltm_exclude_list=[],
+    exclude = True,
     tm_param_dict={},
     tm_prior="uniform",
+    nltm_plus_ltm = False,
     common_var=True,
     common_psd="powerlaw",
     red_psd="powerlaw",
@@ -588,8 +591,12 @@ def model_general(
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
     :param tm_param_list: an explicit list of timing model parameters to vary
+    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
+        if exlude is True; if exclude is False they are the only parameters to include in the linear model
+    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'Uniform','bounded-normal'}
+    :param nltm_plus_ltm: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
@@ -631,8 +638,26 @@ def model_general(
             p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
             for key in p.tm_params_orig:
                 p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
-        if not tm_linear:
+        if tm_linear and not nltm_plus_ltm:
+            s = gp_signals.TimingModel(
+            use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
+        elif not tm_linear and not nltm_plus_ltm:
             s = timing_block(
+                tm_param_list=tm_param_list,
+                prior_type=tm_prior,
+                prior_sigma=2.0,
+                prior_lower_bound=-3.0,
+                prior_upper_bound=3.0,
+                tm_param_dict=tm_param_dict,
+            )
+        elif not tm_linear and nltm_plus_ltm:
+            #Don't need this catch!
+            if len(ltm_exclude_list) == 0:
+                ltm_exclude_list=tm_param_list
+            psrs2 = [filter_Mmat(psr,ltm_exclude_list=ltm_exclude_list,exclude=exclude) for psr in psrs]
+            s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm, coefficients=coefficients)
+            s += timing_block(
                 tm_param_list=tm_param_list,
                 prior_type=tm_prior,
                 prior_sigma=2.0,
@@ -759,41 +784,78 @@ def model_general(
 
     # adding white-noise, and acting on psr objects
     models = []
-    for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if gequad:
-                s2 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s3 = s2 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
-                models.append(s3(p))
+    if tm_var and not tm_linear and nltm_plus_ltm:
+        for p in psrs2:
+            if "NANOGrav" in p.flags["pta"] and not wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                if gequad:
+                    s2 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s3 = s2 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s3(p))
+                else:
+                    models.append(s2(p))
             else:
-                models.append(s2(p))
-        else:
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if gequad:
-                s4 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
-                models.append(s5(p))
+                s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+                if gequad:
+                    s4 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s5 = s4 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s5(p))
+                else:
+                    models.append(s4(p))
+    else:
+        for p in psrs:
+            if "NANOGrav" in p.flags["pta"] and not wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                if gequad:
+                    s2 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s3 = s2 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s3(p))
+                else:
+                    models.append(s2(p))
             else:
-                models.append(s4(p))
+                s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+                if gequad:
+                    s4 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s5 = s4 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s5(p))
+                else:
+                    models.append(s4(p))
 
     # set up PTA
     pta = signal_base.PTA(models)

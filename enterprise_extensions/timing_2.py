@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
-import os, glob, ephem, json
+import os, glob, ephem, json, copy
 import numpy as np
 from collections import defaultdict
 from enterprise.signals import parameter
@@ -105,7 +105,7 @@ def get_par_errors(t2psr, par):
     :param par: parameter to pull error from par file
     """
     filename = t2psr.parfile.split("/")[-1]
-    file = glob.glob("../../*/par/" + filename)[0]
+    file = glob.glob("../*/par/" + filename)[0]
 
     with open(file, "r") as f:
         for line in f.readlines():
@@ -126,6 +126,26 @@ def get_par_errors(t2psr, par):
                 else:
                     raise ValueError(par, " not in file!")
 
+def filter_Mmat(psr,ltm_exclude_list=[],exclude=True):
+    """Filters the pulsar's design matrix of parameters
+    :param psr: Pulsar object
+    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
+        if exlude is True; if exclude is False they are the only parameters to include in the linear model
+    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+
+    :return: A new pulsar object with the filtered design matrix
+    """
+    if exclude:
+        idx_lin_pars = [psr.fitpars.index(p) for p in psr.fitpars if p not in ltm_exclude_list]
+    else:
+        idx_lin_pars = [psr.fitpars.index(p) for p in psr.fitpars if p in ltm_exclude_list]
+    print(len(psr.fitpars))
+    psr.fitpars = list(np.array(psr.fitpars)[idx_lin_pars])
+    print(len(psr.fitpars))
+    print(psr.Mmat.shape)
+    psr._designmatrix = psr._designmatrix[:,idx_lin_pars]
+    print(psr.Mmat.shape)
+    return psr
 
 # timing model delay
 @signal_base.function
@@ -153,7 +173,10 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={},**kwargs):
     tm_params_rescaled = {}
     error_pos = {}
     for tm_scaled_key, tm_scaled_val in kwargs.items():
-        tm_param = tm_scaled_key.split("_")[-1]
+        if 'DMX' in tm_scaled_key.split("_"):
+            tm_param = "_".join(tm_scaled_key.split("_")[-2:])
+        else:
+            tm_param = tm_scaled_key.split("_")[-1]
         orig_params[tm_param] = tm_params_orig[tm_param][0]
 
         if tm_param in tm_param_dict.keys():
@@ -171,15 +194,22 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={},**kwargs):
                 "ELONG",
             }:
                 ec_errors = ephem.Ecliptic(
-                    error_pos["ELONG"]["err"], error_pos["ELAT"]["err"]
+                    error_pos["ELONG"], error_pos["ELAT"]
                 )
-
-                tm_params_rescaled["ELONG"] = (
-                    tm_scaled_val * np.double(ec_errors.lon) + tm_params_orig["ELONG"][0]
-                )
-                tm_params_rescaled["ELAT"] = (
-                    tm_scaled_val * np.double(ec_errors.lat) + tm_params_orig["ELAT"][0]
-                )
+                if tm_param in ["ELONG","ELAT"]:
+                    tm_params_rescaled["ELONG"] = (
+                        tm_scaled_val * np.double(ec_errors.lon) + tm_params_orig["ELONG"][0]
+                    )
+                    tm_params_rescaled["ELAT"] = (
+                        tm_scaled_val * np.double(ec_errors.lat) + tm_params_orig["ELAT"][0]
+                    )
+                elif tm_param in ["LAMBDA","BETA"]:
+                    tm_params_rescaled["LAMBDA"] = (
+                        tm_scaled_val * np.double(ec_errors.lon) + tm_params_orig["LAMBDA"][0]
+                    )
+                    tm_params_rescaled["BETA"] = (
+                        tm_scaled_val * np.double(ec_errors.lat) + tm_params_orig["BETA"][0]
+                    )
                 # End of handling section
                 """
                 for key in error_pos.keys():
@@ -350,11 +380,21 @@ def timing_block(
                 tm_delay_kwargs[key_string] = get_prior(
                     prior_type, prior_sigma, prior_lower_bound, prior_upper_bound, mu=prior_mu
                 )
+            elif "FD" in ["".join(list(x)[0:2]) for x in par.split()][0]:
+                key_string = "fd_param_" + par
+                tm_delay_kwargs[key_string] = get_prior(
+                    prior_type, prior_sigma, prior_lower_bound, prior_upper_bound, mu=prior_mu
+                )
+            elif "JUMP" in ["".join(list(x)[0:4]) for x in par.split()][0]:
+                key_string = "jump_param_" + par
+                tm_delay_kwargs[key_string] = get_prior(
+                    prior_type, prior_sigma, prior_lower_bound, prior_upper_bound, mu=prior_mu
+                )
             else:
                 print(par, " is not currently a modelled parameter.")
 
     # timing model
     tm_func = tm_delay(tm_param_dict=tm_param_dict,**tm_delay_kwargs)
-    tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
+    tm = deterministic_signals.Deterministic(tm_func, name="non_linear_timing_model")
 
     return tm
