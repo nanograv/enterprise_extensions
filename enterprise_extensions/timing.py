@@ -325,11 +325,11 @@ def timing_block(
             "TASC",
         ]:
             key_string = "kep_param_" + par
-            #Need exception for physically bounded parameters
-            if par in ['SINI','E','ECC']:
+            # Need exception for physically bounded parameters
+            if par in ["SINI", "E", "ECC"]:
                 prior_lower_bound = physical_tm_priors[par]["pmin"]
                 prior_upper_bound = physical_tm_priors[par]["pmax"]
-                
+
             tm_delay_kwargs[key_string] = get_prior(
                 prior_type,
                 prior_sigma,
