@@ -52,11 +52,11 @@ def get_default_physical_tm_priors():
     "H4","OMDOT","OM2DOT","XOMDOT","PBDOT","XPBDOT","GAMMA","PPNGAMMA",
     "DR","DTHETA"
     """
-    default_tm_priors = {}
-    default_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
-    default_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 1.0}
-    default_tm_priors["SINI"] = {"pmin": 0.0, "pmax": 1.0}
-    return
+    physical_tm_priors = {}
+    physical_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
+    physical_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 1.0}
+    physical_tm_priors["SINI"] = {"pmin": -1.0, "pmax": 1.0}
+    return physical_tm_priors
 
 
 def get_pardict(psrs, datareleases):
@@ -224,8 +224,8 @@ def timing_block(
     prior_type="uniform",
     prior_mu=0.0,
     prior_sigma=2.0,
-    prior_lower_bound=-3.0,
-    prior_upper_bound=3.0,
+    prior_lower_bound=-5.0,
+    prior_upper_bound=5.0,
     tm_param_dict={},
 ):
     """
@@ -244,6 +244,8 @@ def timing_block(
     for key in tm_param_dict.keys():
         if key not in tm_param_list:
             tm_param_list.append(key)
+
+    physical_tm_priors = get_default_physical_tm_priors()
 
     tm_delay_kwargs = {}
     default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound]
@@ -323,6 +325,11 @@ def timing_block(
             "TASC",
         ]:
             key_string = "kep_param_" + par
+            #Need exception for physically bounded parameters
+            if par in ['SINI','E','ECC']:
+                prior_lower_bound = physical_tm_priors[par]["pmin"]
+                prior_upper_bound = physical_tm_priors[par]["pmax"]
+                
             tm_delay_kwargs[key_string] = get_prior(
                 prior_type,
                 prior_sigma,
