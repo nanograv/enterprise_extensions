@@ -74,7 +74,7 @@ def get_prior(
 ):
     """
     Returns the requested prior for a parameter
-    
+
     :param prior_type: prior on timing parameters.
     :param prior_sigma: Sets the sigma on timing parameters for normal distribution draws
     :param prior_lower_bound: Sets the lower bound on timing parameters for bounded normal and uniform distribution draws
@@ -105,8 +105,8 @@ def get_par_errors(t2psr, par):
     :param par: parameter to pull error from par file
     """
     filename = t2psr.parfile.split("/")[-1]
-    file = glob.glob("../*/par/" + filename)[0]
-
+    file = '/Users/hazboun/GoogleDrive/NANOGrav_Detection/data/nanograv/11yr_v2/'
+    file += filename
     with open(file, "r") as f:
         for line in f.readlines():
             if par == "ELONG":
@@ -237,7 +237,7 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={},**kwargs):
                 if tm_param in ["PX"]:
                     if tm_params_rescaled[tm_param] <= 0.0:
                         tm_params_rescaled[tm_param] = 1e-9
-                
+
                 if tm_param not in ["ELONG","ELAT"]:
                     print(tm_param,': ')
                     print(' Original Value: ', orig_params[tm_param])
