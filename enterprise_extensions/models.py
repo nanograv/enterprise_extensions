@@ -13,7 +13,7 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 from enterprise_extensions import deterministic
-from enterprise_extensions.timing import timing_block
+from enterprise_extensions.timing import timing_block, filter_Mmat
 from enterprise_extensions.blocks import (
     white_noise_block,
     red_noise_block,
@@ -34,7 +34,12 @@ def model_singlepsr_noise(
     psr,
     tm_var=False,
     tm_linear=False,
-    tmparam_list=None,
+    tm_param_list=[],
+    ltm_exclude_list=[],
+    exclude=True,
+    tm_param_dict={},
+    tm_prior="uniform",
+    nltm_plus_ltm=False,
     red_var=True,
     psd="powerlaw",
     red_select=None,
@@ -95,7 +100,13 @@ def model_singlepsr_noise(
     :param psr: enterprise pulsar object
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
-    :param tmparam_list: an explicit list of timing model parameters to vary
+    :param tm_param_list: an explicit list of timing model parameters to vary
+    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
+        if exlude is True; if exclude is False they are the only parameters to include in the linear model
+    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+    :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
+    :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
+    :param nltm_plus_ltm: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
@@ -166,16 +177,38 @@ def model_singlepsr_noise(
         )
     else:
         # create new attribute for enterprise pulsar object
-        psr.tmparams_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
-        for key in psr.tmparams_orig:
-            psr.tmparams_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
-        if not tm_linear:
+        psr.tm_params_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
+        for key in psr.tm_params_orig:
+            psr.tm_params_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
+
+        if tm_linear and not nltm_plus_ltm:
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
+        elif not tm_linear and not nltm_plus_ltm:
             s = timing_block(
-                tmparam_list=tmparam_list,
-                prior_type="bounded-normal",
+                tm_param_list=tm_param_list,
+                prior_type=tm_prior,
                 prior_sigma=2.0,
                 prior_lower_bound=-3.0,
                 prior_upper_bound=3.0,
+                tm_param_dict=tm_param_dict,
+            )
+        elif not tm_linear and nltm_plus_ltm:
+            # Don't need this catch!
+            if len(ltm_exclude_list) == 0:
+                ltm_exclude_list = tm_param_list
+            psr2 = filter_Mmat(psr, ltm_exclude_list=ltm_exclude_list, exclude=exclude)
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
+            s += timing_block(
+                tm_param_list=tm_param_list,
+                prior_type=tm_prior,
+                prior_sigma=2.0,
+                prior_lower_bound=-3.0,
+                prior_upper_bound=3.0,
+                tm_param_dict=tm_param_dict,
             )
         else:
             pass
@@ -239,20 +272,27 @@ def model_singlepsr_noise(
                     else [dm_expdip_tmax]
                 )
             if dmdip_seqname is not None:
-                dmdipname_base = (['dmexp_' + nm for nm in dmdip_seqname]
-                                   if isinstance(dmdip_seqname,list)
-                                   else ['dmexp_' + dmdip_seqname])
+                dmdipname_base = (
+                    ["dmexp_" + nm for nm in dmdip_seqname]
+                    if isinstance(dmdip_seqname, list)
+                    else ["dmexp_" + dmdip_seqname]
+                )
             else:
-                dmdipname_base = ['dmexp_{0}'.format(ii+1)
-                                  for ii in range(num_dmdips)]
+                dmdipname_base = [
+                    "dmexp_{0}".format(ii + 1) for ii in range(num_dmdips)
+                ]
 
-            dm_expdip_idx = (dm_expdip_idx if isinstance(dm_expdip_idx,list)
-                                           else [dm_expdip_idx])
+            dm_expdip_idx = (
+                dm_expdip_idx if isinstance(dm_expdip_idx, list) else [dm_expdip_idx]
+            )
             for dd in range(num_dmdips):
-                s += chrom.dm_exponential_dip(tmin=tmin[dd], tmax=tmax[dd],
-                                              idx=dm_expdip_idx[dd],
-                                              sign=dmexp_sign,
-                                              name=dmdipname_base[dd])
+                s += chrom.dm_exponential_dip(
+                    tmin=tmin[dd],
+                    tmax=tmax[dd],
+                    idx=dm_expdip_idx[dd],
+                    sign=dmexp_sign,
+                    name=dmdipname_base[dd],
+                )
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
@@ -314,12 +354,20 @@ def model_singlepsr_noise(
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-    if "NANOGrav" in psr.flags["pta"] and not wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-        model = s2(psr)
+    if tm_var and not tm_linear and nltm_plus_ltm:
+        if "NANOGrav" in psr2.flags["pta"] and not wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            model = s2(psr2)
+        else:
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            model = s3(psr2)
     else:
-        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-        model = s3(psr)
+        if "NANOGrav" in psr.flags["pta"] and not wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            model = s2(psr)
+        else:
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            model = s3(psr)
 
     # set up PTA
     pta = signal_base.PTA([model])
@@ -413,11 +461,23 @@ def model_1(
     return pta
 
 
-def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, select='backend',
-             pshift=False, pseed=None, psr_models=False):
+def model_2a(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    n_rnfreqs=None,
+    n_gwbfreqs=None,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    be_type="orbel",
+    wideband=False,
+    select="backend",
+    pshift=False,
+    pseed=None,
+    psr_models=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -481,9 +541,16 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     s = red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=n_gwbfreqs, gamma_val=gamma_common,
-                                name='gw', pshift=pshift, pseed=pseed)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=n_gwbfreqs,
+        gamma_val=gamma_common,
+        name="gw",
+        pshift=pshift,
+        pseed=pseed,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -512,7 +579,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
         # set white noise parameters
         if noisedict is None:
-            print('No noise dictionary provided!...')
+            print("No noise dictionary provided!...")
         else:
             noisedict = noisedict
             pta.set_default_params(noisedict)
@@ -524,8 +591,12 @@ def model_general(
     psrs,
     tm_var=False,
     tm_linear=False,
-    tmparam_list=None,
-    tm_prior="bounded-normal",
+    tm_param_list=[],
+    ltm_exclude_list=[],
+    exclude=True,
+    tm_param_dict={},
+    tm_prior="uniform",
+    nltm_plus_ltm=False,
     common_var=True,
     common_psd="powerlaw",
     red_psd="powerlaw",
@@ -587,7 +658,13 @@ def model_general(
         value.
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
-    :param tmparam_list: an explicit list of timing model parameters to vary
+    :param tm_param_list: an explicit list of timing model parameters to vary
+    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
+        if exlude is True; if exclude is False they are the only parameters to include in the linear model
+    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+    :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
+    :param tm_prior: prior type on varied timing model parameters {'Uniform','bounded-normal'}
+    :param nltm_plus_ltm: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
@@ -626,16 +703,40 @@ def model_general(
     else:
         # create new attribute for enterprise pulsar object
         for p in psrs:
-            p.tmparams_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
-            for key in p.tmparams_orig:
-                p.tmparams_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
-        if not tm_linear:
+            p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
+            for key in p.tm_params_orig:
+                p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
+        if tm_linear and not nltm_plus_ltm:
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
+        elif not tm_linear and not nltm_plus_ltm:
             s = timing_block(
-                tmparam_list=tmparam_list,
+                tm_param_list=tm_param_list,
                 prior_type=tm_prior,
                 prior_sigma=2.0,
                 prior_lower_bound=-3.0,
                 prior_upper_bound=3.0,
+                tm_param_dict=tm_param_dict,
+            )
+        elif not tm_linear and nltm_plus_ltm:
+            # Don't need this catch!
+            if len(ltm_exclude_list) == 0:
+                ltm_exclude_list = tm_param_list
+            psrs2 = [
+                filter_Mmat(psr, ltm_exclude_list=ltm_exclude_list, exclude=exclude)
+                for psr in psrs
+            ]
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
+            s += timing_block(
+                tm_param_list=tm_param_list,
+                prior_type=tm_prior,
+                prior_sigma=2.0,
+                prior_lower_bound=-3.0,
+                prior_upper_bound=3.0,
+                tm_param_dict=tm_param_dict,
             )
         else:
             pass
@@ -719,41 +820,78 @@ def model_general(
 
     # adding white-noise, and acting on psr objects
     models = []
-    for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            if gequad:
-                s2 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s3 = s2 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
-                models.append(s3(p))
+    if tm_var and not tm_linear and nltm_plus_ltm:
+        for p in psrs2:
+            if "NANOGrav" in p.flags["pta"] and not wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                if gequad:
+                    s2 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s3 = s2 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s3(p))
+                else:
+                    models.append(s2(p))
             else:
-                models.append(s2(p))
-        else:
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if gequad:
-                s4 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
-                s5 = s4 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
-                models.append(s5(p))
+                s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+                if gequad:
+                    s4 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s5 = s4 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s5(p))
+                else:
+                    models.append(s4(p))
+    else:
+        for p in psrs:
+            if "NANOGrav" in p.flags["pta"] and not wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                if gequad:
+                    s2 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s3 = s2 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s3(p))
+                else:
+                    models.append(s2(p))
             else:
-                models.append(s4(p))
+                s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+                if gequad:
+                    s4 += white_signals.EquadNoise(
+                        log10_equad=parameter.Uniform(-8.5, -5),
+                        selection=selections.Selection(selections.no_selection),
+                        name="gequad",
+                    )
+                if "1713" in p.name and dm_var:
+                    tmin = p.toas.min() / 86400
+                    tmax = p.toas.max() / 86400
+                    s5 = s4 + chrom.dm_exponential_dip(
+                        tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
+                    )
+                    models.append(s5(p))
+                else:
+                    models.append(s4(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
@@ -1063,11 +1201,23 @@ def model_2d(
     return pta
 
 
-def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', wideband=False, correlationsonly=False,
-             pshift=False, pseed=None, psr_models=False):
+def model_3a(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    components=30,
+    n_rnfreqs=None,
+    n_gwbfreqs=None,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    be_type="orbel",
+    wideband=False,
+    correlationsonly=False,
+    pshift=False,
+    pseed=None,
+    psr_models=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -1124,14 +1274,25 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     if n_rnfreqs is None:
         n_rnfreqs = components
     # red noise
-    s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
-                        prior=amp_prior,
-                        Tspan=Tspan, components=n_rnfreqs)
+    s = red_noise_block(
+        psd="infinitepower" if correlationsonly else "powerlaw",
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=n_rnfreqs,
+    )
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=n_gwbfreqs, gamma_val=gamma_common,
-                                orf='hd', name='gw', pshift=pshift, pseed=pseed)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=n_gwbfreqs,
+        gamma_val=gamma_common,
+        orf="hd",
+        name="gw",
+        pshift=pshift,
+        pseed=pseed,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -1160,7 +1321,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
 
         # set white noise parameters
         if noisedict is None:
-            print('No noise dictionary provided!...')
+            print("No noise dictionary provided!...")
         else:
             noisedict = noisedict
             pta.set_default_params(noisedict)

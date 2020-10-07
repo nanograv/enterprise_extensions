@@ -214,19 +214,19 @@ class FeStat(object):
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
     """
-        Compute inner product using rank-reduced
-        approximations for red noise/jitter
-        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
-        
-        :param x: vector timeseries 1
-        :param y: vector timeseries 2
-        :param Nmat: white noise matrix
-        :param Tmat: Modified design matrix including red noise/jitter
-        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
-        :return: inner product (x|y)
-        """
+    Compute inner product using rank-reduced
+    approximations for red noise/jitter
+    Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
+
+    :param x: vector timeseries 1
+    :param y: vector timeseries 2
+    :param Nmat: white noise matrix
+    :param Tmat: Modified design matrix including red noise/jitter
+    :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
+    :param TNx: T^T N^{-1} x precomputed
+    :param TNy: T^T N^{-1} y precomputed
+    :return: inner product (x|y)
+    """
 
     # white noise term
     Ni = Nmat
@@ -255,13 +255,13 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
 
-    TtN = np.multiply((1/Nvec)[:,None], T).T
-    
-    #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = np.diag(1/Nvec)
-    
-    expval2 = sl.cho_solve(cf,TtN)
-    #TtNt = np.transpose(TtN)
-    
-    #An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T,expval2)
+    TtN = np.multiply((1 / Nvec)[:, None], T).T
+
+    # Put pulsar's autoerrors in a diagonal matrix
+    Ndiag = np.diag(1 / Nvec)
+
+    expval2 = sl.cho_solve(cf, TtN)
+    # TtNt = np.transpose(TtN)
+
+    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
+    return Ndiag - np.dot(TtN.T, expval2)
