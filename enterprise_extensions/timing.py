@@ -99,7 +99,6 @@ def get_prior(
 ):
     """
     Returns the requested prior for a parameter
-
     :param prior_type: prior on timing parameters.
     :param prior_sigma: Sets the sigma on timing parameters for normal distribution draws
     :param prior_lower_bound: Sets the lower bound on timing parameters for bounded normal and uniform distribution draws
@@ -128,7 +127,6 @@ def filter_Mmat(psr, ltm_exclude_list=[], exclude=True):
     :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
         if exlude is True; if exclude is False they are the only parameters to include in the linear model
     :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
-
     :return: A new pulsar object with the filtered design matrix
     """
     if exclude:
@@ -153,13 +151,11 @@ def filter_Mmat(psr, ltm_exclude_list=[], exclude=True):
 def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
-
     :param residuals: original pulsar residuals from Pulsar object
     :param t2pulsar: libstempo pulsar object
     :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
     :param tm_params: new timing model parameters, rescaled to be in sigmas
     :param which: option to have all or only named TM parameters varied
-
     :return: difference between new and old residuals in seconds
     """
     """OUTLINE:
@@ -234,7 +230,6 @@ def timing_block(
 ):
     """
     Returns the timing model block of the model
-
     :param tm_param_list: a list of parameters to vary in the model
     :param prior_type: prior on timing parameters. Default is a bounded normal, can be "uniform"
     :param prior_sigma: Sets the center value on timing parameters for normal distribution draws
