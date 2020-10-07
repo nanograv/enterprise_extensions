@@ -5,13 +5,15 @@ import os
 from enterprise import constants as const
 import pickle
 import healpy as hp
+from scipy.stats import multivariate_normal as mv_norm
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 
 class JumpProposal(object):
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
+    def __init__(self, pta, snames=None, empirical_distr=None,
+                 f_stat_file=None, timing=False):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -94,6 +96,12 @@ class JumpProposal(object):
             npzfile = np.load(f_stat_file)
             self.fe_freqs = npzfile["freqs"]
             self.fe = npzfile["fe"]
+
+        if timing:
+            tm_groups = get_timing_groups(pta)
+            tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
+            tm_groups.extend(tm_idx)
+            self.tm_groups = np.array(tm_groups, dtype=object)
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -696,6 +704,32 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def timing_model_jump(self, x, iter, beta):
+        '''
+        Pull from standard normal distributions (based on the fit timing
+        parameters) as jump proposals. Pull from various timing parameters,
+        based on the groups of parameters in tm_groups, which includes
+        individual parameter proposals.
+        '''
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'non_linear_timing_model'
+
+        # draw parameter from signal model
+        idxs = np.random.choice(self.tm_groups)
+        try:
+            L = len(idxs)
+        except TypeError:
+            L = 1
+
+        q[idxs] = np.random.randn(L)
+
+        # forward-backward jump probability
+        lqxy = (mv_norm.logpdf(x[idxs],mean=np.zeros(L))
+                - mv_norm.logpdf(q[idxs],mean=np.zeros(L)))
+
+        return q, float(lqxy)
 
 def get_global_parameters(pta):
     """Utility function for finding global parameters."""
@@ -779,7 +813,8 @@ def group_from_params(pta, params):
     return gr
 
 
-def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None):
+def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None,
+                  timing=False):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -808,6 +843,8 @@ def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None):
 
     # parameter groupings
     groups = get_parameter_groups(pta)
+    if timing:
+        groups.extend(get_timing_groups(pta))
 
     sampler = ptmcmc(
         ndim,
@@ -826,7 +863,7 @@ def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None):
     )
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, timing=timing)
 
     # always add draw from prior
     sampler.addProposalToCycle(jp.draw_from_prior, 5)
@@ -903,5 +940,10 @@ def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None):
     if "cw_log10_Mc" in pta.param_names:
         print("Adding CW prior draws...\n")
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
+
+    #Non Linear Timing Draws
+    if 'non_linear_timing_model' in jp.snames:
+        print("Adding timing model jump proposal...\n")
+        sampler.addProposalToCycle(jp.timing_model_jump, 40)
 
     return sampler
