@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division,
+                        print_function)
 import numpy as np
 import scipy.stats as scistats
 import acor
@@ -23,29 +24,26 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     :param nlog:    How many log frequencies we'll use
     """
     if logmode < 0:
-        raise ValueError(
-            "Cannot do log-spacing when all frequencies are" "linearly sampled"
-        )
+        raise ValueError("Cannot do log-spacing when all frequencies are"
+                         "linearly sampled")
 
     # First the linear spacing and weights
     df_lin = 1.0 / T
     f_min_lin = (1.0 + logmode) / T
-    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin - 1) * df_lin, nlin)
+    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin-1)*df_lin, nlin)
     w_lin = np.sqrt(df_lin * np.ones(nlin))
 
     if nlog > 0:
         # Now the log-spacing, and weights
         f_min_log = np.log(f_min)
-        f_max_log = np.log((logmode + 0.5) / T)
+        f_max_log = np.log( (logmode+0.5)/T )
         df_log = (f_max_log - f_min_log) / (nlog)
-        f_log = np.exp(
-            np.linspace(f_min_log + 0.5 * df_log, f_max_log - 0.5 * df_log, nlog)
-        )
+        f_log = np.exp(np.linspace(f_min_log+0.5*df_log,
+                                   f_max_log-0.5*df_log, nlog))
         w_log = np.sqrt(df_log * f_log)
         return np.append(f_log, f_lin), np.append(w_log, w_lin)
     else:
         return f_lin, w_lin
-
 
 # New filter for different cadences
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
@@ -58,7 +56,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
         start_idx = (np.abs((psr._toas / 86400) - start_time)).argmin()
         end_idx = (np.abs((psr._toas / 86400) - end_time)).argmin()
         # make a safe copy of sliced toas
-        tmp_toas = psr._toas[start_idx : end_idx + 1].copy()
+        tmp_toas = psr._toas[start_idx:end_idx+1].copy()
         # cumulative sum of time differences
         cumsum = np.cumsum(np.diff(tmp_toas / 86400))
         tspan = (tmp_toas.max() - tmp_toas.min()) / 86400
@@ -68,7 +66,8 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
             idx = (np.abs(cumsum - ii)).argmin()
             mask.append(idx)
         # append start and end segements with cadence-sliced toas
-        mask = np.append(np.arange(start_idx), np.array(mask) + start_idx)
+        mask = np.append(np.arange(start_idx),
+                         np.array(mask) + start_idx)
         mask = np.append(mask, np.arange(end_idx, len(psr._toas)))
 
     psr._toas = psr._toas[mask]
@@ -88,9 +87,8 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
 
     psr.sort_data()
 
-
 def get_tspan(psrs):
-    """Returns maximum time span for all pulsars.
+    """ Returns maximum time span for all pulsars.
 
     :param psrs: List of pulsar objects
 
@@ -103,8 +101,9 @@ def get_tspan(psrs):
 
 
 class PostProcessing(object):
+
     def __init__(self, chain, pars, burn_percentage=0.25):
-        burn = int(burn_percentage * chain.shape[0])
+        burn = int(burn_percentage*chain.shape[0])
         self.chain = chain[burn:]
         self.pars = pars
 
@@ -112,28 +111,28 @@ class PostProcessing(object):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
-            nrows = int(np.ceil(ndim / ncols))
+            nrows = int(np.ceil(ndim/ncols))
         else:
-            ncols, nrows = 1, 1
+            ncols, nrows = 1,1
 
-        plt.figure(figsize=(15, 2 * nrows))
+        plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
-            plt.subplot(nrows, ncols, ii + 1)
+            plt.subplot(nrows, ncols, ii+1)
             plt.plot(self.chain[:, ii], **plot_kwargs)
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
 
-    def plot_hist(self, hist_kwargs={"bins": 50, "normed": True}):
+    def plot_hist(self, hist_kwargs={'bins':50, 'normed':True}):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
-            nrows = int(np.ceil(ndim / ncols))
+            nrows = int(np.ceil(ndim/ncols))
         else:
-            ncols, nrows = 1, 1
+            ncols, nrows = 1,1
 
-        plt.figure(figsize=(15, 2 * nrows))
+        plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
-            plt.subplot(nrows, ncols, ii + 1)
+            plt.subplot(nrows, ncols, ii+1)
             plt.hist(self.chain[:, ii], **hist_kwargs)
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
@@ -149,23 +148,19 @@ def ul(chain, q=95.0):
     :returns: (upper limit, uncertainty on upper limit)
     """
 
-    hist = np.histogram(10.0 ** chain, bins=100)
+    hist = np.histogram(10.0**chain, bins=100)
     hist_dist = scistats.rv_histogram(hist)
 
-    A_ul = 10 ** np.percentile(chain, q=q)
+    A_ul = 10**np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
-    Aul_error = (
-        np.sqrt(
-            (q / 100.0) * (1.0 - (q / 100.0)) / (chain.shape[0] / acor.acor(chain)[0])
-        )
-        / p_ul
-    )
+    Aul_error = np.sqrt( (q/100.) * (1.0 - (q/100.0)) /
+                        (chain.shape[0]/acor.acor(chain)[0]) ) / p_ul
 
     return A_ul, Aul_error
 
 
-def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
+def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
     """
     Computes the Savage Dickey Bayes Factor and uncertainty.
 
@@ -179,16 +174,16 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     dA = np.linspace(0.01, 0.1, 100)
     bf = []
     bf_err = []
-    mask = []  # selecting bins with more than 200 samples
+    mask = [] # selecting bins with more than 200 samples
 
-    for ii, delta in enumerate(dA):
+    for ii,delta in enumerate(dA):
         n = np.sum(samples <= (logAmin + delta))
         N = len(samples)
 
         post = n / N / delta
 
-        bf.append(prior / post)
-        bf_err.append(bf[ii] / np.sqrt(n))
+        bf.append(prior/post)
+        bf_err.append(bf[ii]/np.sqrt(n))
 
         if n > ntol:
             mask.append(ii)
@@ -196,10 +191,10 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     return np.mean(np.array(bf)[mask]), np.std(np.array(bf)[mask])
 
 
-def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
+def odds_ratio(chain, models=[0,1], uncertainty=True, thin=False):
 
     if thin:
-        indep_samples = np.rint(chain.shape[0] / acor.acor(chain)[0])
+        indep_samples = np.rint( chain.shape[0] / acor.acor(chain)[0] )
         samples = np.random.choice(chain.copy(), int(indep_samples))
     else:
         samples = chain.copy()
@@ -219,28 +214,26 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
 
     if uncertainty:
 
-        if bot == 0.0 or top == 0.0:
+        if bot == 0. or top == 0.:
             sigma = 0.0
         else:
             # Counting transitions from model 1 model 2
             ct_tb = 0
-            for ii in range(len(mask_top) - 1):
+            for ii in range(len(mask_top)-1):
                 if mask_top[ii]:
-                    if not mask_top[ii + 1]:
+                    if not mask_top[ii+1]:
                         ct_tb += 1
 
             # Counting transitions from model 2 to model 1
             ct_bt = 0
-            for ii in range(len(mask_bot) - 1):
+            for ii in range(len(mask_bot)-1):
                 if mask_bot[ii]:
-                    if not mask_bot[ii + 1]:
+                    if not mask_bot[ii+1]:
                         ct_bt += 1
 
             try:
-                sigma = bf * np.sqrt(
-                    (float(top) - float(ct_tb)) / (float(top) * float(ct_tb))
-                    + (float(bot) - float(ct_bt)) / (float(bot) * float(ct_bt))
-                )
+                sigma = bf * np.sqrt( (float(top) - float(ct_tb))/(float(top)*float(ct_tb)) +
+                                     (float(bot) - float(ct_bt))/(float(bot)*float(ct_bt)) )
             except ZeroDivisionError:
                 sigma = 0.0
 
@@ -249,7 +242,6 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
     elif not uncertainty:
 
         return bf
-
 
 def bic(chain, nobs, log_evidence=False):
     """
@@ -261,15 +253,14 @@ def bic(chain, nobs, log_evidence=False):
 
     :returns: (bic, evidence)
     """
-    nparams = chain.shape[1] - 4  # removing 4 aux columns
-    maxlnlike = chain[:, -4].max()
+    nparams = chain.shape[1] - 4 # removing 4 aux columns
+    maxlnlike = chain[:,-4].max()
 
-    bic = np.log(nobs) * nparams - 2.0 * maxlnlike
+    bic = np.log(nobs)*nparams - 2.0*maxlnlike
     if log_evidence:
-        return (bic, -0.5 * bic)
+        return (bic, -0.5*bic)
     else:
         return bic
-
 
 def mask_filter(psr, mask):
     """filter given pulsar data by user defined mask"""
@@ -291,20 +282,22 @@ def mask_filter(psr, mask):
     psr.sort_data()
 
 
+
 #########Empirical Distributions########
 
 # class used to define a 1D empirical distribution
 # based on posterior from another MCMC
 class EmpiricalDistribution1D(object):
+
     def __init__(self, param_name, samples, bins):
         """
-        :param samples: samples for hist
-        :param bins: edges to use for hist (left and right)
-        make sure bins cover whole prior!
-        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
         self.ndim = 1
         self.param_name = param_name
-        self._Nbins = len(bins) - 1
+        self._Nbins = len(bins)-1
         hist, x_bins = np.histogram(samples, bins=bins)
 
         self._edges = x_bins[:-1]
@@ -313,7 +306,7 @@ class EmpiricalDistribution1D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / float(counts) / self._wids
-        self._cdf = np.cumsum((self._pdf * self._wids).ravel())
+        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -322,16 +315,18 @@ class EmpiricalDistribution1D(object):
         draw_bin = np.searchsorted(self._cdf, draw)
 
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = self._edges[idx] + self._wids[idx] * np.random.rand()
+        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
-        ix = min(np.searchsorted(self._edges, params), self._Nbins - 1)
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
 
         return self._pdf[ix]
 
     def logprob(self, params):
-        ix = min(np.searchsorted(self._edges, params), self._Nbins - 1)
+        ix = min(np.searchsorted(self._edges, params),
+                 self._Nbins-1)
 
         return self._logpdf[ix]
 
@@ -341,13 +336,13 @@ class EmpiricalDistribution1D(object):
 class EmpiricalDistribution2D(object):
     def __init__(self, param_names, samples, bins):
         """
-        :param samples: samples for hist
-        :param bins: edges to use for hist (left and right)
-        make sure bins cover whole prior!
-        """
+            :param samples: samples for hist
+            :param bins: edges to use for hist (left and right)
+            make sure bins cover whole prior!
+            """
         self.ndim = 2
         self.param_names = param_names
-        self._Nbins = [len(b) - 1 for b in bins]
+        self._Nbins = [len(b)-1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
         self._edges = np.array([x_bins[:-1], y_bins[:-1]])
@@ -357,7 +352,7 @@ class EmpiricalDistribution2D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / counts / area
-        self._cdf = np.cumsum((self._pdf * area).ravel())
+        self._cdf = np.cumsum((self._pdf*area).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -366,43 +361,36 @@ class EmpiricalDistribution2D(object):
         draw_bin = np.searchsorted(self._cdf, draw)
 
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [
-            self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]] * np.random.rand()
-            for ii in range(2)
-        ]
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+                for ii in range(2)]
         return np.array(samp)
 
     def prob(self, params):
-        ix, iy = [
-            min(np.searchsorted(self._edges[ii], params[ii]), self._Nbins[ii] - 1)
-            for ii in range(2)
-        ]
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
 
         return self._pdf[ix, iy]
 
     def logprob(self, params):
-        ix, iy = [
-            min(np.searchsorted(self._edges[ii], params[ii]), self._Nbins[ii] - 1)
-            for ii in range(2)
-        ]
+        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
+                      self._Nbins[ii]-1) for ii in range(2)]
 
         return self._logpdf[ix, iy]
 
 
-def make_empirical_distributions(
-    paramlist, params, chain, burn=0, nbins=41, filename="distr.pkl"
-):
+def make_empirical_distributions(paramlist, params, chain,
+                                 burn=0, nbins=41, filename='distr.pkl'):
     """
-    Utility function to construct empirical distributions.
-    :param paramlist: a list of parameter names,
-                      either single parameters or pairs of parameters
-    :param params: list of all parameter names for the MCMC chain
-    :param chain: MCMC chain from a previous run
-    :param burn: desired number of initial samples to discard
-    :param nbins: number of bins to use for the empirical distributions
+        Utility function to construct empirical distributions.
+        :param paramlist: a list of parameter names,
+                          either single parameters or pairs of parameters
+        :param params: list of all parameter names for the MCMC chain
+        :param chain: MCMC chain from a previous run
+        :param burn: desired number of initial samples to discard
+        :param nbins: number of bins to use for the empirical distributions
 
-    :return distr: list of empirical distributions
-    """
+        :return distr: list of empirical distributions
+        """
 
     distr = []
 
@@ -430,22 +418,17 @@ def make_empirical_distributions(
             idx = [params.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [
-                np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins)
-                for i in idx
-            ]
+            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
             distr.append(new_distr)
 
         else:
-            print(
-                "Warning: only 1D and 2D empirical distributions are currently allowed."
-            )
+            print('Warning: only 1D and 2D empirical distributions are currently allowed.')
 
     # save the list of empirical distributions as a pickle file
-    with open(filename, "wb") as f:
+    with open(filename, 'wb') as f:
         pickle.dump(distr, f, protocol=2)
 
-    print("The empirical distributions have been pickled to {0}.".format(filename))
+    print('The empirical distributions have been pickled to {0}.'.format(filename))
