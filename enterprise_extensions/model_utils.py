@@ -90,7 +90,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
 
 
 def get_tspan(psrs):
-    """ Returns maximum time span for all pulsars.
+    """Returns maximum time span for all pulsars.
 
     :param psrs: List of pulsar objects
 
@@ -298,10 +298,10 @@ def mask_filter(psr, mask):
 class EmpiricalDistribution1D(object):
     def __init__(self, param_name, samples, bins):
         """
-            :param samples: samples for hist
-            :param bins: edges to use for hist (left and right)
-            make sure bins cover whole prior!
-            """
+        :param samples: samples for hist
+        :param bins: edges to use for hist (left and right)
+        make sure bins cover whole prior!
+        """
         self.ndim = 1
         self.param_name = param_name
         self._Nbins = len(bins) - 1
@@ -341,10 +341,10 @@ class EmpiricalDistribution1D(object):
 class EmpiricalDistribution2D(object):
     def __init__(self, param_names, samples, bins):
         """
-            :param samples: samples for hist
-            :param bins: edges to use for hist (left and right)
-            make sure bins cover whole prior!
-            """
+        :param samples: samples for hist
+        :param bins: edges to use for hist (left and right)
+        make sure bins cover whole prior!
+        """
         self.ndim = 2
         self.param_names = param_names
         self._Nbins = [len(b) - 1 for b in bins]
@@ -393,16 +393,16 @@ def make_empirical_distributions(
     paramlist, params, chain, burn=0, nbins=41, filename="distr.pkl"
 ):
     """
-        Utility function to construct empirical distributions.
-        :param paramlist: a list of parameter names,
-                          either single parameters or pairs of parameters
-        :param params: list of all parameter names for the MCMC chain
-        :param chain: MCMC chain from a previous run
-        :param burn: desired number of initial samples to discard
-        :param nbins: number of bins to use for the empirical distributions
+    Utility function to construct empirical distributions.
+    :param paramlist: a list of parameter names,
+                      either single parameters or pairs of parameters
+    :param params: list of all parameter names for the MCMC chain
+    :param chain: MCMC chain from a previous run
+    :param burn: desired number of initial samples to discard
+    :param nbins: number of bins to use for the empirical distributions
 
-        :return distr: list of empirical distributions
-        """
+    :return distr: list of empirical distributions
+    """
 
     distr = []
 

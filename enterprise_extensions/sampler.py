@@ -759,7 +759,7 @@ def get_timing_groups(pta):
     These groups should be appended to the usual get_parameter_groups()
     output.
     """
-    timing_pars = ['pos','spin','kep','gr','pm','DMX']
+    timing_pars = ["pos", "spin", "kep", "gr", "pm", "DMX"]
 
     groups = []
     for pars in timing_pars:

@@ -80,11 +80,11 @@ def white_noise_block(
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
-                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng)
+                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
             else:
-                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng, name=name)
+                ec = gp_signals.EcorrBasisModel(
+                    log10_ecorr=ecorr, selection=backend_ng, name=name
+                )
 
         else:
             ec = white_signals.EcorrKernelNoise(
@@ -538,10 +538,18 @@ def chromatic_noise_block(
     return cgp
 
 
-def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30, gamma_val=None,
-                           orf=None, name='gw', coefficients=False,
-                           pshift=False, pseed=None):
+def common_red_noise_block(
+    psd="powerlaw",
+    prior="log-uniform",
+    Tspan=None,
+    components=30,
+    gamma_val=None,
+    orf=None,
+    name="gw",
+    coefficients=False,
+    pshift=False,
+    pseed=None,
+):
     """
     Returns common red noise model:
 
@@ -638,21 +646,35 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
-        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
-                                        components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift, pseed=pseed)
+        crn = gp_signals.FourierBasisGP(
+            cpl,
+            coefficients=coefficients,
+            components=components,
+            Tspan=Tspan,
+            name=name,
+            pshift=pshift,
+            pseed=pseed,
+        )
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                              components=components,
-                                              Tspan=Tspan,
-                                              name=name, pshift=pshift,
-                                              pseed=pseed)
+        crn = gp_signals.FourierBasisCommonGP(
+            cpl,
+            orfs[orf],
+            components=components,
+            Tspan=Tspan,
+            name=name,
+            pshift=pshift,
+            pseed=pseed,
+        )
     elif isinstance(orf, types.FunctionType):
-        crn = gp_signals.FourierBasisCommonGP(cpl, orf,
-                                              components=components,
-                                              Tspan=Tspan,
-                                              name=name, pshift=pshift,
-                                              pseed=pseed)
+        crn = gp_signals.FourierBasisCommonGP(
+            cpl,
+            orf,
+            components=components,
+            Tspan=Tspan,
+            name=name,
+            pshift=pshift,
+            pseed=pseed,
+        )
     else:
         raise ValueError("ORF {} not recognized".format(orf))
 

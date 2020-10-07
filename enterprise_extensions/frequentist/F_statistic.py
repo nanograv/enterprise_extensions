@@ -19,60 +19,62 @@ class FpStat(object):
     :param psrTerm: Include the pulsar term in the CW signal model. Default=True
     :param bayesephem: Include BayesEphem model. Default=True
     """
-    
-    def __init__(self, psrs, params=None,
-                 psrTerm=True, bayesephem=True, pta=None):
-        
+
+    def __init__(self, psrs, params=None, psrTerm=True, bayesephem=True, pta=None):
+
         if pta is None:
-        
+
             # initialize standard model with fixed white noise
             # and powerlaw red noise
             # uses the implementation of ECORR in gp_signals
-            print('Initializing the model...')
-            
+            print("Initializing the model...")
+
             tmin = np.min([p.toas.min() for p in psrs])
             tmax = np.max([p.toas.max() for p in psrs])
             Tspan = tmax - tmin
-            
-            s = deterministic.cw_block_circ(amp_prior='log-uniform',
-                                            psrTerm=psrTerm, tref=tmin, name='cw')
+
+            s = deterministic.cw_block_circ(
+                amp_prior="log-uniform", psrTerm=psrTerm, tref=tmin, name="cw"
+            )
             s += gp_signals.TimingModel()
-            s += blocks.red_noise_block(prior='log-uniform', psd='powerlaw',
-                                        Tspan=Tspan, components=30)
-                                            
+            s += blocks.red_noise_block(
+                prior="log-uniform", psd="powerlaw", Tspan=Tspan, components=30
+            )
+
             if bayesephem:
                 s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
             # adding white-noise, and acting on psr objects
             models = []
             for p in psrs:
-                if 'NANOGrav' in p.flags['pta']:
-                    s2 = s + blocks.white_noise_block(vary=False, inc_ecorr=True,
-                                                      gp_ecorr=True)
+                if "NANOGrav" in p.flags["pta"]:
+                    s2 = s + blocks.white_noise_block(
+                        vary=False, inc_ecorr=True, gp_ecorr=True
+                    )
                     models.append(s2(p))
                 else:
                     s3 = s + blocks.white_noise_block(vary=False, inc_ecorr=False)
                     models.append(s3(p))
-                    
+
             pta = signal_base.PTA(models)
-            
+
             # set white noise parameters
             if params is None:
-                print('No noise dictionary provided!')
+                print("No noise dictionary provided!")
             else:
                 pta.set_default_params(params)
 
             self.pta = pta
 
         else:
-        
+
             # user can specify their own pta object
             # if ECORR is included, use the implementation in gp_signals
             self.pta = pta
 
         self.psrs = psrs
         self.params = params
-                                   
+
         self.Nmats = self.get_Nmats()
 
     def get_Nmats(self):
@@ -104,7 +106,7 @@ class FpStat(object):
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
-        
+
         N = np.zeros(2)
         M = np.zeros((2, 2))
         fstat = 0
@@ -159,19 +161,19 @@ class FpStat(object):
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
     """
-        Compute inner product using rank-reduced
-        approximations for red noise/jitter
-        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
-        
-        :param x: vector timeseries 1
-        :param y: vector timeseries 2
-        :param Nmat: white noise matrix
-        :param Tmat: Modified design matrix including red noise/jitter
-        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
-        :return: inner product (x|y)
-        """
+    Compute inner product using rank-reduced
+    approximations for red noise/jitter
+    Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
+
+    :param x: vector timeseries 1
+    :param y: vector timeseries 2
+    :param Nmat: white noise matrix
+    :param Tmat: Modified design matrix including red noise/jitter
+    :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
+    :param TNx: T^T N^{-1} x precomputed
+    :param TNy: T^T N^{-1} y precomputed
+    :return: inner product (x|y)
+    """
 
     # white noise term
     Ni = Nmat
@@ -195,14 +197,14 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
-    
-    TtN = np.multiply((1/Nvec)[:,None], T).T
-    
-    #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = np.diag(1/Nvec)
-    
-    expval2 = sl.cho_solve(cf,TtN)
-    #TtNt = np.transpose(TtN)
-    
-    #An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T,expval2)
+
+    TtN = np.multiply((1 / Nvec)[:, None], T).T
+
+    # Put pulsar's autoerrors in a diagonal matrix
+    Ndiag = np.diag(1 / Nvec)
+
+    expval2 = sl.cho_solve(cf, TtN)
+    # TtNt = np.transpose(TtN)
+
+    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
+    return Ndiag - np.dot(TtN.T, expval2)
