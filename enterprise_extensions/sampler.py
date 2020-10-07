@@ -704,7 +704,7 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def timing_model_jump(self, x, iter, beta):
+    def dram_from_timing_model(self, x, iter, beta):
         '''
         Pull from standard normal distributions (based on the fit timing
         parameters) as jump proposals. Pull from various timing parameters,
@@ -944,6 +944,6 @@ def setup_sampler(pta, outdir="chains", resume=False, empirical_distr=None,
     #Non Linear Timing Draws
     if 'non_linear_timing_model' in jp.snames:
         print("Adding timing model jump proposal...\n")
-        sampler.addProposalToCycle(jp.timing_model_jump, 40)
+        sampler.addProposalToCycle(jp.dram_from_timing_model, 40)
 
     return sampler
