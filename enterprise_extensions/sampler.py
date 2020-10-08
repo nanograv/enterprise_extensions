@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 import numpy as np
-import os
+import os, json
 from enterprise import constants as const
 import pickle
 import healpy as hp
@@ -715,7 +715,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = "non_linear_timing_model"
+        signal_name = "timing_model"
 
         # draw parameter from signal model
         idxs = np.random.choice(self.tm_groups)
@@ -733,6 +733,29 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_timing_model_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = "timing_model"
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
+
+        return q, float(lqxy)
 
 def get_global_parameters(pta):
     """Utility function for finding global parameters."""
@@ -946,8 +969,11 @@ def setup_sampler(
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
     # Non Linear Timing Draws
-    if "non_linear_timing_model" in jp.snames:
+    if "timing_model" in jp.snames:
         print("Adding timing model jump proposal...\n")
         sampler.addProposalToCycle(jp.draw_from_timing_model, 40)
+    if "timing_model" in jp.snames:
+        print("Adding timing model prior draw...\n")
+        sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
 
     return sampler
