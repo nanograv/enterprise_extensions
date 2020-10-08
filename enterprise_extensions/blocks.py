@@ -20,8 +20,15 @@ __all__ = [
     "scattering_noise_block",
     "chromatic_noise_block",
     "common_red_noise_block",
+    "channelized_backends",
 ]
 
+def channelized_backends(backend_flags):
+    """Selection function to split by channelized backend flags only. For ECORR"""
+    flagvals = np.unique(backend_flags)
+    ch_b = ['ASP', 'GASP', 'GUPPI', 'PUPPI', 'CHIME']
+    flagvals = filter(lambda x: any(map(lambda y: y in x, ch_b)), flagvals)
+    return {flagval: backend_flags == flagval for flagval in flagvals}
 
 def white_noise_block(
     vary=False,
@@ -55,6 +62,7 @@ def white_noise_block(
         backend = selections.Selection(selections.by_backend)
         # define selection by nanograv backends
         backend_ng = selections.Selection(selections.nanograv_backends)
+        backend_ch = selections.Selection(channelized_backends)
     else:
         # define no selection
         backend = selections.Selection(selections.no_selection)
@@ -80,16 +88,14 @@ def white_noise_block(
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
-                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
-            else:
-                ec = gp_signals.EcorrBasisModel(
-                    log10_ecorr=ecorr, selection=backend_ng, name=name
-                )
+                name = ''
+
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                            selection=backend_ch)
 
         else:
-            ec = white_signals.EcorrKernelNoise(
-                log10_ecorr=ecorr, selection=backend_ng, name=name
-            )
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                selection=backend_ch)
 
     # combine signals
     if inc_ecorr:
