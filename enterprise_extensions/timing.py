@@ -266,7 +266,6 @@ def timing_block(
             if par in tm_param_dict.keys():
                 if "pmin" in physical_tm_priors[par].keys():
                     if prior_lower_bound < physical_tm_priors[par]["pmin"]:
-                        print(par, "here")
                         prior_lower_bound = physical_tm_priors[par]["pmin"]
                 if "pmax" in physical_tm_priors[par].keys():
                     if prior_upper_bound > physical_tm_priors[par]["pmax"]:
@@ -275,7 +274,6 @@ def timing_block(
                 val, err = psr.tm_params_orig[par]
                 if "pmin" in physical_tm_priors[par].keys():
                     if val + err * prior_lower_bound < physical_tm_priors[par]["pmin"]:
-                        print(par, "there")
                         prior_lower_bound = physical_tm_priors[par]["pmin"]
                 if "pmax" in physical_tm_priors[par].keys():
                     if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
