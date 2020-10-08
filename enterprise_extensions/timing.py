@@ -55,7 +55,7 @@ def get_default_physical_tm_priors():
     physical_tm_priors = {}
     physical_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
     physical_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 1.0}
-    physical_tm_priors["SINI"] = {"pmin": -1.0, "pmax": 1.0}
+    physical_tm_priors["SINI"] = {"pmin": 0.0, "pmax": 1.0}
     physical_tm_priors["PX"] = {"pmin": 0.0}
     return physical_tm_priors
 
