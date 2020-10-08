@@ -971,7 +971,7 @@ def setup_sampler(
     # Non Linear Timing Draws
     if "timing_model" in jp.snames:
         print("Adding timing model jump proposal...\n")
-        sampler.addProposalToCycle(jp.draw_from_timing_model, 40)
+        sampler.addProposalToCycle(jp.draw_from_timing_model, 60)
     if "timing_model" in jp.snames:
         print("Adding timing model prior draw...\n")
         sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)

@@ -229,6 +229,7 @@ def timing_block(
         if key not in tm_param_list:
             tm_param_list.append(key)
 
+    #Check to see if nan or inf in pulsar parameter errors.
     if (np.any(np.isnan(psr.t2pulsar.errs())) or np.any([err==0.0 for err in psr.t2pulsar.errs()])):
         psr.t2pulsar.fit()
 
