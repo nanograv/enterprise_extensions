@@ -59,6 +59,7 @@ def get_default_physical_tm_priors():
     physical_tm_priors["PX"] = {"pmin": 0.0}
     return physical_tm_priors
 
+
 def get_pardict(psrs, datareleases):
     """assigns a parameter dictionary for each psr per dataset the parfile values/errors
     :psrs:
@@ -179,8 +180,8 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
         if tm_param in tm_param_dict.keys():
             # User defined priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
-        elif tm_param in ['PX','SINI']:
-            # User defined priors are assumed to not be scaled
+        elif tm_param in ["PX", "SINI"]:
+            # Physical priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
         else:
             tm_params_rescaled[tm_param] = (
@@ -200,6 +201,7 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
 
 
 # Model component building blocks #
+
 
 def timing_block(
     psr,
@@ -229,13 +231,17 @@ def timing_block(
         if key not in tm_param_list:
             tm_param_list.append(key)
 
-    #Check to see if nan or inf in pulsar parameter errors.
-    if (np.any(np.isnan(psr.t2pulsar.errs())) or np.any([err==0.0 for err in psr.t2pulsar.errs()])):
+    # Check to see if nan or inf in pulsar parameter errors.
+    if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
+        [err == 0.0 for err in psr.t2pulsar.errs()]
+    ):
         psr.t2pulsar.fit()
 
-    psr.tm_params_orig = OrderedDict(zip(psr.t2pulsar.pars(),
-                                     tuple(zip(psr.t2pulsar.vals(),
-                                               psr.t2pulsar.errs()))))
+    physical_tm_priors = get_default_physical_tm_priors()
+
+    psr.tm_params_orig = OrderedDict(
+        zip(psr.t2pulsar.pars(), tuple(zip(psr.t2pulsar.vals(), psr.t2pulsar.errs())))
+    )
 
     tm_delay_kwargs = {}
     default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound]
@@ -256,31 +262,27 @@ def timing_block(
             prior_lower_bound = default_prior_params[2]
             prior_upper_bound = default_prior_params[3]
 
-        if par in ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA"]:
-            key_string = "pos_param_" + par
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
-        elif par in ["PX"]:
-            key_string = "pos_param_" + par
-            if 'PX' in tm_param_dict.keys():
-                pass
+        if par in physical_tm_priors.keys():
+            if par in tm_param_dict.keys():
+                if "pmin" in physical_tm_priors[par].keys():
+                    if prior_lower_bound < physical_tm_priors[par]["pmin"]:
+                        print(par, "here")
+                        prior_lower_bound = physical_tm_priors[par]["pmin"]
+                if "pmax" in physical_tm_priors[par].keys():
+                    if prior_upper_bound > physical_tm_priors[par]["pmax"]:
+                        prior_upper_bound = physical_tm_priors[par]["pmax"]
             else:
-                val,err=psr.tm_params_orig['PX']
-                if val + err * prior_lower_bound < 0:
-                    prior_lower_bound = 0
+                val, err = psr.tm_params_orig[par]
+                if "pmin" in physical_tm_priors[par].keys():
+                    if val + err * prior_lower_bound < physical_tm_priors[par]["pmin"]:
+                        print(par, "there")
+                        prior_lower_bound = physical_tm_priors[par]["pmin"]
+                if "pmax" in physical_tm_priors[par].keys():
+                    if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
+                        prior_upper_bound = physical_tm_priors[par]["pmax"]
 
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
+        if par in ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]:
+            key_string = "pos_param_" + par
         elif par in [
             "PMDEC",
             "PMRA",
@@ -291,22 +293,8 @@ def timing_block(
             "PMLAMBDA",
         ]:
             key_string = "pm_param_" + par
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
         elif par in ["F", "F0", "F1", "F2", "P", "P1"]:
             key_string = "spin_param_" + par
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
         elif par in [
             "PB",
             "T0",
@@ -319,6 +307,7 @@ def timing_block(
             "EPS1DOT",
             "EPS2DOT",
             "FB",
+            "SINI",
             "MTOT",
             "M2",
             "XDOT",
@@ -329,31 +318,6 @@ def timing_block(
             "TASC",
         ]:
             key_string = "kep_param_" + par
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
-        elif par in [
-            "SINI",
-        ]:
-            key_string = "kep_param_" + par
-            if 'SINI' in tm_param_dict.keys():
-                pass
-            else:
-                prior_lower_bound = 0.0
-                prior_upper_bound = 1.0
-                prior_type = "uniform"
-
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
         elif par in [
             "H3",
             "H4",
@@ -368,44 +332,23 @@ def timing_block(
             "DTHETA",
         ]:
             key_string = "gr_param_" + par
-            tm_delay_kwargs[key_string] = get_prior(
-                prior_type,
-                prior_sigma,
-                prior_lower_bound,
-                prior_upper_bound,
-                mu=prior_mu,
-            )
         else:
-            if "DMX" in par:#["".join(list(x)[0:3]) for x in par.split("_")][0]:
+            if "DMX" in par:
                 key_string = "dmx_param_" + par
-                tm_delay_kwargs[key_string] = get_prior(
-                    prior_type,
-                    prior_sigma,
-                    prior_lower_bound,
-                    prior_upper_bound,
-                    mu=prior_mu,
-                )
-            elif "FD" in par:#["".join(list(x)[0:2]) for x in par.split()][0]:
+            elif "FD" in par:
                 key_string = "fd_param_" + par
-                tm_delay_kwargs[key_string] = get_prior(
-                    prior_type,
-                    prior_sigma,
-                    prior_lower_bound,
-                    prior_upper_bound,
-                    mu=prior_mu,
-                )
-            elif "JUMP" in par:#["".join(list(x)[0:4]) for x in par.split()][0]:
+            elif "JUMP" in par:
                 key_string = "jump_param_" + par
-                tm_delay_kwargs[key_string] = get_prior(
-                    prior_type,
-                    prior_sigma,
-                    prior_lower_bound,
-                    prior_upper_bound,
-                    mu=prior_mu,
-                )
             else:
                 print(par, " is not currently a modeled parameter.")
 
+        tm_delay_kwargs[key_string] = get_prior(
+            prior_type,
+            prior_sigma,
+            prior_lower_bound,
+            prior_upper_bound,
+            mu=prior_mu,
+        )
     # timing model
 
     tm_func = tm_delay(tm_param_dict=tm_param_dict, **tm_delay_kwargs)

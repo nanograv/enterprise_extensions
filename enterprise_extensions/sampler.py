@@ -757,6 +757,7 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+
 def get_global_parameters(pta):
     """Utility function for finding global parameters."""
     pars = []

@@ -39,7 +39,7 @@ def model_singlepsr_noise(
     exclude=True,
     tm_param_dict={},
     tm_prior="uniform",
-    nltm_plus_ltm=False,
+    fit_remaining_pars=True,
     red_var=True,
     psd="powerlaw",
     red_select=None,
@@ -106,7 +106,7 @@ def model_singlepsr_noise(
     :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
-    :param nltm_plus_ltm: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
+    :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
@@ -176,42 +176,26 @@ def model_singlepsr_noise(
             use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
         )
     else:
-        # create new attribute for enterprise pulsar object
-        psr.tm_params_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
-        for key in psr.tm_params_orig:
-            psr.tm_params_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
-
-        if tm_linear and not nltm_plus_ltm:
+        if tm_linear:
+            # create new attribute for enterprise pulsar object
+            # UNSURE IF NECESSARY
+            psr.tm_params_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
+            for key in psr.tm_params_orig:
+                psr.tm_params_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
             s = gp_signals.TimingModel(
                 use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
-        elif not tm_linear and not nltm_plus_ltm:
-            s = timing_block(
-                tm_param_list=tm_param_list,
-                prior_type=tm_prior,
-                prior_sigma=2.0,
-                prior_lower_bound=-5.0,
-                prior_upper_bound=5.0,
-                tm_param_dict=tm_param_dict,
-            )
-        elif not tm_linear and nltm_plus_ltm:
-            # Don't need this catch!
-            if len(ltm_exclude_list) == 0:
-                ltm_exclude_list = tm_param_list
-            filter_Mmat(psr, ltm_exclude_list=ltm_exclude_list, exclude=exclude)
-            s = gp_signals.TimingModel(
-                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
-            s += timing_block(
-                tm_param_list=tm_param_list,
-                prior_type=tm_prior,
-                prior_sigma=2.0,
-                prior_lower_bound=-5.0,
-                prior_upper_bound=5.0,
-                tm_param_dict=tm_param_dict,
             )
         else:
-            pass
+            s = timing_block(
+                psr,
+                tm_param_list=tm_param_list,
+                prior_type=tm_prior,
+                prior_sigma=2.0,
+                prior_lower_bound=-5.0,
+                prior_upper_bound=5.0,
+                tm_param_dict=tm_param_dict,
+                fit_remaining_pars=fit_remaining_pars,
+            )
 
     # red noise
     if red_var:
@@ -588,7 +572,7 @@ def model_general(
     exclude=True,
     tm_param_dict={},
     tm_prior="uniform",
-    nltm_plus_ltm=False,
+    fit_remaining_pars=True,
     common_var=True,
     common_psd="powerlaw",
     red_psd="powerlaw",
@@ -656,7 +640,7 @@ def model_general(
     :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'Uniform','bounded-normal'}
-    :param nltm_plus_ltm: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
+    :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
@@ -693,43 +677,40 @@ def model_general(
             use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
         )
     else:
-        # create new attribute for enterprise pulsar object
-        for p in psrs:
-            p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
-            for key in p.tm_params_orig:
-                p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
-        if tm_linear and not nltm_plus_ltm:
+        if tm_linear:
+            # create new attribute for enterprise pulsar object
+            # UNSURE IF NECESSARY
+            for p in psrs:
+                p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
+                for key in p.tm_params_orig:
+                    p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
             s = gp_signals.TimingModel(
                 use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
-        elif not tm_linear and not nltm_plus_ltm:
-            s = timing_block(
-                tm_param_list=tm_param_list,
-                prior_type=tm_prior,
-                prior_sigma=2.0,
-                prior_lower_bound=-5.0,
-                prior_upper_bound=5.0,
-                tm_param_dict=tm_param_dict,
-            )
-        elif not tm_linear and nltm_plus_ltm:
-            # Don't need this catch!
-            if len(ltm_exclude_list) == 0:
-                ltm_exclude_list = tm_param_list
-            for psr in psrs:
-                filter_Mmat(psr, ltm_exclude_list=ltm_exclude_list, exclude=exclude)
-            s = gp_signals.TimingModel(
-                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
-            s += timing_block(
-                tm_param_list=tm_param_list,
-                prior_type=tm_prior,
-                prior_sigma=2.0,
-                prior_lower_bound=-5.0,
-                prior_upper_bound=5.0,
-                tm_param_dict=tm_param_dict,
             )
         else:
-            pass
+            for i, p in enumerate(psrs):
+                if i == 0:
+                    s = timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
+                else:
+                    s += timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
 
     # find the maximum time span to set GW frequency sampling
     Tspan = model_utils.get_tspan(psrs)
