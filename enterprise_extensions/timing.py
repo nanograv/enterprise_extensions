@@ -48,10 +48,12 @@ def get_default_physical_tm_priors():
     Fills dictionary with physical bounds on timing parameters
     """
     physical_tm_priors = {}
-    physical_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
-    physical_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 1.0}
+    physical_tm_priors["E"] = {"pmin": 0.0, "pmax": 0.9999}
+    physical_tm_priors["ECC"] = {"pmin": 0.0, "pmax": 0.9999}
     physical_tm_priors["SINI"] = {"pmin": 0.0, "pmax": 1.0}
     physical_tm_priors["PX"] = {"pmin": 0.0}
+    physical_tm_priors["M2"] = {"pmin": 1e-10}
+
     return physical_tm_priors
 
 
@@ -133,12 +135,8 @@ def filter_Mmat(psr, ltm_exclude_list=[], exclude=True):
         idx_lin_pars = [
             psr.fitpars.index(p) for p in psr.fitpars if p in ltm_exclude_list
         ]
-    # print(len(psr.fitpars))
     psr.fitpars = list(np.array(psr.fitpars)[idx_lin_pars])
-    # print(len(psr.fitpars))
-    # print(psr.Mmat.shape)
     psr._designmatrix = psr._designmatrix[:, idx_lin_pars]
-    # print(psr.Mmat.shape)
     return psr
 
 
@@ -166,16 +164,13 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
     tm_params_rescaled = {}
     error_pos = {}
     for tm_scaled_key, tm_scaled_val in kwargs.items():
-        if "DMX" in tm_scaled_key.split("_"):
+        if "DMX" in tm_scaled_key:
             tm_param = "_".join(tm_scaled_key.split("_")[-2:])
         else:
             tm_param = tm_scaled_key.split("_")[-1]
         orig_params[tm_param] = tm_params_orig[tm_param][0]
 
-        if tm_param in tm_param_dict.keys():
-            # User defined priors are assumed to not be scaled
-            tm_params_rescaled[tm_param] = tm_scaled_val
-        elif tm_param in ["PX", "SINI"]:
+        if "physical" in tm_params_orig[tm_param]:
             # User defined priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
         else:
@@ -234,8 +229,12 @@ def timing_block(
 
     physical_tm_priors = get_default_physical_tm_priors()
 
+    ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
     psr.tm_params_orig = OrderedDict(
-        zip(psr.t2pulsar.pars(), tuple(zip(psr.t2pulsar.vals(), psr.t2pulsar.errs())))
+        zip(
+            psr.t2pulsar.pars(),
+            map(list, zip(psr.t2pulsar.vals(), psr.t2pulsar.errs(), ptypes)),
+        )
     )
 
     tm_delay_kwargs = {}
@@ -243,14 +242,26 @@ def timing_block(
     for par in tm_param_list:
         if par in tm_param_dict.keys():
             # Overwrite default priors if new ones defined for the parameter in tm_param_dict
+            psr.tm_params_orig[par][-1] = "physical"
+
             if "prior_mu" in tm_param_dict[par].keys():
                 prior_mu = tm_param_dict[par]["prior_mu"]
+            else:
+                prior_mu = default_prior_params[0]
             if "prior_sigma" in tm_param_dict[par].keys():
                 prior_sigma = tm_param_dict[par]["prior_sigma"]
+            else:
+                prior_sigma = default_prior_params[1]
             if "prior_lower_bound" in tm_param_dict[par].keys():
                 prior_lower_bound = tm_param_dict[par]["prior_lower_bound"]
+            else:
+                val, err, _ = psr.tm_params_orig[par]
+                prior_lower_bound = np.float(val + err * prior_lower_bound)
             if "prior_upper_bound" in tm_param_dict[par].keys():
                 prior_upper_bound = tm_param_dict[par]["prior_upper_bound"]
+            else:
+                val, err, _ = psr.tm_params_orig[par]
+                prior_upper_bound = np.float(val + err * prior_upper_bound)
         else:
             prior_mu = default_prior_params[0]
             prior_sigma = default_prior_params[1]
@@ -266,12 +277,15 @@ def timing_block(
                     if prior_upper_bound > physical_tm_priors[par]["pmax"]:
                         prior_upper_bound = physical_tm_priors[par]["pmax"]
             else:
-                val, err = psr.tm_params_orig[par]
+                val, err, _ = psr.tm_params_orig[par]
                 if "pmin" in physical_tm_priors[par].keys():
                     if val + err * prior_lower_bound < physical_tm_priors[par]["pmin"]:
+                        psr.tm_params_orig[par][-1] = "physical"
                         prior_lower_bound = physical_tm_priors[par]["pmin"]
+                        tm_param_dict[par]["prior_lower"]
                 if "pmax" in physical_tm_priors[par].keys():
                     if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
+                        psr.tm_params_orig[par][-1] = "physical"
                         prior_upper_bound = physical_tm_priors[par]["pmax"]
 
         tm_delay_kwargs[par] = get_prior(
