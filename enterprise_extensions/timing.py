@@ -45,12 +45,7 @@ def BoundedNormal(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
 
 def get_default_physical_tm_priors():
     """
-    "RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"
-    "PMDEC", "PMRA", "PMELONG", "PMELAT", "PMRV", "PMBETA", "PMLAMBDA"
-    "F", "F0", "F1", "F2", "P", "P1","PB","T0","A1","OM","EPS1","EPS2",
-    "EPS1DOT","EPS2DOT","FB","MTOT","M2","XDOT","X2DOT","EDOT","H3",
-    "H4","OMDOT","OM2DOT","XOMDOT","PBDOT","XPBDOT","GAMMA","PPNGAMMA",
-    "DR","DTHETA"
+    Fills dictionary with physical bounds on timing parameters
     """
     physical_tm_priors = {}
     physical_tm_priors["E"] = {"pmin": 0.0, "pmax": 1.0}
@@ -181,7 +176,7 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
             # User defined priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
         elif tm_param in ["PX", "SINI"]:
-            # Physical priors are assumed to not be scaled
+            # User defined priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
         else:
             tm_params_rescaled[tm_param] = (
@@ -279,68 +274,7 @@ def timing_block(
                     if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
                         prior_upper_bound = physical_tm_priors[par]["pmax"]
 
-        if par in ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]:
-            key_string = "pos_param_" + par
-        elif par in [
-            "PMDEC",
-            "PMRA",
-            "PMELONG",
-            "PMELAT",
-            "PMRV",
-            "PMBETA",
-            "PMLAMBDA",
-        ]:
-            key_string = "pm_param_" + par
-        elif par in ["F", "F0", "F1", "F2", "P", "P1"]:
-            key_string = "spin_param_" + par
-        elif par in [
-            "PB",
-            "T0",
-            "A1",
-            "OM",
-            "E",
-            "ECC",
-            "EPS1",
-            "EPS2",
-            "EPS1DOT",
-            "EPS2DOT",
-            "FB",
-            "SINI",
-            "MTOT",
-            "M2",
-            "XDOT",
-            "X2DOT",
-            "EDOT",
-            "KOM",
-            "KIN",
-            "TASC",
-        ]:
-            key_string = "kep_param_" + par
-        elif par in [
-            "H3",
-            "H4",
-            "OMDOT",
-            "OM2DOT",
-            "XOMDOT",
-            "PBDOT",
-            "XPBDOT",
-            "GAMMA",
-            "PPNGAMMA",
-            "DR",
-            "DTHETA",
-        ]:
-            key_string = "gr_param_" + par
-        else:
-            if "DMX" in par:
-                key_string = "dmx_param_" + par
-            elif "FD" in par:
-                key_string = "fd_param_" + par
-            elif "JUMP" in par:
-                key_string = "jump_param_" + par
-            else:
-                print(par, " is not currently a modeled parameter.")
-
-        tm_delay_kwargs[key_string] = get_prior(
+        tm_delay_kwargs[par] = get_prior(
             prior_type,
             prior_sigma,
             prior_lower_bound,

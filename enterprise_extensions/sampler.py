@@ -103,6 +103,12 @@ class JumpProposal(object):
             tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
             tm_groups.extend(tm_idx)
             self.tm_groups = np.array(tm_groups, dtype=object)
+            special_pars = ["PX", "SINI", "ECC"]
+            self.special_idxs = [
+                ii
+                for par, ii in self.pimap.items()
+                if np.any([sp in par for sp in special_pars])
+            ]
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -719,12 +725,23 @@ class JumpProposal(object):
 
         # draw parameter from signal model
         idxs = np.random.choice(self.tm_groups)
+
         try:
             L = len(idxs)
+            pidxs = [idx for idx in idxs if idx in self.special_idxs]
         except TypeError:
             L = 1
+            pidxs = []
+            if idxs in self.special_idxs:
+                pidxs = [idxs]
 
         q[idxs] = np.random.randn(L)
+
+        if len(pidxs) == 0:
+            pass
+        else:
+            for pidx in pidxs:
+                q[pidx] = self.params[pidx].sample()
 
         # forward-backward jump probability
         lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
@@ -820,15 +837,76 @@ def get_timing_groups(pta):
     These groups should be appended to the usual get_parameter_groups()
     output.
     """
-    timing_pars = ["pos", "spin", "kep", "gr", "pm", "DMX", "JUMP", "FD"]
+    pos_pars = ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]
+    spin_pars = ["F", "F0", "F1", "F2", "P", "P1"]
+    kep_pars = [
+        "PB",
+        "T0",
+        "A1",
+        "OM",
+        "E",
+        "ECC",
+        "EPS1",
+        "EPS2",
+        "EPS1DOT",
+        "EPS2DOT",
+        "FB",
+        "SINI",
+        "MTOT",
+        "M2",
+        "XDOT",
+        "X2DOT",
+        "EDOT",
+        "KOM",
+        "KIN",
+        "TASC",
+    ]
+    gr_pars = [
+        "H3",
+        "H4",
+        "OMDOT",
+        "OM2DOT",
+        "XOMDOT",
+        "PBDOT",
+        "XPBDOT",
+        "GAMMA",
+        "PPNGAMMA",
+        "DR",
+        "DTHETA",
+    ]
+    pm_pars = [
+        "PMDEC",
+        "PMRA",
+        "PMELONG",
+        "PMELAT",
+        "PMRV",
+        "PMBETA",
+        "PMLAMBDA",
+    ]
 
     groups = []
-    for pars in timing_pars:
-        group = group_from_params(pta, [pars])
+    for pars in [pos_pars, spin_pars, kep_pars, gr_pars, pm_pars]:
+        group = []
+        for p in pars:
+            for q in pta.param_names:
+                if p == q.split("_")[-1]:
+                    group.append(pta.param_names.index(q))
         if len(group):
             groups.append(group)
 
+    dmx_group = group_from_partial_par_name(pta, part="DMX")
+    if len(dmx_group):
+        groups.append(dmx_group)
+    jump_fd_group = group_from_partial_par_name(pta, part="FD")
+    jump_fd_group.extend(group_from_partial_par_name(pta, part="JUMP"))
+    if len(jump_fd_group):
+        groups.append(jump_fd_group)
+
     return groups
+
+
+def group_from_partial_par_name(pta, part="DMX"):
+    return [pta.param_names.index(q) for q in pta.param_names if part in q]
 
 
 def group_from_params(pta, params):
@@ -892,6 +970,7 @@ def setup_sampler(
 
     # additional jump proposals
     jp = JumpProposal(pta, empirical_distr=empirical_distr, timing=timing)
+    sampler.jp = jp
 
     # always add draw from prior
     sampler.addProposalToCycle(jp.draw_from_prior, 5)
@@ -899,7 +978,7 @@ def setup_sampler(
     # try adding empirical proposals
     if empirical_distr is not None:
         print("Adding empirical proposals...\n")
-        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 30)
 
     # Red noise prior draw
     if "red noise" in jp.snames:
