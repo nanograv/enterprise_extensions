@@ -838,7 +838,7 @@ def get_timing_groups(pta):
     output.
     """
     pos_pars = ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]
-    spin_pars = ["F", "F0", "F1", "F2", "P", "P1"]
+    spin_pars = ["F", "F0", "F1", "F2", "P", "P1", "Offset"]
     kep_pars = [
         "PB",
         "T0",
