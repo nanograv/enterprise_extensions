@@ -221,14 +221,9 @@ def timing_block(
         if key not in tm_param_list:
             tm_param_list.append(key)
 
-    # Check to see if nan or inf in pulsar parameter errors.
-    if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
-        [err == 0.0 for err in psr.t2pulsar.errs()]
-    ):
-        psr.t2pulsar.fit()
-
     physical_tm_priors = get_default_physical_tm_priors()
 
+    # Get values and errors as pulled by libstempo from par file.
     ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
     psr.tm_params_orig = OrderedDict(
         zip(
@@ -236,6 +231,20 @@ def timing_block(
             map(list, zip(psr.t2pulsar.vals(), psr.t2pulsar.errs(), ptypes)),
         )
     )
+
+    # Check to see if nan or inf in pulsar parameter errors.
+    # The refit will populate the incorrect errors, but sometimes
+    # changes the values by too much, which is why it is done in this order.
+    if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
+        [err == 0.0 for err in psr.t2pulsar.errs()]
+    ):
+        eidxs = np.where(np.logical_or(psr.t2pulsar.errs() is np.nan,
+                                       psr.t2pulsar.errs()==0.0))[0]
+        psr.t2pulsar.fit()
+        for idx in eidxs:
+            par = psr.t2pulsar.pars()[idx]
+            psr.tm_params_orig[par][1] = psr.t2pulsar.errs()[idx]
+
 
     tm_delay_kwargs = {}
     default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound]
