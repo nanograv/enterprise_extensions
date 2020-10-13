@@ -42,6 +42,8 @@ class OptimalStatistic(object):
         else:
             self.pta = pta
 
+        # save the value of gamma_common
+        self.gamma_common = gamma_common
 
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
@@ -118,7 +120,7 @@ class OptimalStatistic(object):
         for ii in range(npsr):
             for jj in range(ii+1, npsr):
 
-                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=self.gamma_common)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
                 bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
@@ -143,7 +145,7 @@ class OptimalStatistic(object):
             rho_ii, sig_ii = [], []
             for ii in range(npsr):
 
-                phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+                phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=self.gamma_common)
 
                 top = np.dot(X[ii], phiII * X[ii])
                 bot = np.trace(np.dot(Z[ii]*phiII[None,:], Z[ii]*phiII[None,:]))
@@ -261,7 +263,7 @@ class OptimalStatistic(object):
         rho, sig = [], []
         for ii in range(npsr):
 
-            phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+            phiII = utils.powerlaw(self.freqs, log10_A=0, gamma=self.gamma_common)
 
             top = np.dot(X[ii], phiII * X[ii])
             bot = np.trace(np.dot(Z[ii]*phiII[None,:], Z[ii]*phiII[None,:]))
