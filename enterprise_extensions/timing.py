@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
-import os, glob, copy, ephem
+import os, glob, copy, ephem, math
 import numpy as np
 from collections import defaultdict, OrderedDict
 from enterprise.signals import parameter
@@ -231,7 +231,7 @@ def timing_block(
         [err == 0.0 for err in psr.t2pulsar.errs()]
     ):
         eidxs = np.where(
-            np.logical_or(psr.t2pulsar.errs() is np.nan, psr.t2pulsar.errs() == 0.0)
+            np.logical_or(np.isnan(psr.t2pulsar.errs()), psr.t2pulsar.errs() == 0.0)
         )[0]
         psr.t2pulsar.fit()
         for idx in eidxs:
