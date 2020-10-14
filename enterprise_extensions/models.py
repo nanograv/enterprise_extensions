@@ -35,8 +35,7 @@ def model_singlepsr_noise(
     tm_var=False,
     tm_linear=False,
     tm_param_list=[],
-    ltm_exclude_list=[],
-    exclude=True,
+    ltm_list=[],
     tm_param_dict={},
     tm_prior="uniform",
     fit_remaining_pars=True,
@@ -103,9 +102,7 @@ def model_singlepsr_noise(
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
     :param tm_param_list: an explicit list of timing model parameters to vary
-    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
-        if exlude is True; if exclude is False they are the only parameters to include in the linear model
-    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+    :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
     :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
@@ -193,6 +190,7 @@ def model_singlepsr_noise(
             s = timing_block(
                 psr,
                 tm_param_list=tm_param_list,
+                ltm_list=ltm_list,
                 prior_type=tm_prior,
                 prior_sigma=2.0,
                 prior_lower_bound=-5.0,
@@ -574,8 +572,7 @@ def model_general(
     tm_var=False,
     tm_linear=False,
     tm_param_list=[],
-    ltm_exclude_list=[],
-    exclude=True,
+    ltm_list=[],
     tm_param_dict={},
     tm_prior="uniform",
     fit_remaining_pars=True,
@@ -641,9 +638,7 @@ def model_general(
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
     :param tm_param_list: an explicit list of timing model parameters to vary
-    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
-        if exlude is True; if exclude is False they are the only parameters to include in the linear model
-    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+    :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'Uniform','bounded-normal'}
     :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
@@ -699,6 +694,7 @@ def model_general(
                     s = timing_block(
                         psrs,
                         tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
                         prior_type=tm_prior,
                         prior_sigma=2.0,
                         prior_lower_bound=-5.0,
@@ -710,6 +706,7 @@ def model_general(
                     s += timing_block(
                         psrs,
                         tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
                         prior_type=tm_prior,
                         prior_sigma=2.0,
                         prior_lower_bound=-5.0,

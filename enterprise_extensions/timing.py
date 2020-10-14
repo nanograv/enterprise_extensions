@@ -119,22 +119,13 @@ def get_prior(
         )
 
 
-def filter_Mmat(psr, ltm_exclude_list=[], exclude=True):
+def filter_Mmat(psr, ltm_list=[]):
     """Filters the pulsar's design matrix of parameters
     :param psr: Pulsar object
-    :param ltm_exclude_list: a list of parameters that will be excluded from being varied linearly
-        if exlude is True; if exclude is False they are the only parameters to include in the linear model
-    :param exclude: bool, whether to include or exlude parameters given in ltm_exclude_list
+    :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
     :return: A new pulsar object with the filtered design matrix
     """
-    if exclude:
-        idx_lin_pars = [
-            psr.fitpars.index(p) for p in psr.fitpars if p not in ltm_exclude_list
-        ]
-    else:
-        idx_lin_pars = [
-            psr.fitpars.index(p) for p in psr.fitpars if p in ltm_exclude_list
-        ]
+    idx_lin_pars = [psr.fitpars.index(p) for p in psr.fitpars if p in ltm_list]
     psr.fitpars = list(np.array(psr.fitpars)[idx_lin_pars])
     psr._designmatrix = psr._designmatrix[:, idx_lin_pars]
     return psr
@@ -196,6 +187,7 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
 def timing_block(
     psr,
     tm_param_list=["F0", "F1"],
+    ltm_list=["Offset"],
     prior_type="uniform",
     prior_mu=0.0,
     prior_sigma=2.0,
@@ -238,17 +230,21 @@ def timing_block(
     if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
         [err == 0.0 for err in psr.t2pulsar.errs()]
     ):
-        eidxs = np.where(np.logical_or(psr.t2pulsar.errs() is np.nan,
-                                       psr.t2pulsar.errs()==0.0))[0]
+        eidxs = np.where(
+            np.logical_or(psr.t2pulsar.errs() is np.nan, psr.t2pulsar.errs() == 0.0)
+        )[0]
         psr.t2pulsar.fit()
         for idx in eidxs:
             par = psr.t2pulsar.pars()[idx]
             psr.tm_params_orig[par][1] = psr.t2pulsar.errs()[idx]
 
-
     tm_delay_kwargs = {}
     default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound]
     for par in tm_param_list:
+        if par == "Offset":
+            raise ValueError(
+                "TEMPO2 does not support modeling the phase offset: 'Offset'."
+            )
         if par in tm_param_dict.keys():
             # Overwrite default priors if new ones defined for the parameter in tm_param_dict
             psr.tm_params_orig[par][-1] = "physical"
@@ -310,7 +306,9 @@ def timing_block(
 
     # filter design matrix of all but linear params
     if fit_remaining_pars:
-        filter_Mmat(psr, ltm_exclude_list=tm_param_list, exclude=True)
+        if not ltm_list:
+            ltm_list = [p for p in psr.fitpars if p not in tm_param_list]
+        filter_Mmat(psr, ltm_list=ltm_list)
         ltm = gp_signals.TimingModel(coefficients=False)
         tm += ltm
 

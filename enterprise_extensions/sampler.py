@@ -13,7 +13,7 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 class JumpProposal(object):
     def __init__(
-        self, pta, snames=None, empirical_distr=None, f_stat_file=None, timing=False, psr=None
+        self, pta, snames=None, empirical_distr=None, f_stat_file=None, timing=False
     ):
         """Set up some custom jump proposals"""
         self.params = pta.params
@@ -103,13 +103,7 @@ class JumpProposal(object):
             tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
             tm_groups.extend(tm_idx)
             self.tm_groups = np.array(tm_groups, dtype=object)
-            if psr is not None:
-                special_pars = []
-                for par,(val,err,ptype) in psr.tm_params_orig.items():
-                    if ptype=='physical':
-                        special_pars.append(par)
-            else:
-                special_pars = ["PX", "SINI", "ECC"]
+            special_pars = ["PX", "SINI", "ECC"]
             self.special_idxs = [
                 ii
                 for par, ii in self.pimap.items()
@@ -925,7 +919,7 @@ def group_from_params(pta, params):
 
 
 def setup_sampler(
-    pta, outdir="chains", resume=False, empirical_distr=None, timing=False, psr=None,
+    pta, outdir="chains", resume=False, empirical_distr=None, timing=False
 ):
     """
     Sets up an instance of PTMCMC sampler.
@@ -975,7 +969,7 @@ def setup_sampler(
     )
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, timing=timing, psr=psr)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, timing=timing)
     sampler.jp = jp
 
     # always add draw from prior
