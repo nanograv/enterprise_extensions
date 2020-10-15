@@ -245,10 +245,9 @@ def timing_block(
             raise ValueError(
                 "TEMPO2 does not support modeling the phase offset: 'Offset'."
             )
-        if par in tm_param_dict.keys():
+        elif par in tm_param_dict.keys():
             # Overwrite default priors if new ones defined for the parameter in tm_param_dict
             psr.tm_params_orig[par][-1] = "physical"
-
             if "prior_mu" in tm_param_dict[par].keys():
                 prior_mu = tm_param_dict[par]["prior_mu"]
             else:
