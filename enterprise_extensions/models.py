@@ -442,7 +442,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-                  common_psd='powerlaw', red_psd='powerlaw', orf=None,
+                  Tspan=None, common_psd='powerlaw', red_psd='powerlaw', orf=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None,
@@ -477,6 +477,9 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param Tspan: 
+        timespan assumed for describing stochastic processes, 
+        in units of seconds.
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
     :param tmparam_list: an explicit list of timing model parameters to vary
@@ -527,7 +530,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             pass
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is not None:
+        Tspan = Tspan
+    else:
+        Tspan = model_utils.get_tspan(psrs)
 
     if logfreq:
         fmin = 10.0
