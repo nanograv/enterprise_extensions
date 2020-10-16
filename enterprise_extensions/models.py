@@ -531,7 +531,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # find the maximum time span to set GW frequency sampling
     if Tspan is not None:
-        Tspan = args.Tspan
+        Tspan = Tspan
     else:
         Tspan = model_utils.get_tspan(psrs)
 
