@@ -58,10 +58,10 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         if efac1:
             efac = parameter.Normal(1.0, 0.1)
         else:
-            efac = parameter.Uniform(0.01, 10.0)
-        equad = parameter.Uniform(-8.5, -5)
+            efac = parameter.Uniform(0.01, 5.0)
+        equad = parameter.Uniform(-9, -5)
         if inc_ecorr:
-            ecorr = parameter.Uniform(-8.5, -5)
+            ecorr = parameter.Uniform(-9, -5)
     else:
         efac = parameter.Constant()
         equad = parameter.Constant()
@@ -123,14 +123,14 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
         if prior == 'uniform':
-            log10_A = parameter.LinearExp(-20, -11)
+            log10_A = parameter.LinearExp(-18, -10)
         elif prior == 'log-uniform' and gamma_val is not None:
             if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A = parameter.Uniform(-20, -11)
+                log10_A = parameter.Uniform(-18, -11)
             else:
-                log10_A = parameter.Uniform(-20, -11)
+                log10_A = parameter.Uniform(-18, -10)
         else:
-            log10_A = parameter.Uniform(-20, -11)
+            log10_A = parameter.Uniform(-18, -10)
 
         if gamma_val is not None:
             gamma = parameter.Constant(gamma_val)
@@ -244,14 +244,14 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    'tprocess', 'tprocess_adapt']:
             # parameters shared by PSD functions
             if prior == 'uniform':
-                log10_A_dm = parameter.LinearExp(-20, -11)
+                log10_A_dm = parameter.LinearExp(-19, -11)
             elif prior == 'log-uniform' and gamma_val is not None:
                 if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_A_dm = parameter.Uniform(-20, -11)
+                    log10_A_dm = parameter.Uniform(-18, -10)
                 else:
-                    log10_A_dm = parameter.Uniform(-20, -11)
+                    log10_A_dm = parameter.Uniform(-19, -11)
             else:
-                log10_A_dm = parameter.Uniform(-20, -11)
+                log10_A_dm = parameter.Uniform(-19, -11)
 
             if gamma_val is not None:
                 gamma_dm = parameter.Constant(gamma_val)
