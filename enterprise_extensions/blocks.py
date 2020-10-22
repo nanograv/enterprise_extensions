@@ -552,9 +552,9 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             log10_fb_gw = parameter.Uniform(-10, -7)(log10_fb_name)
 
             if delta_val is not None:
-                delta_val = parameter.Constant(delta_val)(gam_name)
+                delta_val = parameter.Constant(delta_val)(delta_name)
             else:
-                delta_val = parameter.Uniform(0, 7)(gam_name)
+                delta_val = parameter.Uniform(0, 7)(delta_name)
             cpl = gpp.broken_powerlaw(log10_A=log10_Agw,
                                       gamma=gamma_gw,
                                       delta=delta_gw,
