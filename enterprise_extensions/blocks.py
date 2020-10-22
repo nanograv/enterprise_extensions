@@ -557,7 +557,9 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                 delta_val = parameter.Uniform(0, 7)(gam_name)
             cpl = gpp.broken_powerlaw(log10_A=log10_Agw,
                                       gamma=gamma_gw,
-                                      delta=)
+                                      delta=delta_gw,
+                                      log10_fb=log10_fb_gw,
+                                      kappa=kappa_gw)
         elif psd == 'turnover':
             kappa_name = '{}_kappa'.format(name)
             lf0_name = '{}_log10_fbend'.format(name)
