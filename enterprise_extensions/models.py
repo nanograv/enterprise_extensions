@@ -335,8 +335,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
+             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
+             delta_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
              pshift=False, pseed=None, psr_models=False):
     """
@@ -404,7 +404,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
-                                name='gw', pshift=pshift, pseed=pseed)
+                                delta_val=delta_common, name='gw',
+                                pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
