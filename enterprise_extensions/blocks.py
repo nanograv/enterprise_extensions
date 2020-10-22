@@ -13,6 +13,7 @@ from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
 from . import gp_kernels as gpk
 from . import chromatic as chrom
+from . import dropout as dropout
 
 __all__ = ['white_noise_block',
            'red_noise_block',
@@ -22,6 +23,12 @@ __all__ = ['white_noise_block',
            'common_red_noise_block',
            ]
 
+def channelized_backends(backend_flags):
+    """Selection function to split by channelized backend flags only. For ECORR"""
+    flagvals = np.unique(backend_flags)
+    ch_b = ['ASP', 'GASP', 'GUPPI', 'PUPPI', 'CHIME']
+    flagvals = filter(lambda x: any(map(lambda y: y in x, ch_b)), flagvals)
+    return {flagval: backend_flags == flagval for flagval in flagvals}
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                       efac1=False, select='backend', name=None):
@@ -49,6 +56,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         backend = selections.Selection(selections.by_backend)
         # define selection by nanograv backends
         backend_ng = selections.Selection(selections.nanograv_backends)
+        backend_ch = selections.Selection(channelized_backends)
     else:
         # define no selection
         backend = selections.Selection(selections.no_selection)
@@ -70,22 +78,18 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
     # white noise signals
     ef = white_signals.MeasurementNoise(efac=efac,
-                                        selection=backend, name=name)
+                                        selection=backend)
     eq = white_signals.EquadNoise(log10_equad=equad,
-                                  selection=backend, name=name)
+                                  selection=backend)
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
-                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng)
-            else:
-                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng, name=name)
-
+                name = ''
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
+                                            selection=backend_ch)
         else:
             ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
-                                                selection=backend_ng,
-                                                name=name)
+                                                selection=backend_ch)
 
     # combine signals
     if inc_ecorr:
@@ -98,8 +102,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
-                    select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None):
+                    select=None, modes=None, wgts=None, combine=True,
+                    break_flat=False, break_flat_fq=None,
+                    dropout=False, k_threshold=0.5):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies
@@ -117,6 +122,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess red noise
     :param coefficients: include latent coefficients in GP model?
+    :param dropout: Use a dropout analysis for intrinsic red noise models.
+        Currently only supports power law option.
+    :param k_threshold: Threshold for dropout analysis.
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
@@ -138,7 +146,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             gamma = parameter.Uniform(0, 7)
 
         # different PSD function parameters
-        if psd == 'powerlaw':
+        if psd == 'powerlaw' and dropout:
+            k_drop = parameter.Uniform(0, 1)
+            pl = dropout.dropout_powerlaw(log10_A=log10_A, gamma=gamma,
+                                          k_drop=k_drop,
+                                          k_threshold=k_threshold)
+        elif psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
         elif psd == 'powerlaw_genmodes':
             pl = gpp.powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
@@ -190,31 +203,33 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
         rn = gp_signals.FourierBasisGP(pl, components=components_low,
                                        Tspan=Tspan, coefficients=coefficients,
-                                       selection=selection)
+                                       combine=combine, selection=selection)
 
         rn_flat = gp_signals.FourierBasisGP(pl_flat,
                                             modes=freqs[components_low:],
                                             coefficients=coefficients,
                                             selection=selection,
+                                            combine=combine,
                                             name='red_noise_hf')
         rn = rn + rn_flat
     else:
         rn = gp_signals.FourierBasisGP(pl, components=components,
                                        Tspan=Tspan,
+                                       combine=combine,
                                        coefficients=coefficients,
                                        selection=selection,
                                        modes=modes)
 
     if select == 'band+':  # Add the common component as well
         rn = rn + gp_signals.FourierBasisGP(pl, components=components,
-                                            Tspan=Tspan,
+                                            Tspan=Tspan, combine=combine,
                                             coefficients=coefficients)
 
     return rn
 
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
-                   prior='log-uniform', Tspan=None, components=30,
+                   prior='log-uniform', Tspan=None, components=30, dm_dt=15,
                    gamma_val=None, coefficients=False):
     """
     Returns DM noise model:
@@ -231,6 +246,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
         use overall time span for indivicual pulsar.
     :param components:
         Number of frequencies in sampling of DM-variations.
+    :param dm_dt:
+        Step size for linear_interpolation_basis in units of days.
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess DM-variations
@@ -295,7 +312,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                            log10_ell=log10_ell,
                                            log10_gam_p=log10_gam_p,
@@ -309,7 +326,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=dm_dt*86400,
                                                       dm=True)
             dm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
@@ -321,7 +338,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=15*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
@@ -331,7 +348,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=dm_dt*86400,
                                                       dm=True)
             dm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
@@ -341,7 +358,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=30*86400)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt*86400)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
@@ -355,7 +372,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           prior='log-uniform',
                           idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
-                          coefficients=False):
+                          chrom_dt=15, coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -382,6 +399,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Tspan from which to calculate frequencies for PSD-based GPs.
     :param components:
         Number of frequencies to use in 'diag' GPs.
+    :param chrom_dt:
+        Step size for linear_interpolation_basis in units of days.
     :param coefficients:
         Whether to keep coefficients of the GP.
 
@@ -420,7 +439,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=15*86400)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=chrom_dt*86400)
             chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
                                             log10_gam_p=log10_gam_p,
@@ -435,7 +454,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            chm_basis = gpk.get_tf_quantization_matrix(df=200, dt=chrom_dt*86400,
                                                        dm=True, idx=idx)
             chm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
                                       log10_ell=log10_ell,
@@ -449,7 +468,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=15*86400, idx=idx)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=chrom_dt*86400, idx=idx)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                          log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
@@ -459,7 +478,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=15*86400,
+            dm_basis = gpk.get_tf_quantization_matrix(df=200, dt=chrom_dt*86400,
                                                       dm=True, idx=idx)
             dm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
@@ -479,7 +498,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
     return cgp
 
 
-def common_red_noise_block(psd='powerlaw', prior='log-uniform',
+def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
                            Tspan=None, components=30, gamma_val=None,
                            delta_val=None,
                            orf=None, name='gw', coefficients=False,
@@ -593,17 +612,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
+                                        combine=combine,
                                         name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
-                                              Tspan=Tspan,
+                                              Tspan=Tspan, combine=combine,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
-                                              Tspan=Tspan,
+                                              Tspan=Tspan, combine=combine,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
     else:
