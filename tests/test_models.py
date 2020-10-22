@@ -135,6 +135,13 @@ def test_model2a_5gwb(dmx_psrs,caplog):
     assert hasattr(m2a,'get_lnlikelihood')
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_broken_plaw(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs, psd='broken_powerlaw',delta_common=0,
+                        noisedict=noise_dict)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model2b(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m2b=models.model_2b(dmx_psrs,noisedict=noise_dict)
@@ -175,6 +182,13 @@ def test_model3a_5rnfreqs(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m3a=models.model_3a(dmx_psrs, n_rnfreqs=5, noisedict=noise_dict)
 
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_broken_plaw(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs, psd='broken_powerlaw',delta_common=0,
+                        noisedict=noise_dict)
     assert hasattr(m3a,'get_lnlikelihood')
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')

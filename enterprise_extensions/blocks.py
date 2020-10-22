@@ -500,6 +500,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
                            Tspan=None, components=30, gamma_val=None,
+                           delta_val=None,
                            orf=None, name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
@@ -511,16 +512,19 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
 
     :param psd:
         PSD to use for common red noise signal. Available options
-        are ['powerlaw', 'turnover' 'spectrum']
+        are ['powerlaw', 'turnover' 'spectrum', 'broken_powerlaw']
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
-        use overall time span for indivicual pulsar.
+        use overall time span for individual pulsar.
     :param gamma_val:
         Value of spectral index for power-law and turnover
         models. By default spectral index is varied of range [0,7]
+    :param delta_val:
+        Value of spectral index for high frequencies in broken power-law
+        and turnover models. By default spectral index is varied in range [0,7].
     :param orf:
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
@@ -538,7 +542,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover', 'turnover_knee']:
+    if psd in ['powerlaw', 'turnover', 'turnover_knee','broken_powerlaw']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
@@ -559,6 +563,22 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
         # common red noise PSD
         if psd == 'powerlaw':
             cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
+        elif psd == 'broken_powerlaw':
+            delta_name = '{}_delta'.format(name)
+            kappa_name = '{}_kappa'.format(name)
+            log10_fb_name = '{}_log10_fb'.format(name)
+            kappa_gw = parameter.Uniform(0.01, 0.5)(kappa_name)
+            log10_fb_gw = parameter.Uniform(-10, -7)(log10_fb_name)
+
+            if delta_val is not None:
+                delta_gw = parameter.Constant(delta_val)(delta_name)
+            else:
+                delta_gw = parameter.Uniform(0, 7)(delta_name)
+            cpl = gpp.broken_powerlaw(log10_A=log10_Agw,
+                                      gamma=gamma_gw,
+                                      delta=delta_gw,
+                                      log10_fb=log10_fb_gw,
+                                      kappa=kappa_gw)
         elif psd == 'turnover':
             kappa_name = '{}_kappa'.format(name)
             lf0_name = '{}_log10_fbend'.format(name)
