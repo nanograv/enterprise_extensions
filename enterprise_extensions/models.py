@@ -335,8 +335,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
+             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
+             delta_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, select='backend',
              pshift=False, pseed=None, psr_models=False):
     """
@@ -404,7 +404,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
-                                name='gw', pshift=pshift, pseed=pseed)
+                                delta_val=delta_common, name='gw',
+                                pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
@@ -477,8 +478,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
-    :param Tspan: 
-        timespan assumed for describing stochastic processes, 
+    :param Tspan:
+        timespan assumed for describing stochastic processes,
         in units of seconds.
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
@@ -875,8 +876,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None,
-             gamma_common=None, upper_limit=False, bayesephem=False,
+             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
+             delta_common=None, upper_limit=False, bayesephem=False,
              be_type='orbel', wideband=False, correlationsonly=False,
              pshift=False, pseed=None, psr_models=False):
     """
@@ -903,6 +904,10 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
+    :param gamma_common:
+        Fixed common red process spectral index value for higher frequencies in
+        broken power law model.
+        By default we vary the spectral index over the range [0, 7].
     :param upper_limit:
         Perform upper limit on common red noise amplitude. By default
         this is set to False. Note that when perfoming upper limits it
@@ -942,6 +947,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                                 components=n_gwbfreqs, gamma_val=gamma_common,
+                                delta_val=delta_common,
                                 orf='hd', name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
