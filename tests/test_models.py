@@ -166,7 +166,7 @@ def test_model3a_5rnfreqs(dmx_psrs,caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model3a_broken_plaw(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
-    m3a=models.model_3a(dmx_psrs, psd='broken_powerlaw',delta_val=0,
+    m3a=models.model_3a(dmx_psrs, psd='broken_powerlaw',delta_common=0,
                         noisedict=noise_dict)
     assert hasattr(m3a,'get_lnlikelihood')
 
