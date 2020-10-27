@@ -133,7 +133,7 @@ def filter_Mmat(psr, ltm_list=[]):
 
 # timing model delay
 @signal_base.function
-def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
+def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
     :param residuals: original pulsar residuals from Pulsar object
@@ -224,6 +224,9 @@ def timing_block(
         )
     )
 
+    # for par in psr.tm_params_orig.keys():
+    #    print(par,psr.tm_params_orig[par])
+    # print(psr._designmatrix)
     # Check to see if nan or inf in pulsar parameter errors.
     # The refit will populate the incorrect errors, but sometimes
     # changes the values by too much, which is why it is done in this order.
@@ -300,7 +303,7 @@ def timing_block(
         )
     # timing model
 
-    tm_func = tm_delay(tm_param_dict=tm_param_dict, **tm_delay_kwargs)
+    tm_func = tm_delay(**tm_delay_kwargs)
     tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
 
     # filter design matrix of all but linear params
@@ -308,7 +311,19 @@ def timing_block(
         if not ltm_list:
             ltm_list = [p for p in psr.fitpars if p not in tm_param_list]
         filter_Mmat(psr, ltm_list=ltm_list)
-        ltm = gp_signals.TimingModel(coefficients=False)
+        if "DMX" in ltm_list:
+            ltm = gp_signals.WidebandTimingModel(
+                dmefac=parameter.Uniform(pmin=0.1, pmax=10.0),
+                log10_dmequad=parameter.Uniform(pmin=-7.0, pmax=0.0),
+                dmjump=parameter.Uniform(pmin=-0.01, pmax=0.01),
+                dmefac_selection=Selection(selections.no_selection),
+                log10_dmequad_selection=Selection(selections.no_selection),
+                dmjump_selection=Selection(selections.no_selection),
+                dmjump_ref=None,
+                name="wideband_timing_model",
+            )
+        else:
+            ltm = gp_signals.TimingModel(coefficients=False)
         tm += ltm
 
     return tm
