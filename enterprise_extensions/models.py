@@ -48,7 +48,9 @@ def model_singlepsr_noise(
     white_vary=True,
     components=30,
     upper_limit=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
+    dmjump_var=False,
     gamma_val=None,
     dm_var=False,
     dm_type="gp",
@@ -95,6 +97,7 @@ def model_singlepsr_noise(
     swgp_basis=None,
     coefficients=False,
     extra_sigs=None,
+    select="backend",
 ):
     """
     Single pulsar noise model
@@ -114,7 +117,10 @@ def model_singlepsr_noise(
     :param white_vary: boolean for varying white noise or keeping fixed
     :param components: number of modes in Fourier domain processes
     :param upper_limit: whether to do an upper-limit analysis
-    :param wideband: whether to include ecorr in the white noise model
+    :param is_wideband: whether input TOAs are wideband TOAs; will exclude
+           ecorr from the white noise model
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+           is_wideband
     :param gamma_val: red noise spectral index to fix
     :param dm_var: whether to explicitly model DM-variations
     :param dm_type: gaussian process ('gp') or dmx ('dmx')
@@ -172,10 +178,36 @@ def model_singlepsr_noise(
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # timing model
-    if not tm_var:
-        s = gp_signals.TimingModel(
-            use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+    wideband_kwargs = {}
+    if is_wideband and use_dmdata:
+        if dmjump_var:
+            wideband_kwargs["dmjump"] = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmjump"] = parameter.Constant()
+        if white_vary:
+            wideband_kwargs["dmefac"] = parameter.Uniform(pmin=0.1, pmax=10.0)
+            wideband_kwargs["log10_dmequad"] = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmefac"] = parameter.Constant()
+            wideband_kwargs["log10_dmequad"] = parameter.Constant()
+            # dmjump = parameter.Constant()
+        wideband_kwargs["dmefac_selection"] = selections.Selection(
+            selections.by_backend
         )
+        wideband_kwargs["log10_dmequad_selection"] = selections.Selection(
+            selections.by_backend
+        )
+        wideband_kwargs["dmjump_selection"] = selections.Selection(
+            selections.by_frontend
+        )
+    if not tm_var:
+        if is_wideband and use_dmdata:
+            s = gp_signals.WidebandTimingModel(**wideband_kwargs)
+        else:
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
     else:
         if tm_linear:
             # create new attribute for enterprise pulsar object
@@ -197,6 +229,7 @@ def model_singlepsr_noise(
                 prior_upper_bound=5.0,
                 tm_param_dict=tm_param_dict,
                 fit_remaining_pars=fit_remaining_pars,
+                wideband_kwargs=wideband_kwargs,
             )
 
     # red noise
@@ -342,20 +375,22 @@ def model_singlepsr_noise(
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-    if ("NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]) and not wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+    if (
+        "NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]
+    ) and not is_wideband:
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,select=select)
         model = s2(psr)
     else:
-        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,select=select)
         model = s3(psr)
 
     # set up PTA
     pta = signal_base.PTA([model])
 
     # set white noise parameters
-    if not white_vary:
+    if not white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
-            print("No noise dictionary provided!...")
+            print('No noise dictionary provided!...')
         else:
             noisedict = noisedict
             pta.set_default_params(noisedict)

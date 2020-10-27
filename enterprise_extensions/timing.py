@@ -195,6 +195,7 @@ def timing_block(
     prior_upper_bound=5.0,
     tm_param_dict={},
     fit_remaining_pars=True,
+    wideband_kwargs={},
 ):
     """
     Returns the timing model block of the model
@@ -224,9 +225,6 @@ def timing_block(
         )
     )
 
-    # for par in psr.tm_params_orig.keys():
-    #    print(par,psr.tm_params_orig[par])
-    # print(psr._designmatrix)
     # Check to see if nan or inf in pulsar parameter errors.
     # The refit will populate the incorrect errors, but sometimes
     # changes the values by too much, which is why it is done in this order.
@@ -311,16 +309,10 @@ def timing_block(
         if not ltm_list:
             ltm_list = [p for p in psr.fitpars if p not in tm_param_list]
         filter_Mmat(psr, ltm_list=ltm_list)
-        if "DMX" in ltm_list:
+        if any(["DMX" in x for x in ltm_list]) and wideband_kwargs:
             ltm = gp_signals.WidebandTimingModel(
-                dmefac=parameter.Uniform(pmin=0.1, pmax=10.0),
-                log10_dmequad=parameter.Uniform(pmin=-7.0, pmax=0.0),
-                dmjump=parameter.Uniform(pmin=-0.01, pmax=0.01),
-                dmefac_selection=Selection(selections.no_selection),
-                log10_dmequad_selection=Selection(selections.no_selection),
-                dmjump_selection=Selection(selections.no_selection),
-                dmjump_ref=None,
                 name="wideband_timing_model",
+                **wideband_kwargs,
             )
         else:
             ltm = gp_signals.TimingModel(coefficients=False)
