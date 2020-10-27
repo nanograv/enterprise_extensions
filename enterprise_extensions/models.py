@@ -34,7 +34,7 @@ def model_singlepsr_noise(
     psr,
     tm_var=False,
     tm_linear=False,
-    tm_param_list=None,
+    tm_param_list=[],
     ltm_list=[],
     tm_param_dict={},
     tm_prior="uniform",

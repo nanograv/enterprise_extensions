@@ -949,6 +949,8 @@ def setup_sampler(
 
     # parameter groupings
     groups = get_parameter_groups(pta)
+    if timing:
+        groups.extend(get_timing_groups(pta))
 
     sampler = ptmcmc(
         ndim,

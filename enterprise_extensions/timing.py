@@ -142,8 +142,8 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
 
     :param residuals: original pulsar residuals from Pulsar object
     :param t2pulsar: libstempo pulsar object
-    :param tmparams_orig: dictionary of TM parameter tuples, (val, err)
-    :param tmparams: new timing model parameters, rescaled to be in sigmas
+    :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
+    :param tm_params: new timing model parameters, rescaled to be in sigmas
     :param which: option to have all or only named TM parameters varied
 
     :return: difference between new and old residuals in seconds
