@@ -7,6 +7,8 @@ from scipy.stats import truncnorm
 from enterprise.signals import parameter
 from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
+from enterprise.signals import gp_signals
+
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
     """Prior function for InvGamma parameters."""
@@ -68,7 +70,9 @@ def get_pardict(psrs, datareleases):
         pardict[psr.name] = {}
         pardict[psr.name][dataset] = {}
         for par, vals, errs in zip(
-            psr.fitpars[1:], psr.t2pulsar.vals(), psr.t2pulsar.errs()
+            psr.fitpars[1:],
+            np.double(psr.t2pulsar.vals()),
+            np.double(psr.t2pulsar.errs()),
         ):
             pardict[psr.name][dataset][par] = {}
             pardict[psr.name][dataset][par]["val"] = vals
@@ -166,7 +170,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
             )
 
     # set to new values
-    t2pulsar.vals(tmparams_vary)
+    t2pulsar.vals(tm_params_rescaled)
     new_res = np.double(t2pulsar.residuals().copy())
 
     # remeber to set values back to originals
@@ -174,6 +178,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
 
     # Return the time-series for the pulsar
     return new_res - residuals
+
 
 # Model component building blocks #
 
@@ -207,7 +212,14 @@ def timing_block(
     psr.tm_params_orig = OrderedDict(
         zip(
             psr.t2pulsar.pars(),
-            map(list, zip(psr.t2pulsar.vals(), psr.t2pulsar.errs(), ptypes)),
+            map(
+                list,
+                zip(
+                    np.double(psr.t2pulsar.vals()),
+                    np.double(psr.t2pulsar.errs()),
+                    ptypes,
+                ),
+            ),
         )
     )
 
