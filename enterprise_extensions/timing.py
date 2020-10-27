@@ -4,6 +4,9 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 from scipy.stats import truncnorm
 
+from enterprise.signals import parameter
+from enterprise.signals import signal_base
+from enterprise.signals import deterministic_signals
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
     """Prior function for InvGamma parameters."""
