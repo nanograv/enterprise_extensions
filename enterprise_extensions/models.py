@@ -13,7 +13,7 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils
 from enterprise_extensions import deterministic
-from enterprise_extensions.timing import timing_block, filter_Mmat
+from enterprise_extensions.timing import timing_block
 from enterprise_extensions.blocks import (
     white_noise_block,
     red_noise_block,
@@ -34,7 +34,7 @@ def model_singlepsr_noise(
     psr,
     tm_var=False,
     tm_linear=False,
-    tm_param_list=[],
+    tm_param_list=None,
     ltm_list=[],
     tm_param_dict={},
     tm_prior="uniform",
@@ -48,7 +48,9 @@ def model_singlepsr_noise(
     white_vary=True,
     components=30,
     upper_limit=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
+    dmjump_var=False,
     gamma_val=None,
     dm_var=False,
     dm_type="gp",
@@ -95,6 +97,7 @@ def model_singlepsr_noise(
     swgp_basis=None,
     coefficients=False,
     extra_sigs=None,
+    select="backend",
 ):
     """
     Single pulsar noise model
@@ -114,7 +117,10 @@ def model_singlepsr_noise(
     :param white_vary: boolean for varying white noise or keeping fixed
     :param components: number of modes in Fourier domain processes
     :param upper_limit: whether to do an upper-limit analysis
-    :param wideband: whether to include ecorr in the white noise model
+    :param is_wideband: whether input TOAs are wideband TOAs; will exclude
+           ecorr from the white noise model
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+           is_wideband
     :param gamma_val: red noise spectral index to fix
     :param dm_var: whether to explicitly model DM-variations
     :param dm_type: gaussian process ('gp') or dmx ('dmx')
@@ -172,10 +178,36 @@ def model_singlepsr_noise(
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # timing model
-    if not tm_var:
-        s = gp_signals.TimingModel(
-            use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+    wideband_kwargs = {}
+    if is_wideband and use_dmdata:
+        if dmjump_var:
+            wideband_kwargs["dmjump"] = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmjump"] = parameter.Constant()
+        if white_vary:
+            wideband_kwargs["dmefac"] = parameter.Uniform(pmin=0.1, pmax=10.0)
+            wideband_kwargs["log10_dmequad"] = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmefac"] = parameter.Constant()
+            wideband_kwargs["log10_dmequad"] = parameter.Constant()
+            # dmjump = parameter.Constant()
+        wideband_kwargs["dmefac_selection"] = selections.Selection(
+            selections.by_backend
         )
+        wideband_kwargs["log10_dmequad_selection"] = selections.Selection(
+            selections.by_backend
+        )
+        wideband_kwargs["dmjump_selection"] = selections.Selection(
+            selections.by_frontend
+        )
+    if not tm_var:
+        if is_wideband and use_dmdata:
+            s = gp_signals.WidebandTimingModel(**wideband_kwargs)
+        else:
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
     else:
         if tm_linear:
             # create new attribute for enterprise pulsar object
@@ -197,6 +229,7 @@ def model_singlepsr_noise(
                 prior_upper_bound=5.0,
                 tm_param_dict=tm_param_dict,
                 fit_remaining_pars=fit_remaining_pars,
+                wideband_kwargs=wideband_kwargs,
             )
 
     # red noise
@@ -342,18 +375,20 @@ def model_singlepsr_noise(
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-    if ("NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]) and not wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+    if (
+        "NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]
+    ) and not is_wideband:
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
         model = s2(psr)
     else:
-        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
         model = s3(psr)
 
     # set up PTA
     pta = signal_base.PTA([model])
 
     # set white noise parameters
-    if not white_vary:
+    if not white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
             print("No noise dictionary provided!...")
         else:
@@ -367,10 +402,14 @@ def model_1(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -392,6 +431,8 @@ def model_1(
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param upper_limit:
         Perform upper limit on common red noise amplitude. By default
         this is set to False. Note that when perfoming upper limits it
@@ -399,8 +440,13 @@ def model_1(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -413,30 +459,52 @@ def model_1(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -449,10 +517,13 @@ def model_2a(
     n_rnfreqs=None,
     n_gwbfreqs=None,
     gamma_common=None,
+    delta_common=None,
     upper_limit=False,
     bayesephem=False,
     be_type="orbel",
-    wideband=False,
+    white_vary=False,
+    is_wideband=False,
+    use_dmdata=False,
     select="backend",
     pshift=False,
     pseed=None,
@@ -479,6 +550,8 @@ def model_2a(
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -491,8 +564,11 @@ def model_2a(
         Include BayesEphem model. Set to False by default
     :param be_type:
         orbel, orbel-v2, setIII
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     :param psr_models:
         Return list of psr models rather than signal_base.PTA object.
     :param n_rnfreqs:
@@ -527,6 +603,7 @@ def model_2a(
         Tspan=Tspan,
         components=n_gwbfreqs,
         gamma_val=gamma_common,
+        delta_val=delta_common,
         name="gw",
         pshift=pshift,
         pseed=pseed,
@@ -539,17 +616,39 @@ def model_2a(
         )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True, select=select)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False, select=select)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
+
+    # set up PTA
+    pta = signal_base.PTA(models)
 
     if psr_models:
         return models
@@ -571,12 +670,8 @@ def model_general(
     psrs,
     tm_var=False,
     tm_linear=False,
-    tm_param_list=[],
-    ltm_list=[],
-    tm_param_dict={},
-    tm_prior="uniform",
-    fit_remaining_pars=True,
-    common_var=True,
+    tm_param_list=None,
+    Tspan=None,
     common_psd="powerlaw",
     red_psd="powerlaw",
     orf=None,
@@ -597,7 +692,8 @@ def model_general(
     upper_limit_common=None,
     bayesephem=False,
     be_type="orbel",
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
     dm_var=False,
     dm_type="gp",
     dm_psd="powerlaw",
@@ -607,12 +703,12 @@ def model_general(
     dm_chrom=False,
     dmchrom_psd="powerlaw",
     dmchrom_idx=4,
-    red_var=True,
     red_select=None,
     red_breakflat=False,
     red_breakflat_fq=None,
     coefficients=False,
     pshift=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -635,16 +731,17 @@ def model_general(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param Tspan:
+        timespan assumed for describing stochastic processes,
+        in units of seconds.
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
     :param tm_param_list: an explicit list of timing model parameters to vary
-    :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
-    :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
-    :param tm_prior: prior type on varied timing model parameters {'Uniform','bounded-normal'}
-    :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -657,8 +754,11 @@ def model_general(
         Include BayesEphem model. Set to False by default
     :param be_type:
         orbel, orbel-v2, setIII
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -673,21 +773,36 @@ def model_general(
         amp_prior_common = "uniform" if upper_limit_common else "log-uniform"
 
     # timing model
-    if not tm_var:
+    if not tm_var and not use_dmdata:
         s = gp_signals.TimingModel(
             use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
         )
+    elif not tm_var and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s = gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
     else:
-        if tm_linear:
-            # create new attribute for enterprise pulsar object
-            # UNSURE IF NECESSARY
-            for p in psrs:
-                p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
-                for key in p.tm_params_orig:
-                    p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
-            s = gp_signals.TimingModel(
-                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
+        # create new attribute for enterprise pulsar object
+        for p in psrs:
+            p.tmparams_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
+            for key in p.tmparams_orig:
+                p.tmparams_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
+        if not tm_linear:
+            s = timing_block(tm_param_list=tm_param_list)
         else:
             for i, p in enumerate(psrs):
                 if i == 0:
@@ -716,7 +831,10 @@ def model_general(
                     )
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is not None:
+        Tspan = Tspan
+    else:
+        Tspan = model_utils.get_tspan(psrs)
 
     if logfreq:
         fmin = 10.0
@@ -725,44 +843,43 @@ def model_general(
         )
         wgts = wgts ** 2.0
 
-    if red_var:
-        # red noise
-        s += red_noise_block(
-            psd=red_psd,
-            prior=amp_prior_red,
-            Tspan=Tspan,
-            components=red_components,
-            modes=modes,
-            wgts=wgts,
-            coefficients=coefficients,
-            select=red_select,
-            break_flat=red_breakflat,
-            break_flat_fq=red_breakflat_fq,
-        )
+    # red noise
+    s += red_noise_block(
+        psd=red_psd,
+        prior=amp_prior_red,
+        Tspan=Tspan,
+        components=red_components,
+        modes=modes,
+        wgts=wgts,
+        coefficients=coefficients,
+        select=red_select,
+        break_flat=red_breakflat,
+        break_flat_fq=red_breakflat_fq,
+    )
 
-    if common_var:
-        # common red noise block
-        if orf is None:
-            s += common_red_noise_block(
-                psd=common_psd,
-                prior=amp_prior_common,
-                Tspan=Tspan,
-                components=common_components,
-                coefficients=coefficients,
-                gamma_val=gamma_common,
-                name="gw",
-            )
-        elif orf == "hd":
-            s += common_red_noise_block(
-                psd=common_psd,
-                prior=amp_prior_common,
-                Tspan=Tspan,
-                components=common_components,
-                coefficients=coefficients,
-                gamma_val=gamma_common,
-                orf="hd",
-                name="gw",
-            )
+    # common red noise block
+    if orf is None:
+        s += common_red_noise_block(
+            psd=common_psd,
+            prior=amp_prior_common,
+            Tspan=Tspan,
+            components=common_components,
+            coefficients=coefficients,
+            pshift=pshift,
+            gamma_val=gamma_common,
+            name="gw",
+        )
+    elif orf == "hd":
+        s += common_red_noise_block(
+            psd=common_psd,
+            prior=amp_prior_common,
+            Tspan=Tspan,
+            components=common_components,
+            coefficients=coefficients,
+            gamma_val=gamma_common,
+            orf="hd",
+            name="gw",
+        )
 
     # DM variations
     if dm_var:
@@ -795,8 +912,8 @@ def model_general(
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             if gequad:
                 s2 += white_signals.EquadNoise(
                     log10_equad=parameter.Uniform(-8.5, -5),
@@ -813,7 +930,7 @@ def model_general(
             else:
                 models.append(s2(p))
         else:
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             if gequad:
                 s4 += white_signals.EquadNoise(
                     log10_equad=parameter.Uniform(-8.5, -5),
@@ -834,7 +951,7 @@ def model_general(
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if not white_vary:
+    if not white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
             print("No noise dictionary provided!...")
         else:
@@ -848,11 +965,15 @@ def model_2b(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
     pshift=False,
 ):
     """
@@ -876,6 +997,11 @@ def model_2b(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -886,6 +1012,13 @@ def model_2b(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -910,30 +1043,52 @@ def model_2b(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
-
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -942,11 +1097,15 @@ def model_2c(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -972,6 +1131,11 @@ def model_2c(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -982,6 +1146,13 @@ def model_2c(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1016,30 +1187,52 @@ def model_2c(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1048,11 +1241,15 @@ def model_2d(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
     pshift=False,
 ):
     """
@@ -1076,6 +1273,11 @@ def model_2d(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1086,6 +1288,13 @@ def model_2d(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1110,30 +1319,52 @@ def model_2d(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1142,14 +1373,18 @@ def model_3a(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     n_rnfreqs=None,
     n_gwbfreqs=None,
     gamma_common=None,
+    delta_common=None,
     upper_limit=False,
     bayesephem=False,
     be_type="orbel",
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
     correlationsonly=False,
     pshift=False,
     pseed=None,
@@ -1176,9 +1411,18 @@ def model_3a(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum'] 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
+    :param gamma_common:
+        Fixed common red process spectral index value for higher frequencies in
+        broken power law model.
+        By default we vary the spectral index over the range [0, 7].
     :param upper_limit:
         Perform upper limit on common red noise amplitude. By default
         this is set to False. Note that when perfoming upper limits it
@@ -1188,6 +1432,11 @@ def model_3a(
         Include BayesEphem model. Set to False by default
     :param be_type:
         orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     :param correlationsonly:
         Give infinite power (well, 1e40) to pulsar red noise, effectively
         canceling out also GW diagonal terms
@@ -1225,6 +1474,7 @@ def model_3a(
         Tspan=Tspan,
         components=n_gwbfreqs,
         gamma_val=gamma_common,
+        delta_val=delta_common,
         orf="hd",
         name="gw",
         pshift=pshift,
@@ -1238,16 +1488,35 @@ def model_3a(
         )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     if psr_models:
@@ -1257,24 +1526,29 @@ def model_3a(
         pta = signal_base.PTA(models)
 
         # set white noise parameters
-        if noisedict is None:
-            print("No noise dictionary provided!...")
-        else:
-            noisedict = noisedict
-            pta.set_default_params(noisedict)
+        if not white_vary or (is_wideband and use_dmdata):
+            if noisedict is None:
+                print("No noise dictionary provided!...")
+            else:
+                noisedict = noisedict
+                pta.set_default_params(noisedict)
 
-        return pta
+            return pta
 
 
 def model_3b(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1300,6 +1574,11 @@ def model_3b(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum'] 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1310,6 +1589,13 @@ def model_3b(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1344,30 +1630,52 @@ def model_3b(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1376,11 +1684,15 @@ def model_3c(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1409,6 +1721,11 @@ def model_3c(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum'] 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1419,6 +1736,13 @@ def model_3c(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1464,30 +1788,52 @@ def model_3c(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1496,11 +1842,15 @@ def model_3d(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    be_type="orbel",
+    is_wideband=False,
+    use_dmdata=False,
+    select="backend",
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1526,6 +1876,11 @@ def model_3d(
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum'] 'powerlaw' is default
         value.
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1536,6 +1891,13 @@ def model_3d(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1570,30 +1932,52 @@ def model_3d(
 
     # ephemeris model
     if bayesephem:
-        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+        s += deterministic_signals.PhysicalEphemerisSignal(
+            use_epoch_toas=True, model=be_type
+        )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, select=select)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1602,10 +1986,12 @@ def model_2a_drop_be(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
     k_threshold=0.5,
     pshift=False,
 ):
@@ -1633,6 +2019,8 @@ def model_2a_drop_be(
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1641,8 +2029,11 @@ def model_2a_drop_be(
         this is set to False. Note that when perfoming upper limits it
         is recommended that the spectral index also be fixed to a specific
         value.
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     :param k_threshold:
         Define threshold for dropout parameter 'k'.
     """
@@ -1672,27 +2063,47 @@ def model_2a_drop_be(
     )
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1701,11 +2112,13 @@ def model_2a_drop_crn(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    whict_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
     k_threshold=0.5,
     pshift=False,
 ):
@@ -1733,6 +2146,8 @@ def model_2a_drop_crn(
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1743,8 +2158,11 @@ def model_2a_drop_crn(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -1787,27 +2205,47 @@ def model_2a_drop_crn(
     s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1817,11 +2255,13 @@ def model_chromatic(
     psrs,
     psd="powerlaw",
     noisedict=None,
+    white_vary=False,
     components=30,
     gamma_common=None,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
     pshift=False,
     idx=4,
     chromatic_psd="powerlaw",
@@ -1853,6 +2293,8 @@ def model_chromatic(
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
@@ -1863,8 +2305,11 @@ def model_chromatic(
         value.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
-    :param wideband:
-        Use wideband par and tim files. Ignore ECORR. Set to False by default.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     :param idx:
         Index of chromatic process (i.e DM is 2, scattering would be 4). If
         set to `vary` then will vary from 0 - 6 (This will be VERY slow!)
@@ -1882,7 +2327,7 @@ def model_chromatic(
     Tspan = model_utils.get_tspan(psrs)
 
     # white noise
-    s = white_noise_block(vary=False, wideband=wideband)
+    s = white_noise_block(vary=white_vary, inc_ecorr=not is_wideband)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1903,7 +2348,26 @@ def model_chromatic(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # chromatic noise
     sc = chromatic_noise_block(psd=chromatic_psd, idx=idx)
@@ -1924,11 +2388,12 @@ def model_chromatic(
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -1936,6 +2401,7 @@ def model_chromatic(
 def model_bwm(
     psrs,
     noisedict=None,
+    white_vary=False,
     tm_svd=False,
     Tmin_bwm=None,
     Tmax_bwm=None,
@@ -1947,7 +2413,8 @@ def model_bwm(
     dm_annual=False,
     upper_limit=False,
     bayesephem=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1969,6 +2436,8 @@ def model_bwm(
     :param noisedict:
         Dictionary of pulsar noise properties for fixed white noise.
         Can provide manually, or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param tm_svd:
         boolean for svd-stabilised timing model design matrix
     :param Tmin_bwm:
@@ -1995,6 +2464,11 @@ def model_bwm(
         set to False for a 'detection' run.
     :param bayesephem:
         Include BayesEphem model.
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     :return: instantiated enterprise.PTA object
     """
 
@@ -2036,18 +2510,37 @@ def model_bwm(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel(use_svd=tm_svd)
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel(use_svd=tm_svd)
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             if dm_var and "J1713+0747" == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             if dm_var and "J1713+0747" == p.name:
                 s3 += dmexp
             models.append(s3(p))
@@ -2056,11 +2549,12 @@ def model_bwm(
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
@@ -2068,15 +2562,17 @@ def model_bwm(
 def model_cw(
     psrs,
     upper_limit=False,
-    noisedict=None,
     rn_psd="powerlaw",
+    noisedict=None,
+    white_vary=False,
     components=30,
     bayesephem=False,
     skyloc=None,
     log10_F=None,
     ecc=False,
     psrTerm=False,
-    wideband=False,
+    is_wideband=False,
+    use_dmdata=False,
 ):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -2097,6 +2593,11 @@ def model_cw(
         value.
     :param rn_psd:
         psd to use in red_noise_block()
+    :param noisedict:
+        Dictionary of pulsar noise properties. Can provide manually,
+        or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param bayesephem:
         Include BayesEphem model. Set to False by default
     :param skyloc:
@@ -2111,6 +2612,11 @@ def model_cw(
         if float: use fixed eccentricity with eccentric model
     :psrTerm:
         boolean, include/exclude pulsar term in search
+    :param is_wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
+        is_wideband.
     """
 
     amp_prior = "uniform" if upper_limit else "log-uniform"
@@ -2151,26 +2657,46 @@ def model_cw(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    s += gp_signals.TimingModel()
+    if is_wideband and use_dmdata:
+        dmjump = parameter.Constant()
+        if white_vary:
+            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            dmefac = parameter.Constant()
+            log10_dmequad = parameter.Constant()
+            # dmjump = parameter.Constant()
+        s += gp_signals.WidebandTimingModel(
+            dmefac=dmefac,
+            log10_dmequad=log10_dmequad,
+            dmjump=dmjump,
+            dmefac_selection=selections.Selection(selections.by_backend),
+            log10_dmequad_selection=selections.Selection(selections.by_backend),
+            dmjump_selection=selections.Selection(selections.by_frontend),
+        )
+    else:
+        s += gp_signals.TimingModel()
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True, gp_ecorr=True)
+        if "NANOGrav" in p.flags["pta"] and not is_wideband:
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, gp_ecorr=True)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
 
     # set up PTA
     pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta

@@ -619,10 +619,10 @@ class JumpProposal(object):
 
             # draw parameter from signal model
             param = np.random.choice(signal_list)
-
             if param.size:
                 idx2 = np.random.randint(0, param.size)
                 q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
             # scalar parameter
             else:
                 q[self.pmap[str(param)]] = param.sample()
@@ -949,8 +949,6 @@ def setup_sampler(
 
     # parameter groupings
     groups = get_parameter_groups(pta)
-    if timing:
-        groups.extend(get_timing_groups(pta))
 
     sampler = ptmcmc(
         ndim,

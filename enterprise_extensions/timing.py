@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
-import os, glob, copy, ephem, math
 import numpy as np
 from collections import defaultdict, OrderedDict
-from enterprise.signals import parameter
-from enterprise.signals import signal_base, gp_signals
-from enterprise.signals import deterministic_signals
 from scipy.stats import truncnorm
+
+from enterprise.signals import parameter
+from enterprise.signals import signal_base
+from enterprise.signals import deterministic_signals
+from enterprise.signals import gp_signals
 
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
@@ -69,7 +70,9 @@ def get_pardict(psrs, datareleases):
         pardict[psr.name] = {}
         pardict[psr.name][dataset] = {}
         for par, vals, errs in zip(
-            psr.fitpars[1:], psr.t2pulsar.vals(), psr.t2pulsar.errs()
+            psr.fitpars[1:],
+            np.double(psr.t2pulsar.vals()),
+            np.double(psr.t2pulsar.errs()),
         ):
             pardict[psr.name][dataset][par] = {}
             pardict[psr.name][dataset][par]["val"] = vals
@@ -133,21 +136,17 @@ def filter_Mmat(psr, ltm_list=[]):
 
 # timing model delay
 @signal_base.function
-def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
+def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
+
     :param residuals: original pulsar residuals from Pulsar object
     :param t2pulsar: libstempo pulsar object
-    :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
-    :param tm_params: new timing model parameters, rescaled to be in sigmas
+    :param tmparams_orig: dictionary of TM parameter tuples, (val, err)
+    :param tmparams: new timing model parameters, rescaled to be in sigmas
     :param which: option to have all or only named TM parameters varied
+
     :return: difference between new and old residuals in seconds
-    """
-    """OUTLINE:
-    take in parameters in par file
-    save to dictionary
-    Based on params in input param list, set parameter prior distribution
-    Feed the priors and param list into tm_delay function
     """
     residuals = t2pulsar.residuals()
     # grab original timing model parameters and errors in dictionary
@@ -172,7 +171,7 @@ def tm_delay(t2pulsar, tm_params_orig, tm_param_dict={}, **kwargs):
 
     # set to new values
     t2pulsar.vals(tm_params_rescaled)
-    new_res = t2pulsar.residuals()
+    new_res = np.double(t2pulsar.residuals().copy())
 
     # remeber to set values back to originals
     t2pulsar.vals(orig_params)
@@ -195,18 +194,11 @@ def timing_block(
     prior_upper_bound=5.0,
     tm_param_dict={},
     fit_remaining_pars=True,
+    wideband_kwargs={},
 ):
     """
     Returns the timing model block of the model
-    :param tm_param_list: a list of parameters to vary in the model
-    :param prior_type: prior on timing parameters. Default is a bounded normal, can be "uniform"
-    :param prior_sigma: Sets the center value on timing parameters for normal distribution draws
-    :param prior_sigma: Sets the sigma on timing parameters for normal distribution draws
-    :param prior_lower_bound: Sets the lower bound on timing parameters for bounded normal and uniform distribution draws
-    :param prior_upper_bound: Sets the upper bound on timing parameters for bounded normal and uniform distribution draws
-    :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors:
-        e.g. {'PX':{'prior_sigma':prior_sigma,'prior_lower_bound':prior_lower_bound,'prior_upper_bound':prior_upper_bound}}
-        The priors cannot be normalized by sigma if there are uneven error bounds!
+    :param tmparam_list: a list of parameters to vary in the model
     """
     # If param in tm_param_dict not in tm_param_list, add it
     for key in tm_param_dict.keys():
@@ -220,7 +212,14 @@ def timing_block(
     psr.tm_params_orig = OrderedDict(
         zip(
             psr.t2pulsar.pars(),
-            map(list, zip(psr.t2pulsar.vals(), psr.t2pulsar.errs(), ptypes)),
+            map(
+                list,
+                zip(
+                    np.double(psr.t2pulsar.vals()),
+                    np.double(psr.t2pulsar.errs()),
+                    ptypes,
+                ),
+            ),
         )
     )
 
@@ -300,7 +299,7 @@ def timing_block(
         )
     # timing model
 
-    tm_func = tm_delay(tm_param_dict=tm_param_dict, **tm_delay_kwargs)
+    tm_func = tm_delay(**tm_delay_kwargs)
     tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
 
     # filter design matrix of all but linear params
@@ -308,7 +307,13 @@ def timing_block(
         if not ltm_list:
             ltm_list = [p for p in psr.fitpars if p not in tm_param_list]
         filter_Mmat(psr, ltm_list=ltm_list)
-        ltm = gp_signals.TimingModel(coefficients=False)
+        if any(["DMX" in x for x in ltm_list]) and wideband_kwargs:
+            ltm = gp_signals.WidebandTimingModel(
+                name="wideband_timing_model",
+                **wideband_kwargs,
+            )
+        else:
+            ltm = gp_signals.TimingModel(coefficients=False)
         tm += ltm
 
     return tm
