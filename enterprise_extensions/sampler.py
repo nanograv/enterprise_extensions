@@ -369,6 +369,31 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+
+    def draw_from_fdm_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'fdm'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+
     def draw_from_cw_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -436,6 +461,7 @@ class JumpProposal(object):
                'gw',
                'cw',
                'bwm',
+               'fdm',
                'gp_sw',
                'ecorr_sherman-morrison',
                'ecorr',
@@ -826,6 +852,11 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     if 'bwm_log10_A' in pta.param_names:
         print('Adding BWM prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+    # FDM prior draw
+    if 'fdm_log10_A' in pta.param_names:
+        print('Adding FDM prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
 
     # CW prior draw
     if 'cw_log10_h' in pta.param_names:

@@ -66,6 +66,47 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     return bwm
 
 
+def fdm_block(Tmin, Tmax, amp_prior='log-uniform',
+              logmin=-18, logmax=-11, name='fdm'):
+    """
+    Returns deterministic fuzzy dark matter model:
+        1. FDM parameterized by frequency, phase, 
+            and amplitude (mass and DM energy density).
+    :param Tmin:
+        Min time to search, probably first TOA (MJD).
+    :param Tmax:
+        Max time to search, probably last TOA (MJD).
+    :param amp_prior:
+        Prior on log10_A. 
+    :param logmin:
+        log of minimum FDM amplitude for prior (log10)
+    :param logmax:
+        log of maximum FDM amplitude for prior (log10)
+    :param name:
+        Name of FDM signal.
+    """
+
+    # BWM parameters
+    amp_name = '{}_log10_A'.format(name)
+    log10_A_fdm = parameter.Uniform(logmin, logmax)(amp_name)
+    
+    freq_name = '{}_log10_f'.format(name)
+    log10_f_fdm = parameter.Uniform(-9, -7)(freq_name)
+
+    phase_e_name = '{}_phase_e'.format(name)
+    phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
+    
+    phase_p_name = '{}_phase_p'.format(name)
+    phase_p_fdm = parameter.Uniform(0, 2*np.pi)(phase_p_name)
+    
+    fdm_wf = utils.fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
+                             phase_e=phase_e_fdm, phase_p=phase_p_fdm)
+    
+    fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
+
+    return fdm
+
+
 def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
                   skyloc=None, log10_fgw=None,
                   psrTerm=False, tref=0, name='cw'):
