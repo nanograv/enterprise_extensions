@@ -35,7 +35,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           wideband=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dm_dt=15,
-                          dmx_data=None, dm_annual=False, gamma_dm_val=None, 
+                          dmx_data=None, dm_annual=False, gamma_dm_val=None,
                           chrom_gp=False, chrom_gp_kernel='nondiag',
                           chrom_psd='powerlaw', chrom_idx=4,
                           chrom_kernel='periodic', chrom_dt=15,
@@ -166,7 +166,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         if chrom_gp:
             s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
                                        psd=chrom_psd, idx=chrom_idx,
-                                       components=components, 
+                                       components=components,
                                        nondiag_kernel=chrom_kernel,
                                        coefficients=coefficients,
                                        chrom_dt=chrom_dt)
@@ -1792,3 +1792,130 @@ def model_cw(psrs, upper_limit=False,
         pta.set_default_params(noisedict)
 
     return pta
+
+
+def model_4a(psrs, psd_gw='powerlaw', psd_crn='powerlaw', noisedict=None,
+             components=30,
+             n_rnfreqs = None, n_gwbfreqs=None, n_crnfreqs=None,
+             gamma_common=None,
+             delta_common=None, upper_limit=False, bayesephem=False,
+             be_type='setIII', wideband=False, correlationsonly=False,
+             rn_psrs='all', pshift=False, pseed=None, psr_models=False):
+    """
+    Reads in list of enterprise Pulsar instance and returns a PTA
+    instantiated with model 3A from the analysis paper:
+
+    per pulsar:
+        1. fixed EFAC per backend/receiver system
+        2. fixed EQUAD per backend/receiver system
+        3. fixed ECORR per backend/receiver system
+        4. Red noise modeled as a power-law with 30 sampling frequencies
+        5. Linear timing model.
+
+    global:
+        1. GWB with HD correlations modeled with user defined PSD with
+        30 sampling frequencies. Available PSDs are
+        ['powerlaw', 'turnover' 'spectrum']
+        2. Optional physical ephemeris modeling.
+
+    :param psd:
+        PSD to use for common red noise signal. Available options
+        are ['powerlaw', 'turnover' 'spectrum'] 'powerlaw' is default
+        value.
+    :param gamma_common:
+        Fixed common red process spectral index value. By default we
+        vary the spectral index over the range [0, 7].
+    :param gamma_common:
+        Fixed common red process spectral index value for higher frequencies in
+        broken power law model.
+        By default we vary the spectral index over the range [0, 7].
+    :param upper_limit:
+        Perform upper limit on common red noise amplitude. By default
+        this is set to False. Note that when perfoming upper limits it
+        is recommended that the spectral index also be fixed to a specific
+        value.
+    :param bayesephem:
+        Include BayesEphem model. Set to False by default
+    :param be_type:
+        orbel, orbel-v2, setIII
+    :param correlationsonly:
+        Give infinite power (well, 1e40) to pulsar red noise, effectively
+        canceling out also GW diagonal terms
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
+    :param psr_models:
+        Return list of psr models rather than signal_base.PTA object.
+    """
+
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    # find the maximum time span to set GW frequency sampling
+    Tspan = model_utils.get_tspan(psrs)
+
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_crnfreqs is None:
+        n_crnfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
+
+    # common red noise block
+    s = common_red_noise_block(psd=psd_gw, prior=amp_prior, Tspan=Tspan,
+                                components=n_gwbfreqs, gamma_val=gamma_common,
+                                delta_val=delta_common,
+                                orf='hd', name='gw', pshift=pshift, pseed=pseed)
+
+    s += common_red_noise_block(psd=psd_crn, prior=amp_prior, Tspan=Tspan,
+                                components=n_crnfreqs,
+                                orf=None, name='crn', pshift=pshift, pseed=pseed)
+    # intrinsic red noise
+    rn = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
+                         prior=amp_prior,
+                         Tspan=Tspan, components=n_rnfreqs)
+    if isinstance(rn_psrs, str) and rn_psrs=='all':
+        s += rn
+
+    # ephemeris model
+    if bayesephem:
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True, model=be_type)
+
+    # timing model
+    s += gp_signals.TimingModel()
+
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if isinstance(rn_psrs, list):
+            if p.name in rn_psrs:
+                ss = s + rn
+            else:
+                ss = s
+        else:
+            ss = s
+
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = ss + white_noise_block(vary=False, inc_ecorr=True)
+            models.append(s2(p))
+        else:
+            s3 = ss + white_noise_block(vary=False, inc_ecorr=False)
+            models.append(s3(p))
+
+    if psr_models:
+        return models
+    else:
+        # set up PTA
+        pta = signal_base.PTA(models)
+
+        # set white noise parameters
+        if noisedict is None:
+            print('No noise dictionary provided!...')
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
+
+        return pta
