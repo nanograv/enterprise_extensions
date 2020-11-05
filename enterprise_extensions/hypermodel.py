@@ -157,7 +157,7 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None):
+                      empirical_distr=None, groups=None):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -184,7 +184,8 @@ class HyperModel(object):
         cov = np.diag(np.ones(ndim) * 1**2) ## used to be 0.1
 
         # parameter groupings
-        groups = self.get_parameter_groups()
+        if groups is None:
+            groups = self.get_parameter_groups()
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
