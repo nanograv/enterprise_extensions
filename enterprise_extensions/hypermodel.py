@@ -268,6 +268,12 @@ class HyperModel(object):
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
+        # Prior distribution draw for parameters named GW
+        if any([p for p in self.param_names if 'gw' in p]):
+            print('Adding gw param prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_par_prior(
+                par_names=[p for p in self.param_names if 'gw' in p]), 10)
+        
         # Model index distribution draw
         if sample_nmodel:
             if 'nmodel' in self.param_names:
