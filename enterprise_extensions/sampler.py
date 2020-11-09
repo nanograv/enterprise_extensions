@@ -103,7 +103,7 @@ class JumpProposal(object):
             tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
             tm_groups.extend(tm_idx)
             self.tm_groups = np.array(tm_groups, dtype=object)
-            special_pars = ["PX", "SINI", "ECC"]
+            special_pars = ["PX", "SINI", "COSI", "ECC"]
             self.special_idxs = [
                 ii
                 for par, ii in self.pimap.items()
@@ -852,6 +852,7 @@ def get_timing_groups(pta):
         "EPS2DOT",
         "FB",
         "SINI",
+        "COSI",
         "MTOT",
         "M2",
         "XDOT",
