@@ -303,7 +303,7 @@ def timing_block(
                         print("COSI added to tm_params_orig for to work with tm_delay.")
                         sin_val, sin_err, _ = psr.tm_params_orig['SINI']
                         val = np.longdouble(np.cos(np.arcsin(sin_val)))
-                        err = np.longdouble(np.sqrt(np.abs(-sin_val/val)*sin_err**2))
+                        err = np.longdouble(np.sqrt((np.abs(sin_val/val))**2*sin_err**2))
                         psr.tm_params_orig[par] = [val,err,"normalized"]
                     else:
                         raise ValueError('{} not in psr.tm_params_orig'.format(par))
