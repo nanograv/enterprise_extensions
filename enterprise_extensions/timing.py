@@ -167,13 +167,15 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
             # User defined priors are assumed to not be scaled
             tm_params_rescaled[tm_param] = tm_scaled_val
         else:
-            #Switch for sampling in COSI, but using SINI in libstempo
-            if "COSI" in tm_scaled_key and tm_param == 'SINI': 
+            # Switch for sampling in COSI, but using SINI in libstempo
+            if "COSI" in tm_scaled_key and tm_param == "SINI":
                 rescaled_COSI = np.longdouble(
                     tm_scaled_val * tm_params_orig["COSI"][1]
                     + tm_params_orig["COSI"][0]
                 )
-                tm_params_rescaled[tm_param] = np.longdouble(np.sin(np.arccos(rescaled_COSI)))
+                tm_params_rescaled[tm_param] = np.longdouble(
+                    np.sin(np.arccos(rescaled_COSI))
+                )
             else:
                 tm_params_rescaled[tm_param] = np.longdouble(
                     tm_scaled_val * tm_params_orig[tm_param][1]
@@ -261,8 +263,11 @@ def timing_block(
                 psr.tm_params_orig[par][-1] = "physical"
                 val, err, _ = psr.tm_params_orig[par]
             else:
-                print(par,'not in psr.tm_params_orig.',
-                    'Should be okay if you gave it prior_lower_bound and prior_upper_bound...')
+                print(
+                    par,
+                    "not in psr.tm_params_orig.",
+                    "Should be okay if you gave it prior_lower_bound and prior_upper_bound...",
+                )
 
             if "prior_mu" in tm_param_dict[par].keys():
                 prior_mu = tm_param_dict[par]["prior_mu"]
@@ -298,25 +303,60 @@ def timing_block(
                 if par in psr.tm_params_orig.keys():
                     val, err, _ = psr.tm_params_orig[par]
                 else:
-                    #Switch for sampling in COSI, but using SINI in libstempo
-                    if 'COSI' in par and 'SINI' in psr.tm_params_orig.keys():
+                    # Switch for sampling in COSI, but using SINI in libstempo
+                    if "COSI" in par and "SINI" in psr.tm_params_orig.keys():
                         print("COSI added to tm_params_orig for to work with tm_delay.")
-                        sin_val, sin_err, _ = psr.tm_params_orig['SINI']
+                        sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
                         val = np.longdouble(np.cos(np.arcsin(sin_val)))
-                        err = np.longdouble(np.sqrt((np.abs(sin_val/val))**2*sin_err**2))
-                        psr.tm_params_orig[par] = [val,err,"normalized"]
+                        err = np.longdouble(
+                            np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
+                        )
+                        psr.tm_params_orig[par] = [val, err, "normalized"]
                     else:
-                        raise ValueError('{} not in psr.tm_params_orig'.format(par))
+                        raise ValueError("{} not in psr.tm_params_orig".format(par))
 
-                if "pmin" in physical_tm_priors[par].keys():
+                if (
+                    "pmin" in physical_tm_priors[par].keys()
+                    and "pmax" in physical_tm_priors[par].keys()
+                ):
                     if val + err * prior_lower_bound < physical_tm_priors[par]["pmin"]:
                         psr.tm_params_orig[par][-1] = "physical"
                         prior_lower_bound = physical_tm_priors[par]["pmin"]
-                if "pmax" in physical_tm_priors[par].keys():
-                    if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
-                        psr.tm_params_orig[par][-1] = "physical"
-                        prior_upper_bound = physical_tm_priors[par]["pmax"]
 
+                    if val + err * prior_upper_bound > physical_tm_priors[par]["pmax"]:
+                        if psr.tm_params_orig[par][-1] != "physical":
+                            psr.tm_params_orig[par][-1] = "physical"
+                            # Need to change lower bound to a non-normed prior too
+                            prior_lower_bound = np.float(val + err * prior_lower_bound)
+                        prior_upper_bound = physical_tm_priors[par]["pmax"]
+                    else:
+                        if psr.tm_params_orig[par][-1] == "physical":
+                            prior_upper_bound = np.float(val + err * prior_upper_bound)
+                elif (
+                    "pmin" in physical_tm_priors[par].keys()
+                    or "pmax" in physical_tm_priors[par].keys()
+                ):
+                    if "pmin" in physical_tm_priors[par].keys():
+                        if (
+                            val + err * prior_lower_bound
+                            < physical_tm_priors[par]["pmin"]
+                        ):
+                            psr.tm_params_orig[par][-1] = "physical"
+                            prior_lower_bound = physical_tm_priors[par]["pmin"]
+                            # Need to change lower bound to a non-normed prior too
+                            prior_upper_bound = np.float(val + err * prior_upper_bound)
+                    elif "pmax" in physical_tm_priors[par].keys():
+                        if (
+                            val + err * prior_upper_bound
+                            > physical_tm_priors[par]["pmax"]
+                        ):
+                            psr.tm_params_orig[par][-1] = "physical"
+                            prior_upper_bound = physical_tm_priors[par]["pmax"]
+                            # Need to change lower bound to a non-normed prior too
+                            prior_lower_bound = np.float(val + err * prior_lower_bound)
+                print(par)
+                print(np.float(val + err * -5.0), np.float(val + err * 5.0))
+                print(prior_lower_bound, prior_upper_bound)
         tm_delay_kwargs[par] = get_prior(
             prior_type,
             prior_sigma,
