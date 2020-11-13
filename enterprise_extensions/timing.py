@@ -354,9 +354,7 @@ def timing_block(
                             prior_upper_bound = physical_tm_priors[par]["pmax"]
                             # Need to change lower bound to a non-normed prior too
                             prior_lower_bound = np.float(val + err * prior_lower_bound)
-                print(par)
-                print(np.float(val + err * -5.0), np.float(val + err * 5.0))
-                print(prior_lower_bound, prior_upper_bound)
+
         tm_delay_kwargs[par] = get_prior(
             prior_type,
             prior_sigma,
