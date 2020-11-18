@@ -96,11 +96,10 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform',
     phase_e_name = '{}_phase_e'.format(name)
     phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
     
-    phase_p_name = '{}_phase_p'.format(name)
-    phase_p_fdm = parameter.Uniform(0, 2*np.pi)(phase_p_name)
+    phase_p = parameter.Uniform(0, 2*np.pi)
     
     fdm_wf = utils.fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
-                             phase_e=phase_e_fdm, phase_p=phase_p_fdm)
+                             phase_e=phase_e_fdm, phase_p=phase_p)
     
     fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
 

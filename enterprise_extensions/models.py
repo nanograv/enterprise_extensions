@@ -131,7 +131,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
     # timing model
     if not tm_var:
-        if is_wideband and use_dmdata:
+        if (is_wideband and use_dmdata):
             if dmjump_var:
                 dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
             else:
@@ -348,7 +348,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -478,7 +478,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -807,7 +807,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -928,7 +928,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1041,7 +1041,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1179,7 +1179,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1224,7 +1224,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 noisedict = noisedict
                 pta.set_default_params(noisedict)
 
-            return pta
+        return pta
 
 
 def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
@@ -1303,7 +1303,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1553,7 +1553,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                 model=be_type)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1663,7 +1663,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                             k_threshold=k_threshold)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1791,7 +1791,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, whict_vary=False,
     s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1915,7 +1915,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2060,7 +2060,7 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2107,7 +2107,7 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     return pta
 
 
-def model_fdm(psrs, noisedict=None, tm_svd=False,
+def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
               Tmin_fdm=None, Tmax_fdm=None,
               red_psd='powerlaw', components=30,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
@@ -2132,6 +2132,8 @@ def model_fdm(psrs, noisedict=None, tm_svd=False,
     :param noisedict:
         Dictionary of pulsar noise properties for fixed white noise.
         Can provide manually, or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
     :param tm_svd:
         boolean for svd-stabilised timing model design matrix
     :param Tmin_fdm:
@@ -2301,7 +2303,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
