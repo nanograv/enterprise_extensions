@@ -58,7 +58,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         if efac1:
             efac = parameter.Normal(1.0, 0.1)
         else:
-            efac = parameter.Uniform(0.01, 5.0)
+            efac = parameter.Uniform(0.1, 5.0)
         equad = parameter.Uniform(-9, -5)
         if inc_ecorr:
             ecorr = parameter.Uniform(-9, -5)
@@ -126,7 +126,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             log10_A = parameter.LinearExp(-18, -10)
         elif prior == 'log-uniform' and gamma_val is not None:
             if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A = parameter.Uniform(-18, -11)
+                log10_A = parameter.Uniform(-18, -10)
             else:
                 log10_A = parameter.Uniform(-18, -10)
         else:
@@ -182,7 +182,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         selection = selections.Selection(selections.no_selection)
 
     if break_flat:
-        log10_A_flat = parameter.Uniform(-20, -11)
+        log10_A_flat = parameter.Uniform(-18, -10)
         gamma_flat = parameter.Constant(0)
         pl_flat = utils.powerlaw(log10_A=log10_A_flat, gamma=gamma_flat)
 
@@ -247,7 +247,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                 log10_A_dm = parameter.LinearExp(-19, -11)
             elif prior == 'log-uniform' and gamma_val is not None:
                 if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_A_dm = parameter.Uniform(-18, -10)
+                    log10_A_dm = parameter.Uniform(-19, -11)
                 else:
                     log10_A_dm = parameter.Uniform(-19, -11)
             else:
@@ -539,14 +539,14 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                'broken_powerlaw','flat_powerlaw']:
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
-            log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
+            log10_Agw = parameter.LinearExp(-18, -10)(amp_name)
         elif prior == 'log-uniform' and gamma_val is not None:
             if np.abs(gamma_val - 4.33) < 0.1:
-                log10_Agw = parameter.Uniform(-18, -14)(amp_name)
+                log10_Agw = parameter.Uniform(-18, -10)(amp_name)
             else:
-                log10_Agw = parameter.Uniform(-18, -11)(amp_name)
+                log10_Agw = parameter.Uniform(-18, -10)(amp_name)
         else:
-            log10_Agw = parameter.Uniform(-18, -11)(amp_name)
+            log10_Agw = parameter.Uniform(-18, -10)(amp_name)
 
         gam_name = '{}_gamma'.format(name)
         if gamma_val is not None:
