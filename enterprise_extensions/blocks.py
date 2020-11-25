@@ -97,9 +97,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
 
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
-                    components=30, gamma_val=None, coefficients=False,
-                    select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None):
+                    components=30, gamma_val=None, delta_val=None,
+                    coefficients=False, select=None, modes=None,
+                    wgts=None, break_flat=False, break_flat_fq=None):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies
@@ -119,8 +119,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     :param coefficients: include latent coefficients in GP model?
     """
     # red noise parameters that are common
-    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'flat_powerlaw',
-               'tprocess', 'tprocess_adapt', 'infinitepower']:
+    if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover', 'broken_powerlaw',
+               'flat_powerlaw', 'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-18, -10)
@@ -140,6 +140,16 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # different PSD function parameters
         if psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+        elif psd == 'broken_powerlaw':
+            kappa = parameter.Uniform(0.01, 0.5)
+            log10_fb = parameter.Uniform(-10, -7)
+
+            if delta_val is not None:
+                delta = parameter.Constant(delta_val)
+            else:
+                delta = parameter.Uniform(0, 7)
+            pl = gpp.broken_powerlaw(log10_A=log10_A, gamma=gamma, delta=delta,
+                                    log10_fb=log10_fb, kappa=kappa)
         elif psd == 'powerlaw_genmodes':
             pl = gpp.powerlaw_genmodes(log10_A=log10_A, gamma=gamma, wgts=wgts)
         elif psd == 'turnover':
@@ -218,7 +228,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', Tspan=None, components=30,
-                   gamma_val=None, coefficients=False):
+                   gamma_val=None, delta_val=None, coefficients=False):
     """
     Returns DM noise model:
 
@@ -240,8 +250,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
     """
     # dm noise parameters that are common
     if gp_kernel == 'diag':
-        if psd in ['powerlaw', 'turnover', 'flat_powerlaw',
-                   'tprocess', 'tprocess_adapt']:
+        if psd in ['powerlaw', 'turnover', 'broken_powerlaw',
+                   'flat_powerlaw', 'tprocess', 'tprocess_adapt']:
             # parameters shared by PSD functions
             if prior == 'uniform':
                 log10_A_dm = parameter.LinearExp(-19, -11)
@@ -261,6 +271,17 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # different PSD function parameters
             if psd == 'powerlaw':
                 dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+            elif psd == 'broken_powerlaw':
+                kappa_dm = parameter.Uniform(0.01, 0.5)
+                log10_fb_dm = parameter.Uniform(-10, -7)
+
+                if delta_val is not None:
+                    delta_dm = parameter.Constant(delta_val)
+                else:
+                    delta_dm = parameter.Uniform(0, 7)
+                dm_prior = gpp.broken_powerlaw(log10_A=log10_A_dm, gamma=gamma_dm,
+                                              delta=delta_dm,
+                                              log10_fb=log10_fb_dm, kappa=kappa_dm)
             elif psd == 'turnover':
                 kappa_dm = parameter.Uniform(0, 7)
                 lf0_dm = parameter.Uniform(-9, -7)
@@ -363,7 +384,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           prior='log-uniform',
                           idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
-                          coefficients=False):
+                          coefficients=False, delta_val=None):
     """
     Returns GP chromatic noise model :
 
@@ -397,7 +418,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
     if gp_kernel=='diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
                                                             Tspan=Tspan)
-        if psd in ['powerlaw', 'turnover', 'flat_powerlaw']:
+        if psd in ['powerlaw', 'turnover', 'broken_powerlaw', 'flat_powerlaw']:
             if prior == 'uniform':
                 log10_A = parameter.LinearExp(-18, -11)
             elif prior == 'log-uniform':
@@ -407,6 +428,17 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             # PSD
             if psd == 'powerlaw':
                 chm_prior = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+            elif psd == 'broken_powerlaw':
+                kappa = parameter.Uniform(0.01, 0.5)
+                log10_fb = parameter.Uniform(-10, -7)
+
+                if delta_val is not None:
+                    delta = parameter.Constant(delta_val)
+                else:
+                    delta = parameter.Uniform(0, 7)
+                chm_prior = gpp.broken_powerlaw(log10_A=log10_A, gamma=gamma,
+                                               delta=delta,
+                                               log10_fb=log10_fb, kappa=kappa)
             elif psd == 'turnover':
                 kappa = parameter.Uniform(0, 7)
                 lf0 = parameter.Uniform(-9, -7)

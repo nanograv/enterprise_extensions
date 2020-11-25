@@ -33,11 +33,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
                           is_wideband=False, use_dmdata=False,
-                          dmjump_var=False, gamma_val=None, dm_var=False,
-                          dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
-                          dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, chrom_gp=False,
-                          chrom_gp_kernel='nondiag',
+                          dmjump_var=False, gamma_val=None, delta_val=None,
+                          dm_var=False, dm_type='gp', dmgp_kernel='diag',
+                          dm_psd='powerlaw', dm_nondiag_kernel='periodic',
+                          dmx_data=None, dm_annual=False, gamma_dm_val=None,
+                          chrom_gp=False, chrom_gp_kernel='nondiag',
                           chrom_psd='powerlaw', chrom_idx=4,
                           chrom_kernel='periodic',
                           dm_expdip=False, dmexp_sign='negative',
@@ -168,8 +168,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
     # red noise
     if red_var:
-        s += red_noise_block(psd=psd, prior=amp_prior,
-                             components=components, gamma_val=gamma_val,
+        s += red_noise_block(psd=psd, prior=amp_prior, components=components,
+                             gamma_val=gamma_val, delta_val=delta_val,
                              coefficients=coefficients, select=red_select)
 
     # DM variations
@@ -533,15 +533,15 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None, tm_svd=False, tm_norm=True,
-                  gamma_common=None, upper_limit=False, upper_limit_red=None,
-                  upper_limit_dm=None, upper_limit_common=None,
-                  bayesephem=False, be_type='setIII', sat_orb_elements=False,
-                  is_wideband=False, use_dmdata=False, dm_var=False,
-                  dm_type='gp', dm_psd='powerlaw', dm_annual=False,
+                  gamma_common=None, delta_common=None, upper_limit=False,
+                  upper_limit_red=None, upper_limit_dm=None,
+                  upper_limit_common=None, bayesephem=False, be_type='setIII',
+                  sat_orb_elements=False, is_wideband=False, use_dmdata=False,
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
                   dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
                   red_breakflat=False, red_breakflat_fq=None,
-                  coefficients=False, pshift=False, select='backend'):
+                  coefficients=False, pshift=False, pseed=None, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -659,17 +659,16 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     # common red noise block
     if orf is None:
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients, pshift=pshift,
-                                    gamma_val=gamma_common, name='gw')
+                                    Tspan=Tspan, components=common_components,
+                                    coefficients=coefficients, gamma_val=gamma_common,
+                                    delta_val=delta_common, name='gw',
+                                    pshift=pshift, pseed=pseed)
     elif orf == 'hd':
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients,
-                                    gamma_val=gamma_common, orf='hd',
-                                    name='gw')
+                                    Tspan=Tspan, components=common_components,
+                                    coefficients=coefficients, gamma_val=gamma_common, 
+                                    delta_val=delta_common, orf='hd', name='gw',
+                                    pshift=pshift, pseed=pseed)
 
     # DM variations
     if dm_var:
