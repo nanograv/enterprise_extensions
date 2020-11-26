@@ -633,10 +633,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     if psd == 'spectrum':
         rho_name = '{}_log10_rho'.format(name)
         if prior == 'uniform':
-            log10_rho_gw = parameter.LinearExp(-9, -4,
+            log10_rho_gw = parameter.LinearExp(-10, -4,
                                                size=components)(rho_name)
         elif prior == 'log-uniform':
-            log10_rho_gw = parameter.Uniform(-9, -4, size=components)(rho_name)
+            log10_rho_gw = parameter.Uniform(-10, -4,
+                                             size=components)(rho_name)
 
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 

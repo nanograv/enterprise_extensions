@@ -529,10 +529,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-                  Tspan=None, common_psd='powerlaw', red_psd='powerlaw', orf=None,
+                  Tspan=None, common_psd='powerlaw', red_psd='powerlaw',
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None, tm_svd=False, tm_norm=True,
+                  noisedict=None, orfs=None, tm_svd=False, tm_norm=True,
                   gamma_common=None, delta_common=None, upper_limit=False,
                   upper_limit_red=None, upper_limit_dm=None,
                   upper_limit_common=None, bayesephem=False, be_type='setIII',
@@ -572,6 +572,9 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param noisedict:
         Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
+    :param orfs:
+        List of orfs common red noises to be added. Default is None,
+        which will a spatially uncorrelated common red noise.
     :param white_vary:
         boolean for varying white noise or keeping fixed.
     :param gamma_common:
@@ -657,17 +660,29 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                          break_flat_fq=red_breakflat_fq)
 
     # common red noise block
-    if orf is None:
+    if orfs:
+        for orf in orfs:
+            if orf in [None,'hd']:
+                s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
+                                            Tspan=Tspan, components=common_components,
+                                            coefficients=coefficients,
+                                            gamma_val=gamma_common,
+                                            delta_val=delta_common, orf=orf, name='gw',
+                                            pshift=pshift, pseed=pseed)
+            elif orf in ['monopole','dipole']:
+                s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
+                                            Tspan=Tspan, components=common_components,
+                                            coefficients=coefficients,
+                                            gamma_val=gamma_common,
+                                            delta_val=delta_common, orf=orf, name=orf,
+                                            pshift=pshift, pseed=pseed)
+            else:
+                pass
+    else:
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                     Tspan=Tspan, components=common_components,
                                     coefficients=coefficients, gamma_val=gamma_common,
                                     delta_val=delta_common, name='gw',
-                                    pshift=pshift, pseed=pseed)
-    elif orf == 'hd':
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan, components=common_components,
-                                    coefficients=coefficients, gamma_val=gamma_common, 
-                                    delta_val=delta_common, orf='hd', name='gw',
                                     pshift=pshift, pseed=pseed)
 
     # DM variations
