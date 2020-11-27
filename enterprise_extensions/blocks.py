@@ -415,9 +415,11 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Whether to keep coefficients of the GP.
 
     """
+    if idx is None:
+        idx = parameter.Uniform(0, 7)
     if gp_kernel=='diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
-                                                            Tspan=Tspan)
+                                                            Tspan=Tspan,idx=idx)
         if psd in ['powerlaw', 'turnover', 'broken_powerlaw', 'flat_powerlaw']:
             if prior == 'uniform':
                 log10_A = parameter.LinearExp(-18, -11)
