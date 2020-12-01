@@ -2108,10 +2108,12 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
 
 def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
-              Tmin_fdm=None, Tmax_fdm=None,
-              red_psd='powerlaw', components=30,
+              Tmin_fdm=None, Tmax_fdm=None, gw_psd='powerlaw',
+              red_psd='powerlaw', components=30, n_rnfreqs = None, 
+              n_gwbfreqs=None, gamma_common=None, delta_common=None,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
-              upper_limit=False, bayesephem=False, wideband=False):
+              upper_limit=False, bayesephem=False, wideband=False,
+              pshift=False, pseed=None, model_CRN=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with FDM model:
@@ -2123,6 +2125,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         4. Red noise modeled by a specified psd
         5. Linear timing model.
         6. Optional DM-variation modeling
+        7. The pulsar phase term.
     global:
         1. Deterministic GW FDM signal.
         2. Optional physical ephemeris modeling.
@@ -2140,12 +2143,21 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         Min time to search for FDM (MJD). If omitted, uses first TOA.
     :param Tmax_fdm:
         Max time to search for FDM (MJD). If omitted, uses last TOA.
+    :param gw_psd:
+        PSD to use for the per pulsar GWB. 
     :param red_psd:
         PSD to use for per pulsar red noise. Available options
         are ['powerlaw', 'turnover', tprocess, 'spectrum'].
     :param components:
         number of modes in Fourier domain processes (red noise, DM
         variations, etc)
+    :param n_rnfreqs:
+        Number of frequencies to use in achromatic rednoise model.
+    :param n_gwbfreqs:
+        Number of frequencies to use in the GWB model.
+    :param gamma_common:
+        Fixed common red process spectral index value. By default we
+        vary the spectral index over the range [0, 7].
     :param dm_var:
         include gaussian process DM variations
     :param dm_psd:
@@ -2157,10 +2169,27 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         set to False for a 'detection' run.
     :param bayesephem:
         Include BayesEphem model.
+    :param wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
+    :param model_CRN:
+        Option to model the common red process in addition to the
+        FDM signal. 
     :return: instantiated enterprise.PTA object
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
 
     # find the maximum time span to set frequency sampling
     tmin = np.min([p.toas.min() for p in psrs])
@@ -2173,7 +2202,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         Tmax_fdm = tmax/const.day
 
     # red noise
-    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=n_rnfreqs)
 
     # DM variations
     if dm_var:
@@ -2184,6 +2213,13 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
         # DM exponential dip for J1713's DM event
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
+
+    if model_CRN is True:
+        # common red noise block
+        s += common_red_noise_block(psd=gw_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=n_gwbfreqs, gamma_val=gamma_common,
+                                    delta_val=delta_common, name='gw',
+                                    pshift=pshift, pseed=pseed)
 
     # GW FDM signal block
     s += deterministic.fdm_block(Tmin_fdm, Tmax_fdm,
