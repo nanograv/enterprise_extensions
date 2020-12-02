@@ -662,14 +662,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     # common red noise block
     if orfs:
         for orf in orfs:
-            if orf in [None,'hd']:
+            if orf is None:
                 s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                             Tspan=Tspan, components=common_components,
                                             coefficients=coefficients,
                                             gamma_val=gamma_common,
-                                            delta_val=delta_common, orf=orf, name='gw',
+                                            delta_val=delta_common, name='gw',
                                             pshift=pshift, pseed=pseed)
-            elif orf in ['monopole','dipole']:
+            elif orf in ['monopole','dipole','hd']:
                 s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                             Tspan=Tspan, components=common_components,
                                             coefficients=coefficients,
