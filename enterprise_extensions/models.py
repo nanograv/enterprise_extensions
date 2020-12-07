@@ -661,20 +661,28 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # common red noise block
     if orfs:
+        orfs = np.atleast_1d(orfs)
         for orf in orfs:
-            if orf is None:
+            if orf == 'crn':
                 s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                             Tspan=Tspan, components=common_components,
                                             coefficients=coefficients,
                                             gamma_val=gamma_common,
-                                            delta_val=delta_common, name='gw',
+                                            delta_val=delta_common, name='crn',
                                             pshift=pshift, pseed=pseed)
-            elif orf in ['monopole','dipole','hd']:
+            elif orf in ['monopole','dipole']:
                 s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                             Tspan=Tspan, components=common_components,
                                             coefficients=coefficients,
                                             gamma_val=gamma_common,
                                             delta_val=delta_common, orf=orf, name=orf,
+                                            pshift=pshift, pseed=pseed)
+            elif orf == 'hd':
+                s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
+                                            Tspan=Tspan, components=common_components,
+                                            coefficients=coefficients,
+                                            gamma_val=gamma_common,
+                                            delta_val=delta_common, orf='hd', name='gw',
                                             pshift=pshift, pseed=pseed)
             else:
                 pass
