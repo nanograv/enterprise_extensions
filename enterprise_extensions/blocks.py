@@ -230,7 +230,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
-                   prior='log-uniform', Tspan=None, components=30,
+                   prior='log-uniform', Tspan=None, components=30, select=None,
                    gamma_val=None, delta_val=None, coefficients=False):
     """
     Returns DM noise model:
@@ -376,18 +376,23 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             dm_basis = gpk.linear_interp_basis_dm(dt=30*86400)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
-    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
-                              coefficients=coefficients)
+    if select is None:
+        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
+                                  coefficients=coefficients)
+    else:
+        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
+                                  coefficients=coefficients,
+                                  selection=select)
 
     return dmgp
 
 
 def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           nondiag_kernel='periodic',
-                          prior='log-uniform',
-                          idx=4, include_quadratic=False,
-                          Tspan=None, name='chrom', components=30,
-                          coefficients=False, delta_val=None):
+                          prior='log-uniform', name='chrom',
+                          include_quadratic=False, Tspan=None,
+                          idx=4, components=30, select=None,
+                          delta_val=None, coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -515,8 +520,13 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                                      log10_alpha_wgt=log10_alpha_wgt,
                                      log10_ell2=log10_ell2)
 
-    cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
-                              coefficients=coefficients)
+    if select is None:
+        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
+                                 coefficients=coefficients)
+    else:
+        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
+                                 coefficients=coefficients,
+                                 selection=select)
 
     if include_quadratic:
         # quadratic piece

@@ -534,14 +534,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   noisedict=None, orfs=None, tm_svd=False, tm_norm=True,
-                  gamma_common=None, delta_common=None, upper_limit=False,
-                  upper_limit_red=None, upper_limit_dm=None,
+                  gamma_common=None, delta_common=None, red_var=True,
+                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
                   upper_limit_common=None, bayesephem=False, be_type='setIII',
                   sat_orb_elements=False, is_wideband=False, use_dmdata=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_annual=False,
-                  white_vary=False, gequad=False, dm_chrom=False,
-                  dmchrom_psd='powerlaw', dmchrom_idx=4, red_select=None,
-                  red_breakflat=False, red_breakflat_fq=None,
+                  dm_var=False, dm_select=None, dm_type='gp', dm_psd='powerlaw',
+                  dm_annual=False, white_vary=False, gequad=False, dm_chrom=False,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4, chrom_select=None,
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   coefficients=False, pshift=False, pseed=None, select='backend'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -654,11 +654,13 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     # red noise
-    s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
-                         components=red_components, modes=modes, wgts=wgts,
-                         coefficients=coefficients,
-                         select=red_select, break_flat=red_breakflat,
-                         break_flat_fq=red_breakflat_fq)
+    red_select = np.atleast_1d(red_select)
+    for i in range(red_var):
+        s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
+                             components=red_components, modes=modes, wgts=wgts,
+                             coefficients=coefficients,
+                             select=red_select[i], break_flat=red_breakflat,
+                             break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     if orfs:
@@ -698,16 +700,15 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     if dm_var:
         if dm_type == 'gp':
             s += dm_noise_block(gp_kernel='diag', psd=dm_psd,
-                                prior=amp_prior_dm,
-                                components=dm_components, gamma_val=None,
-                                coefficients=coefficients)
+                                prior=amp_prior_dm, components=dm_components,
+                                gamma_val=None, coefficients=coefficients,
+                                select=dm_select)
         if dm_annual:
             s += chrom.dm_annual_signal()
         if dm_chrom:
             s += chromatic_noise_block(psd=dmchrom_psd, idx=dmchrom_idx,
-                                       name='chromatic',
-                                       components=dm_components,
-                                       coefficients=coefficients)
+                                       name='chromatic', components=dm_components,
+                                       coefficients=coefficients, select=chrom_select)
 
     # ephemeris model
     if bayesephem:
@@ -721,14 +722,16 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
                     select=select)
             if gequad:
-                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-9, -5),
                                                selection=selections.Selection(selections.no_selection),
                                                name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                   sign=False, name='dmexp')
+                s3 = s2 + (chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                    sign='negative', name='dmexp1') +
+                           chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                    sign='negative', name='dmexp2'))
                 models.append(s3(p))
             else:
                 models.append(s2(p))
@@ -736,14 +739,16 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                     select=select)
             if gequad:
-                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-9, -5),
                                                selection=selections.Selection(selections.no_selection),
                                                name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s5 = s4 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                   sign=False, name='dmexp')
+                s5 = s4 + (chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                    sign='negative', name='dmexp1') +
+                           chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                    sign='negative', name='dmexp2'))
                 models.append(s5(p))
             else:
                 models.append(s4(p))
