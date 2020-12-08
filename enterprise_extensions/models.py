@@ -37,11 +37,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_var=False, dm_type='gp', dmgp_kernel='diag',
                           dm_psd='powerlaw', dm_nondiag_kernel='periodic',
                           dmx_data=None, dm_annual=False, gamma_dm_val=None,
-                          chrom_gp=False, chrom_gp_kernel='nondiag',
-                          chrom_psd='powerlaw', chrom_idx=4,
-                          chrom_kernel='periodic',
-                          dm_expdip=False, dmexp_sign='negative',
-                          dm_expdip_idx=2,
+                          chrom_select=None, chrom_gp=False,
+                          chrom_gp_kernel='nondiag', chrom_psd='powerlaw',
+                          chrom_idx=4, chrom_kernel='periodic',
+                          dm_select=None, dm_expdip=False,
+                          dmexp_sign='negative', dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
                           dm_cusp=False, dm_cusp_sign='negative',
@@ -180,11 +180,13 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
                                     prior=amp_prior, components=components,
                                     gamma_val=gamma_dm_val,
-                                    coefficients=coefficients)
+                                    coefficients=coefficients,
+                                    select=dm_select)
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
-                                    coefficients=coefficients)
+                                    coefficients=coefficients,
+                                    select=dm_select)
         elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
@@ -194,7 +196,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components,
                                        nondiag_kernel=chrom_kernel,
-                                       coefficients=coefficients)
+                                       coefficients=coefficients,
+                                       select=chrom_select)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
