@@ -187,6 +187,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     elif select == 'band' or select == 'band+':
         # define selection by observing band
         selection = selections.Selection(selections.by_band)
+    elif select is not None:
+        # define selection by list of custom backend
+        selection = selections.Selection(selections.custom_backends(select))
     else:
         # define no selection
         selection = selections.Selection(selections.no_selection)

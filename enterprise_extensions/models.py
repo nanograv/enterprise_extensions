@@ -167,10 +167,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             pass
 
     # red noise
-    if red_var:
+    red_select = np.atleast_1d(red_select)
+    for i in range(red_var):
         s += red_noise_block(psd=psd, prior=amp_prior, components=components,
                              gamma_val=gamma_val, delta_val=delta_val,
-                             coefficients=coefficients, select=red_select)
+                             coefficients=coefficients, select=red_select[i])
 
     # DM variations
     if dm_var:
