@@ -430,9 +430,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                                                             Tspan=Tspan,idx=idx)
         if psd in ['powerlaw', 'turnover', 'broken_powerlaw', 'flat_powerlaw']:
             if prior == 'uniform':
-                log10_A = parameter.LinearExp(-18, -11)
+                log10_A = parameter.LinearExp(-19, -11)
             elif prior == 'log-uniform':
-                log10_A = parameter.Uniform(-18, -11)
+                log10_A = parameter.Uniform(-19, -11)
             gamma = parameter.Uniform(0, 7)
 
             # PSD

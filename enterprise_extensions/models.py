@@ -542,10 +542,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   upper_limit_common=None, bayesephem=False, be_type='setIII',
                   sat_orb_elements=False, is_wideband=False, use_dmdata=False,
                   dm_var=False, dm_select=None, dm_type='gp', dm_psd='powerlaw',
-                  dm_annual=False, white_vary=False, gequad=False, dm_chrom=False,
-                  dmchrom_psd='powerlaw', dmchrom_idx=4, chrom_select=None,
-                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
-                  coefficients=False, pshift=False, pseed=None, select='backend'):
+                  dm_annual=False, num_dmdips=1, white_vary=False, gequad=False,
+                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  chrom_select=None, red_select=None, red_breakflat=False,
+                  red_breakflat_fq=None, select='backend',
+                  coefficients=False, pshift=False, pseed=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -731,10 +732,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s3 = s2 + (chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                    sign='negative', name='dmexp1') +
-                           chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                    sign='negative', name='dmexp2'))
+                s3 = s2
+                for dd in range(num_dmdips):
+                    s3 += chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2, sign='negative',
+                                                   name='dmexp_{0}'.format(dd+1))
                 models.append(s3(p))
             else:
                 models.append(s2(p))
@@ -748,10 +749,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / 86400
                 tmax = p.toas.max() / 86400
-                s5 = s4 + (chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                    sign='negative', name='dmexp1') +
-                           chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                    sign='negative', name='dmexp2'))
+                s5 = s4
+                for dd in range(num_dmdips):
+                    s5 += chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2, sign='negative',
+                                                   name='dmexp_{0}'.format(dd+1))
                 models.append(s5(p))
             else:
                 models.append(s4(p))
