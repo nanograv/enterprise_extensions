@@ -540,8 +540,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, gamma_val=None,
-                           delta_val=None,
-                           orf=None, name='gw', coefficients=False,
+                           delta_val=None, orf=None, name='gw',
+                           coefficients=False, select=None,
                            pshift=False, pseed=None):
     """
     Returns common red noise model:
@@ -656,10 +656,24 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
+    if select == 'backend':
+        # define selection by observing backend
+        selection = selections.Selection(selections.by_backend)
+    elif select == 'band' or select == 'band+':
+        # define selection by observing band
+        selection = selections.Selection(selections.by_band)
+    elif select is not None:
+        # define selection by list of custom backend
+        selection = selections.Selection(selections.custom_backends(select))
+    else:
+        # define no selection
+        selection = selections.Selection(selections.no_selection)
+
     if orf is None:
         crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
                                         components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift, pseed=pseed)
+                                        name=name, selection=selection,
+                                        pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
                                               components=components,
