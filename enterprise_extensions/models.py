@@ -558,7 +558,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     # red noise
-    rn += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
+    rn = red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
                          components=red_components, modes=modes, wgts=wgts,
                          coefficients=coefficients,
                          select=red_select, break_flat=red_breakflat,
