@@ -611,6 +611,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                 ss = s + rn
             else:
                 ss = s
+        else:
+            ss = s
         if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = ss + white_noise_block(vary=white_vary, inc_ecorr=True)
             if gequad:
