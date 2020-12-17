@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
+import os
 import numpy as np
 from collections import defaultdict, OrderedDict
+import scipy.stats as sps
 from scipy.stats import truncnorm
 
 from enterprise.signals import parameter
@@ -43,6 +45,31 @@ def BoundedNormal(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
 
     return BoundedNormal
 
+#NE2001 DM Dist data prior.
+def NE2001DMDist_Prior(value):
+    """Prior function for NE2001DMDist parameters."""
+    return px_rv.pdf(value)
+
+def NE2001DMDist_Sampler(size=None):
+    """Sampling function for NE2001DMDist parameters."""
+    return px_rv.rvs(size=size)
+
+def NE2001DMDist_Parameter(size=None):
+    """Class factory for NE2001DMDist parameters."""
+    class NE2001DMDist_Parameter(parameter.Parameter):
+        _size = size
+        _typename = parameter._argrepr('NE2001DMDist')
+        _prior = parameter.Function(NE2001DMDist_Prior)
+        _sampler = staticmethod(NE2001DMDist_Sampler)
+
+    return NE2001DMDist_Parameter
+
+######## Scipy defined RV for NE2001 DM Dist data. ########
+defpath = os.path.dirname(__file__)
+data_file = defpath + '/px_prior_1.txt'
+px_prior = np.loadtxt(data_file)
+px_hist = np.histogram(px_prior, bins=100, density=True)
+px_rv = sps.rv_histogram(px_hist)
 
 def get_default_physical_tm_priors():
     """
@@ -117,9 +144,11 @@ def get_prior(
         )
     elif prior_type == "uniform":
         return parameter.Uniform(prior_lower_bound, prior_upper_bound, size=num_params)
+    elif prior_type == "dm_dist_px_prior":
+        return NE2001DMDist_Parameter(size=num_params)
     else:
         raise ValueError(
-            "prior_type can only be uniform or bounded-normal, not ", prior_type
+            "prior_type can only be uniform, bounded-normal, or dm_dist_px_prior, not ", prior_type
         )
 
 
@@ -251,7 +280,7 @@ def timing_block(
             psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
 
     tm_delay_kwargs = {}
-    default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound]
+    default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound, prior_type]
     for par in tm_param_list:
         if par == "Offset":
             raise ValueError(
@@ -262,12 +291,18 @@ def timing_block(
             if par in psr.tm_params_orig.keys():
                 psr.tm_params_orig[par][-1] = "physical"
                 val, err, _ = psr.tm_params_orig[par]
-            else:
-                print(
-                    par,
-                    "not in psr.tm_params_orig.",
-                    "Should be okay if you gave it prior_lower_bound and prior_upper_bound...",
+            elif "COSI" in par and "SINI" in psr.tm_params_orig.keys():
+                print("COSI added to tm_params_orig for to work with tm_delay.")
+                sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
+                val = np.longdouble(np.cos(np.arcsin(sin_val)))
+                err = np.longdouble(
+                    np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
                 )
+                psr.tm_params_orig[par] = [val, err, "physical"]
+            else:
+                raise ValueError(
+                    par,
+                    "not in psr.tm_params_orig.")
 
             if "prior_mu" in tm_param_dict[par].keys():
                 prior_mu = tm_param_dict[par]["prior_mu"]
@@ -285,11 +320,17 @@ def timing_block(
                 prior_upper_bound = tm_param_dict[par]["prior_upper_bound"]
             else:
                 prior_upper_bound = np.float(val + err * prior_upper_bound)
+
+            if "prior_type" in tm_param_dict[par].keys():
+                prior_type = tm_param_dict[par]['prior_type']
+            else:
+                prior_type = default_prior_params[4]
         else:
             prior_mu = default_prior_params[0]
             prior_sigma = default_prior_params[1]
             prior_lower_bound = default_prior_params[2]
             prior_upper_bound = default_prior_params[3]
+            prior_type = default_prior_params[4]
 
         if par in physical_tm_priors.keys():
             if par in tm_param_dict.keys():
