@@ -124,11 +124,10 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # parameters shared by PSD functions
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-18, -10)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A = parameter.Uniform(-18, -10)
-            else:
-                log10_A = parameter.Uniform(-18, -10)
+        elif prior == 'log-uniform':
+            log10_A = parameter.Uniform(-18, -10)
+        elif prior == 'log-uniform-nanograv':
+            log10_A = parameter.Uniform(-18, -14)
         else:
             log10_A = parameter.Uniform(-18, -10)
 
@@ -187,9 +186,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     elif select == 'band' or select == 'band+':
         # define selection by observing band
         selection = selections.Selection(selections.by_band)
-    elif select is not None:
+    elif isinstance(select, list):
         # define selection by list of custom backend
         selection = selections.Selection(selections.custom_backends(select))
+    elif isinstance(select, dict):
+        # define selection by dict of custom backend
+        selection = selections.Selection(selections.custom_backends_dict(select))
     else:
         # define no selection
         selection = selections.Selection(selections.no_selection)
@@ -231,7 +233,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', Tspan=None, components=30, select=None,
-                   gamma_val=None, delta_val=None, coefficients=False):
+                   gamma_val=None, delta_val=None, coefficients=False, tndm=False):
     """
     Returns DM noise model:
 
@@ -257,14 +259,13 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    'flat_powerlaw', 'tprocess', 'tprocess_adapt']:
             # parameters shared by PSD functions
             if prior == 'uniform':
-                log10_A_dm = parameter.LinearExp(-19, -11)
-            elif prior == 'log-uniform' and gamma_val is not None:
-                if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_A_dm = parameter.Uniform(-19, -11)
-                else:
-                    log10_A_dm = parameter.Uniform(-19, -11)
+                log10_A_dm = parameter.LinearExp(-18, -10)
+            elif prior == 'log-uniform':
+                log10_A_dm = parameter.Uniform(-18, -10)
+            elif prior == 'log-uniform-nanograv':
+                log10_A_dm = parameter.Uniform(-18, -14)
             else:
-                log10_A_dm = parameter.Uniform(-19, -11)
+                log10_A_dm = parameter.Uniform(-18, -10)
 
             if gamma_val is not None:
                 gamma_dm = parameter.Constant(gamma_val)
@@ -316,8 +317,12 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
 
             dm_prior = gpp.free_spectrum(log10_rho=log10_rho_dm)
 
-        dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
-                                                      Tspan=Tspan)
+        if tndm:
+            dm_basis = utils.createfourierdesignmatrix_dm_tn(nmodes=components,
+                                                             Tspan=Tspan)
+        else:
+            dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
+                                                          Tspan=Tspan)
 
     elif gp_kernel == 'nondiag':
         if nondiag_kernel == 'periodic':
@@ -392,7 +397,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           prior='log-uniform', name='chrom',
                           include_quadratic=False, Tspan=None,
                           idx=4, components=30, select=None,
-                          delta_val=None, coefficients=False):
+                          gamma_val=None, delta_val=None,
+                          coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -430,10 +436,17 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                                                             Tspan=Tspan,idx=idx)
         if psd in ['powerlaw', 'turnover', 'broken_powerlaw', 'flat_powerlaw']:
             if prior == 'uniform':
-                log10_A = parameter.LinearExp(-19, -11)
+                log10_A = parameter.LinearExp(-18, -10)
             elif prior == 'log-uniform':
-                log10_A = parameter.Uniform(-19, -11)
-            gamma = parameter.Uniform(0, 7)
+                log10_A = parameter.Uniform(-18, -10)
+            elif prior == 'log-uniform-nanograv':
+                log10_A = parameter.Uniform(-18, -14)
+            else:
+                log10_A = parameter.Uniform(-18, -10)
+            if gamma_val is not None:
+                gamma = parameter.Constant(gamma_val)
+            else:
+                gamma = parameter.Uniform(0, 7)
 
             # PSD
             if psd == 'powerlaw':
@@ -587,11 +600,10 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         amp_name = '{}_log10_A'.format(name)
         if prior == 'uniform':
             log10_Agw = parameter.LinearExp(-18, -10)(amp_name)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_Agw = parameter.Uniform(-18, -10)(amp_name)
-            else:
-                log10_Agw = parameter.Uniform(-18, -10)(amp_name)
+        elif prior == 'log-uniform':
+            log10_Agw = parameter.Uniform(-18, -10)(amp_name)
+        elif prior == 'log-uniform-nanograv':
+            log10_Agw = parameter.Uniform(-18, -14)(amp_name)
         else:
             log10_Agw = parameter.Uniform(-18, -10)(amp_name)
 
@@ -662,9 +674,12 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     elif select == 'band' or select == 'band+':
         # define selection by observing band
         selection = selections.Selection(selections.by_band)
-    elif select is not None:
+    elif isinstance(select, list):
         # define selection by list of custom backend
         selection = selections.Selection(selections.custom_backends(select))
+    elif isinstance(select, dict):
+        # define selection by dict of custom backend
+        selection = selections.Selection(selections.custom_backends_dict(select))
     else:
         # define no selection
         selection = selections.Selection(selections.no_selection)

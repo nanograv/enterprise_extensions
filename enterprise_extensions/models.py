@@ -28,11 +28,12 @@ PTA models from paper
 
 
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
-                          tmparam_list=None,
+                          tmparam_list=None, tm_svd=False, tm_norm=True,
                           red_var=True, psd='powerlaw', red_select=None,
-                          noisedict=None, tm_svd=False, tm_norm=True,
-                          white_vary=True, components=30, upper_limit=False,
-                          is_wideband=False, use_dmdata=False,
+                          noisedict=None, white_vary=True,
+                          components=30, modes=None, wgts=None,
+                          logfreq=False, nmodes_log=10, tnfreq=False,
+                          upper_limit=False, is_wideband=False, use_dmdata=False,
                           dmjump_var=False, gamma_val=None, delta_val=None,
                           dm_var=False, dm_type='gp', dmgp_kernel='diag',
                           dm_psd='powerlaw', dm_nondiag_kernel='periodic',
@@ -40,8 +41,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           chrom_select=None, chrom_gp=False,
                           chrom_gp_kernel='nondiag', chrom_psd='powerlaw',
                           chrom_idx=4, chrom_kernel='periodic',
-                          dm_select=None, dm_expdip=False,
-                          dmexp_sign='negative', dm_expdip_idx=2,
+                          gamma_chrom_val=None, dm_select=None, tndm=False,
+                          dm_expdip=False, dmexp_sign='negative', dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
                           num_dmdips=1, dmdip_seqname=None,
                           dm_cusp=False, dm_cusp_sign='negative',
@@ -55,8 +56,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_dual_cusp_seqname=None,
                           dm_sw_deter=False, dm_sw_gp=False,
                           swgp_prior=None, swgp_basis=None,
-                          coefficients=False, extra_sigs=None,
-                          select='backend'):
+                          coefficients=False, extra_sigs=None, select='backend'):
     """
     Single pulsar noise model
     :param psr: enterprise pulsar object
@@ -127,7 +127,12 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
     :return s: single pulsar noise model
     """
-    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+    if isinstance(upper_limit, str):
+        amp_prior = upper_limit
+    elif upper_limit:
+        amp_prior = 'uniform'
+    else:
+        amp_prior = 'log-uniform'
 
     # timing model
     if not tm_var:
@@ -166,10 +171,22 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         else:
             pass
 
+    Tspan = model_utils.get_tspan([psr])
+    if logfreq:
+        fmin = 10.0
+        modes, wgts = model_utils.linBinning(Tspan, nmodes_log,
+                                             1.0 / fmin / Tspan,
+                                             components, nmodes_log)
+        wgts = wgts**2.0
+
+    if tnfreq:
+        components = int(Tspan / 86400 / components)
+
     # red noise
     red_select = np.atleast_1d(red_select)
     for i in range(red_var):
-        s += red_noise_block(psd=psd, prior=amp_prior, components=components,
+        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                             components=components, modes=modes, wgts=wgts,
                              gamma_val=gamma_val, delta_val=delta_val,
                              coefficients=coefficients, select=red_select[i])
 
@@ -178,15 +195,16 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         if dm_type == 'gp':
             if dmgp_kernel == 'diag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
-                                    prior=amp_prior, components=components,
+                                    prior=amp_prior, Tspan=Tspan,
+                                    components=components,
                                     gamma_val=gamma_dm_val,
                                     coefficients=coefficients,
-                                    select=dm_select)
+                                    tndm=tndm, select=dm_select)
             elif dmgp_kernel == 'nondiag':
-                s += dm_noise_block(gp_kernel=dmgp_kernel,
+                s += dm_noise_block(gp_kernel=dmgp_kernel, Tspan=Tspan,
                                     nondiag_kernel=dm_nondiag_kernel,
                                     coefficients=coefficients,
-                                    select=dm_select)
+                                    tndm=tndm, select=dm_select)
         elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
@@ -194,7 +212,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         if chrom_gp:
             s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
                                        psd=chrom_psd, idx=chrom_idx,
-                                       components=components,
+                                       Tspan=Tspan, components=components,
+                                       gamma_val=gamma_chrom_val,
                                        nondiag_kernel=chrom_kernel,
                                        coefficients=coefficients,
                                        select=chrom_select)
@@ -536,17 +555,17 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   Tspan=None, common_psd='powerlaw', red_psd='powerlaw',
                   common_components=30, red_components=30, dm_components=30,
                   modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None, orfs=None, tm_svd=False, tm_norm=True,
-                  gamma_common=None, delta_common=None, red_var=True,
-                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
-                  upper_limit_common=None, bayesephem=False, be_type='setIII',
-                  sat_orb_elements=False, is_wideband=False, use_dmdata=False,
-                  dm_var=False, dm_select=None, dm_type='gp', dm_psd='powerlaw',
-                  dm_annual=False, num_dmdips=1, white_vary=False, gequad=False,
-                  dm_chrom=False, dmchrom_psd='powerlaw', dmchrom_idx=4,
-                  chrom_select=None, red_select=None, red_breakflat=False,
-                  red_breakflat_fq=None, select='backend',
-                  coefficients=False, pshift=False, pseed=None):
+                  tnfreq=False, noisedict=None, orfs=None, tm_svd=False,
+                  tm_norm=True, gamma_common=None, delta_common=None,
+                  red_var=True, upper_limit=False, upper_limit_red=None,
+                  upper_limit_dm=None, upper_limit_common=None, bayesephem=False,
+                  be_type='setIII', sat_orb_elements=False, is_wideband=False,
+                  use_dmdata=False, tndm=False, dm_var=False, dm_select=None,
+                  dm_type='gp', dm_psd='powerlaw', dm_annual=False, num_dmdips=1,
+                  white_vary=False, gequad=False, dm_chrom=False,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4, chrom_select=None,
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
+                  select='backend', coefficients=False, pshift=False, pseed=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -601,15 +620,27 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         is_wideband.
     """
 
-    amp_prior = 'uniform' if upper_limit else 'log-uniform'
-    gp_priors = [upper_limit_red, upper_limit_dm, upper_limit_common]
-    if all(ii is None for ii in gp_priors):
+    if isinstance(upper_limit, str):
+        amp_prior = upper_limit
+    else:
+        amp_prior = 'uniform' if upper_limit else 'log-uniform'
+    if upper_limit_red is None:
         amp_prior_red = amp_prior
-        amp_prior_dm = amp_prior
-        amp_prior_common = amp_prior
+    elif isinstance(upper_limit_red, str):
+        amp_prior_red = upper_limit_red
     else:
         amp_prior_red = 'uniform' if upper_limit_red else 'log-uniform'
+    if upper_limit_dm is None:
+        amp_prior_dm = amp_prior
+    elif isinstance(upper_limit_dm, str):
+        amp_prior_dm = upper_limit_dm
+    else:
         amp_prior_dm = 'uniform' if upper_limit_dm else 'log-uniform'
+    if upper_limit_common is None:
+        amp_prior_common = amp_prior
+    elif isinstance(upper_limit_common, str):
+        amp_prior_common = upper_limit_common
+    else:
         amp_prior_common = 'uniform' if upper_limit_common else 'log-uniform'
 
     # timing model
@@ -657,14 +688,18 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                              common_components, nmodes_log)
         wgts = wgts**2.0
 
+    if tnfreq:
+        common_components = int(Tspan / 86400 / common_components)
+        red_components = int(Tspan / 86400 / red_components)
+        dm_components = int(Tspan / 86400 / dm_components)
+
     # red noise
     red_select = np.atleast_1d(red_select)
     for i in range(red_var):
         s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
                              components=red_components, modes=modes, wgts=wgts,
-                             coefficients=coefficients,
-                             select=red_select[i], break_flat=red_breakflat,
-                             break_flat_fq=red_breakflat_fq)
+                             coefficients=coefficients, select=red_select[i],
+                             break_flat=red_breakflat, break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     if orfs:
@@ -696,17 +731,16 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     else:
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                     Tspan=Tspan, components=common_components,
-                                    coefficients=coefficients, gamma_val=gamma_common,
-                                    delta_val=delta_common, name='gw',
-                                    pshift=pshift, pseed=pseed)
+                                    coefficients=coefficients,
+                                    gamma_val=gamma_common, delta_val=delta_common,
+                                    name='gw', pshift=pshift, pseed=pseed)
 
     # DM variations
     if dm_var:
         if dm_type == 'gp':
             s += dm_noise_block(gp_kernel='diag', psd=dm_psd,
                                 prior=amp_prior_dm, components=dm_components,
-                                gamma_val=None, coefficients=coefficients,
-                                select=dm_select)
+                                coefficients=coefficients, tndm=tndm, select=dm_select)
         if dm_annual:
             s += chrom.dm_annual_signal()
         if dm_chrom:
