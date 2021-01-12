@@ -164,5 +164,5 @@ def make_empirical_distributions(paramlist, params, chain,
         msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
         logger.info(msg)
     else:
-        msg = 'WARNING: No empirical distributions were made!
+        msg = 'WARNING: No empirical distributions were made!'
         logger.warning(msg)
