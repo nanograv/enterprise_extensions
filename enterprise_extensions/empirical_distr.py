@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import (absolute_import, division,
                         print_function)
+import logging
 import numpy as np
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 # class used to define a 1D empirical distribution
 # based on posterior from another MCMC
@@ -148,13 +153,16 @@ def make_empirical_distributions(paramlist, params, chain,
             distr.append(new_distr)
 
         else:
-            print('Warning: only 1D and 2D empirical distributions are currently allowed.')
+            msg = 'WARNING: only 1D and 2D empirical distributions are currently allowed.'
+            logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file
     if len(distr) > 0:
         with open(filename, 'wb') as f:
             pickle.dump(distr, f)
 
-        print('The empirical distributions have been pickled to {0}.'.format(filename))
+        msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+        logger.info(msg)
     else:
-        print('Warning: No empirical distributions were made!')
+        msg = 'WARNING: No empirical distributions were made!
+        logger.warning(msg)
