@@ -151,7 +151,10 @@ def make_empirical_distributions(paramlist, params, chain,
             print('Warning: only 1D and 2D empirical distributions are currently allowed.')
 
     # save the list of empirical distributions as a pickle file
-    with open(filename, 'wb') as f:
-        pickle.dump(distr, f)
+    if len(distr) > 0:
+        with open(filename, 'wb') as f:
+            pickle.dump(distr, f)
 
-    print('The empirical distributions have been pickled to {0}.'.format(filename))
+        print('The empirical distributions have been pickled to {0}.'.format(filename))
+    else:
+        print('Warning: No empirical distributions were made!')
