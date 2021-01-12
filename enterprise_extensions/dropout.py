@@ -16,7 +16,8 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
                      dropout_psr='B1855+09', k_drop=0.5, k_threshold=0.5):
     """
     Dropout powerlaw for a stochastic process. Switches a stochastic
-    process on or off depending on whether k_drop exceeds k_threshold.
+    process on or off in a single pulsar depending on whether k_drop 
+    exceeds k_threshold.
     """
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
