@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 import os
+import json
 import numpy as np
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 import scipy.stats as sps
 from scipy.stats import truncnorm
 
@@ -45,31 +46,37 @@ def BoundedNormal(mu=0, sigma=1, pmin=-1, pmax=1, size=None):
 
     return BoundedNormal
 
-#NE2001 DM Dist data prior.
+
+# NE2001 DM Dist data prior.
 def NE2001DMDist_Prior(value):
     """Prior function for NE2001DMDist parameters."""
     return px_rv.pdf(value)
+
 
 def NE2001DMDist_Sampler(size=None):
     """Sampling function for NE2001DMDist parameters."""
     return px_rv.rvs(size=size)
 
+
 def NE2001DMDist_Parameter(size=None):
     """Class factory for NE2001DMDist parameters."""
+
     class NE2001DMDist_Parameter(parameter.Parameter):
         _size = size
-        _typename = parameter._argrepr('NE2001DMDist')
+        _typename = parameter._argrepr("NE2001DMDist")
         _prior = parameter.Function(NE2001DMDist_Prior)
         _sampler = staticmethod(NE2001DMDist_Sampler)
 
     return NE2001DMDist_Parameter
 
-######## Scipy defined RV for NE2001 DM Dist data. ########
+
+# Scipy defined RV for NE2001 DM Dist data.
 defpath = os.path.dirname(__file__)
-data_file = defpath + '/px_prior_1.txt'
+data_file = defpath + "/px_prior_1.txt"
 px_prior = np.loadtxt(data_file)
 px_hist = np.histogram(px_prior, bins=100, density=True)
 px_rv = sps.rv_histogram(px_hist)
+
 
 def get_default_physical_tm_priors():
     """
@@ -148,7 +155,8 @@ def get_prior(
         return NE2001DMDist_Parameter(size=num_params)
     else:
         raise ValueError(
-            "prior_type can only be uniform, bounded-normal, or dm_dist_px_prior, not ", prior_type
+            "prior_type can only be uniform, bounded-normal, or dm_dist_px_prior, not ",
+            prior_type,
         )
 
 
@@ -203,7 +211,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
                     + tm_params_orig["COSI"][0]
                 )
                 tm_params_rescaled[tm_param] = np.longdouble(
-                    np.sin(np.arccos(rescaled_COSI))
+                    np.sqrt(1 - rescaled_COSI ** 2)
                 )
             else:
                 tm_params_rescaled[tm_param] = np.longdouble(
@@ -280,7 +288,13 @@ def timing_block(
             psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
 
     tm_delay_kwargs = {}
-    default_prior_params = [prior_mu, prior_sigma, prior_lower_bound, prior_upper_bound, prior_type]
+    default_prior_params = [
+        prior_mu,
+        prior_sigma,
+        prior_lower_bound,
+        prior_upper_bound,
+        prior_type,
+    ]
     for par in tm_param_list:
         if par == "Offset":
             raise ValueError(
@@ -294,15 +308,13 @@ def timing_block(
             elif "COSI" in par and "SINI" in psr.tm_params_orig.keys():
                 print("COSI added to tm_params_orig for to work with tm_delay.")
                 sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
-                val = np.longdouble(np.cos(np.arcsin(sin_val)))
+                val = np.longdouble(np.sqrt(1 - sin_val ** 2))
                 err = np.longdouble(
                     np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
                 )
                 psr.tm_params_orig[par] = [val, err, "physical"]
             else:
-                raise ValueError(
-                    par,
-                    "not in psr.tm_params_orig.")
+                raise ValueError(par, "not in psr.tm_params_orig.")
 
             if "prior_mu" in tm_param_dict[par].keys():
                 prior_mu = tm_param_dict[par]["prior_mu"]
@@ -322,7 +334,7 @@ def timing_block(
                 prior_upper_bound = np.float(val + err * prior_upper_bound)
 
             if "prior_type" in tm_param_dict[par].keys():
-                prior_type = tm_param_dict[par]['prior_type']
+                prior_type = tm_param_dict[par]["prior_type"]
             else:
                 prior_type = default_prior_params[4]
         else:
@@ -348,7 +360,7 @@ def timing_block(
                     if "COSI" in par and "SINI" in psr.tm_params_orig.keys():
                         print("COSI added to tm_params_orig for to work with tm_delay.")
                         sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
-                        val = np.longdouble(np.cos(np.arcsin(sin_val)))
+                        val = np.longdouble(np.sqrt(1 - sin_val ** 2))
                         err = np.longdouble(
                             np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
                         )
@@ -404,7 +416,6 @@ def timing_block(
             mu=prior_mu,
         )
     # timing model
-
     tm_func = tm_delay(**tm_delay_kwargs)
     tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
 
