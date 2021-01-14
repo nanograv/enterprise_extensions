@@ -180,7 +180,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         wgts = wgts**2.0
 
     if tnfreq:
-        components = int(Tspan / 86400 / components)
+        components = model_utils.get_tncoeff(Tspan, components)
 
     # red noise
     red_select = np.atleast_1d(red_select)
@@ -689,9 +689,9 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     if tnfreq:
-        common_components = int(Tspan / 86400 / common_components)
-        red_components = int(Tspan / 86400 / red_components)
-        dm_components = int(Tspan / 86400 / dm_components)
+        common_components = model_utils.get_tncoeff(Tspan, common_components)
+        red_components = model_utils.get_tncoeff(Tspan, red_components)
+        dm_components = model_utils.get_tncoeff(Tspan, dm_components)
 
     # red noise
     red_select = np.atleast_1d(red_select)
@@ -2175,7 +2175,7 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
              white_vary=False, components=30, bayesephem=False, skyloc=None,
              log10_F=None, ecc=False, psrTerm=False, is_wideband=False,
-             use_dmdata=False):
+             use_dmdata=False, gp_ecorr='basis_ecorr'):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
@@ -2275,8 +2275,11 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                    gp_ecorr=True)
+            if gp_ecorr:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                        gp_ecorr=True, name=gp_ecorr)
+            else:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)

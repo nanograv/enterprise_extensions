@@ -99,6 +99,10 @@ def get_tspan(psrs):
 
     return tmax - tmin
 
+# function for number of temponest coefficients
+def get_tncoeff(tspan, components):
+    return int(tspan / 86400 / components)
+
 
 class PostProcessing(object):
 
