@@ -95,10 +95,8 @@ def get_default_physical_tm_priors():
 
 def get_pardict(psrs, datareleases):
     """assigns a parameter dictionary for each psr per dataset the parfile values/errors
-    :psrs:
-        objs, enterprise pulsar instances corresponding to datareleases
-    :datareleases:
-        list, list of datareleases
+    :param psrs: enterprise pulsar instances corresponding to datareleases
+    :param datareleases: list of datareleases
     """
     pardict = {}
     for psr, dataset in zip(psrs, datareleases):
@@ -139,6 +137,7 @@ def get_prior(
     :param prior_sigma: Sets the sigma on timing parameters for normal distribution draws
     :param prior_lower_bound: Sets the lower bound on timing parameters for bounded normal and uniform distribution draws
     :param prior_upper_bound: Sets the upper bound on timing parameters for bounded normal and uniform distribution draws
+    :param mu: Sets the mean/central value of prior if bounded normal is selected
     :param num_params: number of timing parameters assigned to prior. Default is None (ie. only one)
     """
     if prior_type == "bounded-normal":
@@ -178,11 +177,8 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
 
-    :param residuals: original pulsar residuals from Pulsar object
     :param t2pulsar: libstempo pulsar object
     :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
-    :param tm_params: new timing model parameters, rescaled to be in sigmas
-    :param which: option to have all or only named TM parameters varied
 
     :return: difference between new and old residuals in seconds
     """
@@ -194,23 +190,31 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     for tm_scaled_key, tm_scaled_val in kwargs.items():
         if "DMX" in tm_scaled_key:
             tm_param = "_".join(tm_scaled_key.split("_")[-2:])
-        elif "COSI" in tm_scaled_key:
-            tm_param = "SINI"
         else:
             tm_param = tm_scaled_key.split("_")[-1]
-        orig_params[tm_param] = tm_params_orig[tm_param][0]
+
+        if tm_param == "COSI":
+            orig_params["SINI"] = np.longdouble(tm_params_orig["SINI"][0])
+        else:
+            orig_params[tm_param] = np.longdouble(tm_params_orig[tm_param][0])
 
         if "physical" in tm_params_orig[tm_param]:
             # User defined priors are assumed to not be scaled
-            tm_params_rescaled[tm_param] = tm_scaled_val
-        else:
-            # Switch for sampling in COSI, but using SINI in libstempo
-            if "COSI" in tm_scaled_key and tm_param == "SINI":
-                rescaled_COSI = np.longdouble(
-                    tm_scaled_val * tm_params_orig["COSI"][1]
-                    + tm_params_orig["COSI"][0]
+            if tm_param == "COSI":
+                # Switch for sampling in COSI, but using SINI in libstempo
+                tm_params_rescaled["SINI"] = np.longdouble(
+                    np.sqrt(1 - np.longdouble(tm_scaled_val) ** 2)
                 )
-                tm_params_rescaled[tm_param] = np.longdouble(
+            else:
+                tm_params_rescaled[tm_param] = np.longdouble(tm_scaled_val)
+        else:
+            if tm_param == "COSI":
+                # Switch for sampling in COSI, but using SINI in libstempo
+                rescaled_COSI = np.longdouble(
+                    tm_scaled_val * tm_params_orig[tm_param][1]
+                    + tm_params_orig[tm_param][0]
+                )
+                tm_params_rescaled["SINI"] = np.longdouble(
                     np.sqrt(1 - rescaled_COSI ** 2)
                 )
             else:
@@ -248,7 +252,17 @@ def timing_block(
 ):
     """
     Returns the timing model block of the model
-    :param tmparam_list: a list of parameters to vary in the model
+    :param psr: a pulsar object on which to construct the timing model
+    :param tm_param_list: a list of parameters to vary nonlinearly in the model
+    :param ltm_list: a list of parameters to vary linearly in the model
+    :param prior_type: the function used for the priors ['uniform','bounded-normal']
+    :param prior_mu: the mean/central vlaue for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_lower_bound: the lower bound for the prior
+    :param prior_upper_bound: the upper bound for the prior
+    :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
+    :param fit_remaining_pars: fits any timing model parameter in the linear regime if not in ``tm_param_list`` or ``tm_param_dict``
+    :param wideband_kwargs: extra kwargs for ``gp_signals.WidebandTimingModel``
     """
     # If param in tm_param_dict not in tm_param_list, add it
     for key in tm_param_dict.keys():
