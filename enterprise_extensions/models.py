@@ -202,8 +202,27 @@ def model_singlepsr_noise(
             selections.by_frontend
         )
     if not tm_var:
-        if is_wideband and use_dmdata:
-            s = gp_signals.WidebandTimingModel(**wideband_kwargs)
+        if (is_wideband and use_dmdata):
+            if dmjump_var:
+                dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            else:
+                dmjump = parameter.Constant()
+            if white_vary:
+                dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+                log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
+                #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            else:
+                dmefac = parameter.Constant()
+                log10_dmequad = parameter.Constant()
+                #dmjump = parameter.Constant()
+            s = gp_signals.WidebandTimingModel(dmefac=dmefac,
+                    log10_dmequad=log10_dmequad, dmjump=dmjump,
+                    dmefac_selection=selections.Selection(
+                        selections.by_backend),
+                    log10_dmequad_selection=selections.Selection(
+                        selections.by_backend),
+                    dmjump_selection=selections.Selection(
+                        selections.by_frontend))
         else:
             s = gp_signals.TimingModel(
                 use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
@@ -464,7 +483,7 @@ def model_1(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -616,7 +635,7 @@ def model_2a(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1048,7 +1067,7 @@ def model_2b(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1192,7 +1211,7 @@ def model_2c(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1324,7 +1343,7 @@ def model_2d(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1488,7 +1507,7 @@ def model_3a(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1533,7 +1552,7 @@ def model_3a(
                 noisedict = noisedict
                 pta.set_default_params(noisedict)
 
-            return pta
+        return pta
 
 
 def model_3b(
@@ -1635,7 +1654,7 @@ def model_3b(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1937,7 +1956,7 @@ def model_3d(
         )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2063,7 +2082,7 @@ def model_2a_drop_be(
     )
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2205,7 +2224,7 @@ def model_2a_drop_crn(
     s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2348,7 +2367,7 @@ def model_chromatic(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2510,7 +2529,7 @@ def model_bwm(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2657,7 +2676,7 @@ def model_cw(
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
