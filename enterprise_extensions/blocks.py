@@ -479,7 +479,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
             chm_basis = gpk.get_tf_quantization_matrix(df=200, dt=chrom_dt*86400,
-                                                      dm=True, idx=idx)
+                                                      dm=True, dm_idx=idx)
             chm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
                                      log10_alpha_wgt=log10_alpha_wgt,
