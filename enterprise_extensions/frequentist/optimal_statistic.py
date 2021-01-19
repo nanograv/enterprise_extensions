@@ -95,7 +95,7 @@ class OptimalStatistic(object):
             for p in self.pta.param_names:
                 if p not in params.keys():
                     msg = '{0} is not included '.format(p)
-                    msg += 'in the parameter dictionary.'
+                    msg += 'in the parameter dictionary. '
                     msg += 'Drawing a random value.'
                     
                     logger.warning(msg)
