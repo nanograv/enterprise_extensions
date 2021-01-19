@@ -1,5 +1,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
+import logging
+
 import numpy as np
 import scipy.linalg as sl
 
@@ -8,6 +10,9 @@ from enterprise_extensions import models
 from enterprise.signals import utils
 from enterprise.signals import signal_base
 
+
+logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class OptimalStatistic(object):
     """
@@ -84,6 +89,16 @@ class OptimalStatistic(object):
         if params is None:
             params = {name: par.sample() for name, par
                       in zip(self.pta.param_names, self.pta.params)}
+        else:
+            # check to see that the params dictionary includes values
+            # for all of the parameters in the model
+            for p in pta.param_names:
+                if p not in params.key():
+                    msg = '{0} is not included '.format(p)
+                    msg += 'in the parameter dictionary.'
+                    msg += 'Drawing a random value.'
+                    
+                    logger.warning(msg)
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
