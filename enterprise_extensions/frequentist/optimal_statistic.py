@@ -176,10 +176,9 @@ class OptimalStatistic(object):
 
     def compute_noise_maximized_os(self, chain):
         """
-        Compute noise marginalized OS.
+        Compute noise maximized OS.
 
         :param chain: MCMC chain from Bayesian run.
-        :param N: number of iterations to run.
 
         :returns:
             xi: angular separation [rad] for each pulsar pair
