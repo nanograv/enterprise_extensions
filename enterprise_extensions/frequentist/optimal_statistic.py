@@ -92,7 +92,7 @@ class OptimalStatistic(object):
         else:
             # check to see that the params dictionary includes values
             # for all of the parameters in the model
-            for p in pta.param_names:
+            for p in self.pta.param_names:
                 if p not in params.key():
                     msg = '{0} is not included '.format(p)
                     msg += 'in the parameter dictionary.'
