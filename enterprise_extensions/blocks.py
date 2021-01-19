@@ -480,8 +480,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30, gamma_val=None,
-                           delta_val=None,
+                           Tspan=None, components=30, 
+                           gamma_val=None, delta_val=None,
                            orf=None, name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
@@ -519,7 +519,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     """
 
-    orfs = {'hd': utils.hd_orf(), 'dipole': utils.dipole_orf(),
+    orfs = {'crn': None, 'hd': utils.hd_orf(), 
+            'dipole': utils.dipole_orf(),
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
@@ -595,11 +596,16 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                         components=components, Tspan=Tspan,
                                         name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
-        crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                              components=components,
-                                              Tspan=Tspan,
-                                              name=name, pshift=pshift,
-                                              pseed=pseed)
+        if orf == 'crn':
+            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+                                        components=components, Tspan=Tspan,
+                                        name=name, pshift=pshift, pseed=pseed)
+        else:
+            crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
+                                                components=components,
+                                                Tspan=Tspan,
+                                                name=name, pshift=pshift,
+                                                pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
