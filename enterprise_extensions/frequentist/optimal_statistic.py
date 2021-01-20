@@ -216,7 +216,7 @@ class OptimalStatistic(object):
         # is made by mapping the values from the chain to the
         # parameters in the pta object
         if param_names is None:
-            setpars.update(self.pta.map_params(chain[idx, :-4]))
+            setpars = (self.pta.map_params(chain[idx, :-4]))
         else:
             setpars = dict(zip(param_names,chain[idx,:-4]))
 
