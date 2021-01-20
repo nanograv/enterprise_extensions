@@ -95,7 +95,8 @@ class OptimalStatistic(object):
                     msg = '{0} is not included '.format(p)
                     msg += 'in the parameter dictionary. '
                     msg += 'Drawing a random value.'
-                    warnings.warn(msg)
+
+                    warnings.warn(msg);
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -163,13 +164,12 @@ class OptimalStatistic(object):
 
         """
         
-        # if param_names is not specified, check that the chain file
-        # has the same number of parameters as the model
-        if param_names == None:
-            if chain.shape[1] - 4 != len(self.pta.param_names):
-                msg = 'MCMC chain does not have the same number of parameters '
-                msg += 'as the model.'
-                warnings.warn(msg)
+        # check that the chain file has the same number of parameters as the model
+        if chain.shape[1] - 4 != len(self.pta.param_names):
+            msg = 'MCMC chain does not have the same number of parameters '
+            msg += 'as the model.'
+
+            warnings.warn(msg)
 
         opt, sig = np.zeros(N), np.zeros(N)
         setpars = {}
@@ -202,13 +202,12 @@ class OptimalStatistic(object):
 
         """
 
-        # if param_names is not specified, check that the chain file
-        # has the same number of parameters as the model
-        if param_names == None:
-            if chain.shape[1] - 4 != len(self.pta.param_names):
-                msg = 'MCMC chain does not have the same number of parameters '
-                msg += 'as the model.'
-                warnings.warn(msg)
+        # check that the chain file has the same number of parameters as the model
+        if chain.shape[1] - 4 != len(self.pta.param_names):
+            msg = 'MCMC chain does not have the same number of parameters '
+            msg += 'as the model.'
+
+            warnings.warn(msg)
 
         idx = np.argmax(chain[:, -4])
         
