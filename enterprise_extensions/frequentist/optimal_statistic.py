@@ -175,6 +175,10 @@ class OptimalStatistic(object):
         setpars = {}
         for ii in range(N):
             idx = np.random.randint(0, chain.shape[0])
+            
+            # if param_names is not specified, the parameter dictionary
+            # is made by mapping the values from the chain to the
+            # parameters in the pta object
             if param_names is None:
                 setpars.update(self.pta.map_params(chain[idx, :-4]))
             else:
@@ -183,7 +187,7 @@ class OptimalStatistic(object):
 
         return (opt, opt/sig)
 
-    def compute_noise_maximized_os(self, chain):
+    def compute_noise_maximized_os(self, chain, param_names=None):
         """
         Compute noise maximized OS.
 
@@ -198,8 +202,24 @@ class OptimalStatistic(object):
 
         """
 
+        # if param_names is not specified, check that the chain file
+        # has the same number of parameters as the model
+        if param_names == None:
+            if chain.shape[1] - 4 != len(self.pta.param_names):
+                msg = 'MCMC chain does not have the same number of parameters '
+                msg += 'as the model.'
+                warnings.warn(msg)
+
         idx = np.argmax(chain[:, -4])
-        setpars = self.pta.map_params(chain[idx, :-4])
+        
+        # if param_names is not specified, the parameter dictionary
+        # is made by mapping the values from the chain to the
+        # parameters in the pta object
+        if param_names is None:
+            setpars.update(self.pta.map_params(chain[idx, :-4]))
+        else:
+            setpars = dict(zip(param_names,chain[idx,:-4]))
+
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
         return (xi, rho, sig, Opt, Opt/Sig)
