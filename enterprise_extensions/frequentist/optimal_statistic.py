@@ -10,9 +10,7 @@ from enterprise_extensions import models
 from enterprise.signals import utils
 from enterprise.signals import signal_base
 
-
-logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
+import warnings
 
 class OptimalStatistic(object):
     """
@@ -97,8 +95,7 @@ class OptimalStatistic(object):
                     msg = '{0} is not included '.format(p)
                     msg += 'in the parameter dictionary. '
                     msg += 'Drawing a random value.'
-                    
-                    logger.warning(msg)
+                    warnings.warn(msg)
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -154,22 +151,34 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, OS, OS_sig
 
-    def compute_noise_marginalized_os(self, chain, N=10000):
+    def compute_noise_marginalized_os(self, chain, param_names=None, N=10000):
         """
         Compute noise marginalized OS.
 
         :param chain: MCMC chain from Bayesian run.
+        :param param_names: list of parameter names for the chain file
         :param N: number of iterations to run.
 
         :returns: (os, snr) array of OS and SNR values for each iteration.
 
         """
+        
+        # if param_names is not specified, check that the chain file
+        # has the same number of parameters as the model
+        if param_names == None:
+            if chain.shape[1] - 4 != len(self.pta.param_names):
+                msg = 'MCMC chain does not have the same number of parameters '
+                msg += 'as the model.'
+                warnings.warn(msg)
 
         opt, sig = np.zeros(N), np.zeros(N)
         setpars = {}
         for ii in range(N):
             idx = np.random.randint(0, chain.shape[0])
-            setpars.update(self.pta.map_params(chain[idx, :-4]))
+            if param_names is None:
+                setpars.update(self.pta.map_params(chain[idx, :-4]))
+            else:
+                setpars = dict(zip(param_names,chain[idx,:-4]))
             _, _, _, opt[ii], sig[ii] = self.compute_os(params=setpars)
 
         return (opt, opt/sig)
