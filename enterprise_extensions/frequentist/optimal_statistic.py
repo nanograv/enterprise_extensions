@@ -11,6 +11,14 @@ from enterprise.signals import signal_base
 
 import warnings
 
+
+## Define the output to be on a single line.
+def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+    return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
+
+## Override default format.
+warnings.formatwarning = warning_on_one_line
+
 class OptimalStatistic(object):
     """
     Class for the Optimal Statistic as used in the analysis paper.
