@@ -2,6 +2,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import numpy as np
+import functools
 from collections import OrderedDict
 
 from enterprise.signals import parameter
@@ -22,9 +23,6 @@ from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 from enterprise_extensions import chromatic as chrom
 from enterprise_extensions import dropout as do
-"""
-PTA models from paper
-"""
 
 
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
@@ -529,68 +527,130 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-                  Tspan=None, common_psd='powerlaw', red_psd='powerlaw', orf=None,
-                  common_components=30, red_components=30, dm_components=30,
-                  modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None, tm_svd=False, tm_norm=True,
-                  gamma_common=None, upper_limit=False, upper_limit_red=None,
-                  upper_limit_dm=None, upper_limit_common=None,
-                  bayesephem=False, be_type='orbel', is_wideband=False,
-                  use_dmdata=False, dm_var=False, dm_type='gp',
-                  dm_psd='powerlaw', dm_annual=False, white_vary=False,
-                  gequad=False, dm_chrom=False, dmchrom_psd='powerlaw',
-                  dmchrom_idx=4, red_select=None, red_breakflat=False,
-                  red_breakflat_fq=None, coefficients=False, pshift=False,
+                  tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
+                  Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
+                  common_psd='powerlaw', common_components=30, gamma_common=None,
+                  orf=None, upper_limit_common=None, upper_limit=False, 
+                  red_psd='powerlaw', red_components=30, upper_limit_red=None,
+                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
+                  bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False, 
+                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30, 
+                  upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
+                  dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
                   select='backend'):
     """
-    Reads in list of enterprise Pulsar instance and returns a PTA
-    instantiated with model 2A from the analysis paper:
+    Reads in list of enterprise Pulsar instances and returns a PTA
+    object instantiated with user-supplied options.
 
-    per pulsar:
-        1. fixed EFAC per backend/receiver system
-        2. fixed EQUAD per backend/receiver system
-        3. fixed ECORR per backend/receiver system
-        4. Red noise modeled as a power-law with 30 sampling frequencies
-        5. Linear timing model.
-
-    global:
-        1.Common red noise modeled with user defined PSD with
-        30 sampling frequencies. Available PSDs are
-        ['powerlaw', 'turnover' 'spectrum']
-        2. Optional physical ephemeris modeling.
-
-    :param psd:
-        PSD to use for common red noise signal. Available options
-        are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
-        value.
-    :param Tspan:
-        timespan assumed for describing stochastic processes,
-        in units of seconds.
-    :param tm_var: explicitly vary the timing model parameters
-    :param tm_linear: vary the timing model in the linear approximation
-    :param tmparam_list: an explicit list of timing model parameters to vary
-    :param noisedict:
-        Dictionary of pulsar noise properties. Can provide manually,
+    :param tm_var: boolean to vary timing model coefficients.
+        [default = False]
+    :param tm_linear: boolean to vary timing model under linear approximation.
+        [default = False]
+    :param tmparam_list: list of timing model parameters to vary.
+        [default = None]
+    :param tm_svd: stabilize timing model designmatrix with SVD.
+        [default = False]
+    :param tm_norm: normalize the timing model design matrix, or provide custom
+        normalization. Alternative to 'tm_svd'.
+        [default = True]
+    :param noisedict: Dictionary of pulsar noise properties. Can provide manually,
         or the code will attempt to find it.
-    :param white_vary:
-        boolean for varying white noise or keeping fixed.
-    :param gamma_common:
-        Fixed common red process spectral index value. By default we
+        [default = None]
+    :param white_vary: boolean for varying white noise or keeping fixed.
+        [default = False]
+    :param Tspan: timespan assumed for describing stochastic processes,
+        in units of seconds. If None provided will find span of pulsars.
+        [default = None]
+    :param modes: list of frequencies on which to describe red processes.
+        [default = None]
+    :param wgts: sqrt summation weights for each frequency bin, i.e. \sqrt(\delta f).
+        [default = None]
+    :param logfreq: boolean for including log-spaced bins.
+        [default = False]
+    :param nmodes_log: number of log-spaced bins below 1/T.
+        [default = 10]
+    :param common_psd: psd of common process.
+        ['powerlaw', 'spectrum', 'turnover', 'turnover_knee,', 'broken_powerlaw']
+        [default = 'powerlaw']
+    :param common_components: number of frequencies starting at 1/T for common process.
+        [default = 30]
+    :param gamma_common: fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
-    :param upper_limit:
-        Perform upper limit on common red noise amplitude. By default
-        this is set to False. Note that when perfoming upper limits it
-        is recommended that the spectral index also be fixed to a specific
-        value.
-    :param bayesephem:
-        Include BayesEphem model. Set to False by default
-    :param be_type:
-        orbel, orbel-v2, setIII
-    :param is_wideband:
-        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
-        noise model.
-    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
-        is_wideband.
+    :param orf: comma de-limited string of multiple common processes with different orfs.
+        [default = None]
+    :param upper_limit_common: perform upper limit on common red noise amplitude. Note 
+        that when perfoming upper limits it is recommended that the spectral index also 
+        be fixed to a specific value.
+        [default = False]
+    :param upper_limit: apply upper limit priors to all red processes.
+        [default = False]
+    :param red_psd: psd of intrinsic red process.
+        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt', 'infinitepower']
+        [default = 'powerlaw']
+    :param red_components: number of frequencies starting at 1/T for intrinsic red process.
+        [default = 30]
+    :param upper_limit_red: perform upper limit on intrinsic red noise amplitude. Note 
+        that when perfoming upper limits it is recommended that the spectral index also 
+        be fixed to a specific value.
+        [default = False]
+    :param red_select: selection properties for intrinsic red noise.
+        ['backend', 'band', 'band+', None]
+        [default = None]
+    :param red_breakflat: break red noise spectrum and make flat above certain frequency.
+        [default = False]
+    :param red_breakflat_fq: break frequency for 'red_breakflat'.
+        [default = None]
+    :param bayesephem: boolean to include BayesEphem model.
+        [default = False]
+    :param be_type: flavor of bayesephem model based on how partials are computed.
+        ['orbel', 'orbel-v2', 'setIII', 'setIII_1980']
+        [default = 'setIII_1980']
+    :param is_wideband: boolean for whether input TOAs are wideband TOAs. Will exclude 
+        ecorr from the white noise model.
+        [default = False]
+    :param use_dmdata: whether to use DM data (WidebandTimingModel) if is_wideband.
+        [default = False]
+    :param dm_var: boolean for explicitly searching for DM variations.
+        [default = False]
+    :param dm_type: type of DM variations.
+        ['gp', other choices selected with additional options; see below]
+        [default = 'gp']
+    :param dm_psd: psd of DM GP.
+        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt']
+        [default = 'powerlaw']
+    :param dm_components: number of frequencies starting at 1/T for DM GP.
+        [default = 30]
+    :param upper_limit_dm: perform upper limit on DM GP. Note that when perfoming 
+        upper limits it is recommended that the spectral index also be 
+        fixed to a specific value.
+        [default = False]
+    :param dm_annual: boolean to search for an annual DM trend.
+        [default = False]
+    :param dm_chrom: boolean to search for a generic chromatic GP.
+        [default = False]
+    :param dmchrom_psd: psd of generic chromatic GP.
+        ['powerlaw', 'spectrum', 'turnover']
+        [default = 'powerlaw']
+    :param dmchrom_idx: spectral index of generic chromatic GP.
+        [default = 4]
+    :param gequad: boolean to search for a global EQUAD.
+        [default = False]
+    :param coefficients: boolean to form full hierarchical PTA object;
+        (no analytic latent-coefficient marginalization)
+        [default = False]
+    :param pshift: boolean to add random phase shift to red noise Fourier design
+        matrices for false alarm rate studies.
+        [default = False]
+    
+    Default PTA object composition:
+        1. fixed EFAC per backend/receiver system (per pulsar)
+        2. fixed EQUAD per backend/receiver system (per pulsar)
+        3. fixed ECORR per backend/receiver system (per pulsar)
+        4. Red noise modeled as a power-law with 30 sampling frequencies 
+           (per pulsar)
+        5. Linear timing model (per pulsar)
+        6. Common-spectrum uncorrelated process modeled as a power-law with
+           30 sampling frequencies. (global)
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -657,19 +717,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                          break_flat_fq=red_breakflat_fq)
 
     # common red noise block
-    if orf is None:
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients, pshift=pshift,
-                                    gamma_val=gamma_common, name='gw')
-    elif orf == 'hd':
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients,
-                                    gamma_val=gamma_common, orf='hd',
-                                    name='gw')
+    crn = []
+    for elem in orf.split(','):
+        crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
+                                          components=common_components, gamma_val=gamma_common,
+                                          delta_val=None, orf=elem, name='gw_{}'.format(elem),
+                                          coefficients=coefficients, pshift=pshift, pseed=None))
+    crn = functools.reduce((lambda x,y:x+y), crn)
+    s += crn
 
     # DM variations
     if dm_var:
