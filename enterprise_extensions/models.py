@@ -531,7 +531,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, gamma_common=None,
                   orf=None, upper_limit_common=None, upper_limit=False, 
-                  red_psd='powerlaw', red_components=30, upper_limit_red=None,
+                  red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False, 
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30, 
@@ -584,6 +584,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = False]
     :param upper_limit: apply upper limit priors to all red processes.
         [default = False]
+    :param red_var: boolean to switch on/off intrinsic red noise.
+        [default = True]
     :param red_psd: psd of intrinsic red process.
         ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt', 'infinitepower']
         [default = 'powerlaw']
@@ -710,11 +712,12 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     # red noise
-    s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
-                         components=red_components, modes=modes, wgts=wgts,
-                         coefficients=coefficients,
-                         select=red_select, break_flat=red_breakflat,
-                         break_flat_fq=red_breakflat_fq)
+    if red_var:
+        s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
+                            components=red_components, modes=modes, wgts=wgts,
+                            coefficients=coefficients,
+                            select=red_select, break_flat=red_breakflat,
+                            break_flat_fq=red_breakflat_fq)
 
     # common red noise block
     crn = []
