@@ -141,7 +141,7 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
         if ct % 1000 == 0:
             sys.stdout.write('\r')
             sys.stdout.write('Finished %2.1f percent in %f min'
-                                 % (float(ct)/Nmax*100, (time.time() - tstart)/60. ))
+                                 % (float(ct)/N*100, (time.time() - tstart)/60. ))
             sys.stdout.flush()
 
     if len(matches) < N:
