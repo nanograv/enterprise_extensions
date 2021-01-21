@@ -1766,7 +1766,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, whict_vary=False,
+def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                       components=30, gamma_common=None, upper_limit=False,
                       bayesephem=False, is_wideband=False, use_dmdata=False,
                       k_threshold=0.5, pshift=False):
