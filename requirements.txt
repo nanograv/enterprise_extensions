@@ -7,3 +7,4 @@ setuptools>=40.0.0
 scikit-sparse==0.4.2 --no-binary scikit-sparse
 -e git+https://github.com/nanograv/PINT.git#egg=PINT
 healpy
+-e git+https://github.com/dfm/acor@master#egg=acor
