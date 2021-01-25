@@ -203,7 +203,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
             if tm_param == "COSI":
                 # Switch for sampling in COSI, but using SINI in libstempo
                 tm_params_rescaled["SINI"] = np.longdouble(
-                    np.sqrt(1 - np.longdouble(tm_scaled_val) ** 2)
+                    np.sqrt(1 - tm_scaled_val ** 2)
                 )
             else:
                 tm_params_rescaled[tm_param] = np.longdouble(tm_scaled_val)
@@ -286,7 +286,6 @@ def timing_block(
             ),
         )
     )
-
     # Check to see if nan or inf in pulsar parameter errors.
     # The refit will populate the incorrect errors, but sometimes
     # changes the values by too much, which is why it is done in this order.
@@ -324,8 +323,9 @@ def timing_block(
                 sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
                 val = np.longdouble(np.sqrt(1 - sin_val ** 2))
                 err = np.longdouble(
-                    np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
+                    np.sqrt((sin_err * sin_val) ** 2 / (1 - sin_val ** 2))
                 )
+                # psr.tm_params_orig["SINI"][-1] = "physical"
                 psr.tm_params_orig[par] = [val, err, "physical"]
             else:
                 raise ValueError(par, "not in psr.tm_params_orig.")
@@ -376,7 +376,7 @@ def timing_block(
                         sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
                         val = np.longdouble(np.sqrt(1 - sin_val ** 2))
                         err = np.longdouble(
-                            np.sqrt((np.abs(sin_val / val)) ** 2 * sin_err ** 2)
+                            np.sqrt((sin_err * sin_val) ** 2 / (1 - sin_val ** 2))
                         )
                         psr.tm_params_orig[par] = [val, err, "normalized"]
                     else:

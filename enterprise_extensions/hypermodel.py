@@ -180,8 +180,14 @@ class HyperModel(object):
 
         return q, float(lqxy)
 
-    def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None):
+    def setup_sampler(
+        self,
+        outdir="chains",
+        resume=False,
+        sample_nmodel=True,
+        empirical_distr=None,
+        groups=None,
+    ):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -302,13 +308,19 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
         # Prior distribution draw for parameters named GW
-        if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
-            print('Adding gw param prior draws...\n')
-            sampler.addProposalToCycle(jp.draw_from_par_prior(
-                par_names=[str(p).split(':')[0] for 
-                           p in list(self.params) 
-                           if 'gw' in str(p)]), 10)
-        
+        if any([str(p).split(":")[0] for p in list(self.params) if "gw" in str(p)]):
+            print("Adding gw param prior draws...\n")
+            sampler.addProposalToCycle(
+                jp.draw_from_par_prior(
+                    par_names=[
+                        str(p).split(":")[0]
+                        for p in list(self.params)
+                        if "gw" in str(p)
+                    ]
+                ),
+                10,
+            )
+
         # Model index distribution draw
         if sample_nmodel:
             if "nmodel" in self.param_names:
