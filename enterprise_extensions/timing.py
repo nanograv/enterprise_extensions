@@ -186,7 +186,6 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
     tm_params_rescaled = {}
-    error_pos = {}
     for tm_scaled_key, tm_scaled_val in kwargs.items():
         if "DMX" in tm_scaled_key:
             tm_param = "_".join(tm_scaled_key.split("_")[-2:])
