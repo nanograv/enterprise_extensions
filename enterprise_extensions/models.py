@@ -2113,7 +2113,9 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
               n_gwbfreqs=None, gamma_common=None, delta_common=None,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
               upper_limit=False, bayesephem=False, wideband=False,
-              pshift=False, pseed=None, model_CRN=False):
+              pshift=False, pseed=None, model_CRN=False,
+              amp_upper=-11, amp_lower=-18, 
+              freq_upper=-7, freq_lower=-9):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with FDM model:
@@ -2180,6 +2182,8 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     :param model_CRN:
         Option to model the common red process in addition to the
         FDM signal. 
+    :param amp_upper, amp_lower, freq_upper, freq_lower:
+        The log-space bounds on the amplitude and frequency priors.
     :return: instantiated enterprise.PTA object
     """
 
@@ -2223,7 +2227,9 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
     # GW FDM signal block
     s += deterministic.fdm_block(Tmin_fdm, Tmax_fdm,
-                                 amp_prior=amp_prior, name='fdm')
+                                 amp_prior=amp_prior, name='fdm'
+                                 amp_lower=amp_lower, amp_upper=amp_upper,
+                                 freq_lower=freq_lower, freq_upper=freq_upper)
 
     # ephemeris model
     if bayesephem:
