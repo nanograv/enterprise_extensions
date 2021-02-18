@@ -468,7 +468,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw',
                   dm_annual=False,
                   white_vary=False, gequad=False, dm_chrom=False,
-                  dmchrom_psd='powerlaw', dmchrom_idx=4,
+                  dmchrom_psd='powerlaw', dmchrom_idx=4, delta_common=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   coefficients=False, pshift=False):
     """
@@ -572,13 +572,15 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                     Tspan=Tspan,
                                     components=common_components,
                                     coefficients=coefficients, pshift=pshift,
-                                    gamma_val=gamma_common, name='gw')
+                                    gamma_val=gamma_common, delta_common=None,
+                                    name='gw')
     elif orf == 'hd':
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                     Tspan=Tspan,
                                     components=common_components,
                                     coefficients=coefficients,
-                                    gamma_val=gamma_common, orf='hd',
+                                    gamma_val=gamma_common, delta_common=None,
+                                    orf='hd',
                                     name='gw')
 
     # DM variations

@@ -499,8 +499,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
-                           Tspan=None, components=30, gamma_val=None,
-                           delta_val=None,
+                           Tspan=None, components=30,
+                           gamma_val=None, delta_val=None,
                            orf=None, name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
