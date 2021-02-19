@@ -2227,7 +2227,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
     # GW FDM signal block
     s += deterministic.fdm_block(Tmin_fdm, Tmax_fdm,
-                                 amp_prior=amp_prior, name='fdm'
+                                 amp_prior=amp_prior, name='fdm',
                                  amp_lower=amp_lower, amp_upper=amp_upper,
                                  freq_lower=freq_lower, freq_upper=freq_upper)
 
