@@ -572,14 +572,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                     Tspan=Tspan,
                                     components=common_components,
                                     coefficients=coefficients, pshift=pshift,
-                                    gamma_val=gamma_common, delta_common=None,
+                                    gamma_val=gamma_common, delta_val=delta_common,
                                     name='gw')
     elif orf == 'hd':
         s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
                                     Tspan=Tspan,
                                     components=common_components,
                                     coefficients=coefficients,
-                                    gamma_val=gamma_common, delta_common=None,
+                                    gamma_val=gamma_common, delta_val=delta_common,
                                     orf='hd',
                                     name='gw')
 
