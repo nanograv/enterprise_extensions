@@ -538,7 +538,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',combine=True,
 
     """
 
-    orfs = {'hd': utils.hd_orf(), 'dipole': utils.dipole_orf(),
+    orfs = {'crn': None, 'hd': utils.hd_orf(),
+            'dipole': utils.dipole_orf(),
             'monopole': utils.monopole_orf()}
 
     # common red noise parameters
