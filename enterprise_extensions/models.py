@@ -36,7 +36,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_nondiag_kernel='periodic', dmx_data=None,
                           dm_annual=False, gamma_dm_val=None, chrom_gp=False,
                           chrom_gp_kernel='nondiag',
-                          chrom_psd='powerlaw', chrom_idx=4,
+                          chrom_psd='powerlaw', chrom_idx=4, chrom_quad=False,
                           chrom_kernel='periodic',
                           dm_expdip=False, dmexp_sign='negative',
                           dm_expdip_idx=2,
@@ -54,6 +54,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dm_sw_deter=False, dm_sw_gp=False,
                           swgp_prior=None, swgp_basis=None,
                           coefficients=False, extra_sigs=None,
+                          psr_model=False, factorized_like=False,
+                          Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           select='backend'):
     """
     Single pulsar noise model
@@ -93,6 +95,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_idx: frequency scaling of chromatic noise
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
+    :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -124,6 +127,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param swgp_prior: prior is currently set automatically
     :param swgp_basis: ['powerlaw', 'periodic', 'sq_exp']
     :param coefficients: explicitly include latent coefficients in model
+    :param psr_model: Return the enterprise model instantiated on the pulsar
+        rather than an instantiated PTA object, i.e. model(psr) rather than
+        PTA(model(psr)).
+    :param factorized_like: Whether to run a factorized likelihood analyis Boolean
+    Tspan=None, fact_like_gamma=13./3, gw_components=10
     :param extra_sigs: Any additional `enterprise` signals to be added to the
         model.
 
@@ -169,7 +177,25 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             pass
 
     # red noise
-    if red_var:
+    if red_var and factorized_like:
+        if Tspan is None:
+            msg = 'Must Timespan to match amongst all pulsars when doing '
+            msg += 'a factorized likelihood analysis.'
+            raise ValueError(msg)
+
+        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                             components=components, gamma_val=gamma_val,
+                             coefficients=coefficients, select=red_select)
+
+        s += common_red_noise_block(psd=psd, prior=amp_prior,
+                                    Tspan=Tspan, components=gw_components,
+                                    gamma_val=fact_like_gamma, delta_val=None,
+                                    orf=None, name='gw',
+                                    coefficients=coefficients,
+                                    pshift=False, pseed=None)
+
+
+    elif red_var:
         s += red_noise_block(psd=psd, prior=amp_prior,
                              components=components, gamma_val=gamma_val,
                              coefficients=coefficients, select=red_select)
@@ -195,6 +221,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components,
                                        nondiag_kernel=chrom_kernel,
+                                       include_quadratic=chrom_quad,
                                        coefficients=coefficients)
 
         if dm_expdip:
@@ -281,18 +308,21 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 select=select)
         model = s3(psr)
 
-    # set up PTA
-    pta = signal_base.PTA([model])
+    if psr_model:
+        return model
+    else:
+        # set up PTA
+        pta = signal_base.PTA([model])
 
-    # set white noise parameters
-    if not white_vary or (is_wideband and use_dmdata):
-        if noisedict is None:
-            print('No noise dictionary provided!...')
-        else:
-            noisedict = noisedict
-            pta.set_default_params(noisedict)
+        # set white noise parameters
+        if not white_vary or (is_wideband and use_dmdata):
+            if noisedict is None:
+                print('No noise dictionary provided!...')
+            else:
+                noisedict = noisedict
+                pta.set_default_params(noisedict)
 
-    return pta
+        return pta
 
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
@@ -536,7 +566,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, gamma_common=None,
-                  orf=None, upper_limit_common=None, upper_limit=False,
+                  orf='crn', upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
