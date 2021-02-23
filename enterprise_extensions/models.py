@@ -92,11 +92,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_idx: frequency scaling of chromatic noise
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
-<<<<<<< HEAD
     :param chrom_dt: linear_interp_basis size in units of days
-=======
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
->>>>>>> master
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -222,13 +219,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components,
                                        nondiag_kernel=chrom_kernel,
-<<<<<<< HEAD
                                        coefficients=coefficients,
-                                       chrom_dt=chrom_dt)
-=======
-                                       include_quadratic=chrom_quad,
-                                       coefficients=coefficients)
->>>>>>> master
+                                       chrom_dt=chrom_dt,
+                                       include_quadratic=chrom_quad)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
@@ -305,14 +298,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-<<<<<<< HEAD
-    if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not wideband:
+    if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-=======
-    if 'NANOGrav' in psr.flags['pta'] and not is_wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                select=select)
->>>>>>> master
         model = s2(psr)
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
@@ -441,13 +428,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
              delta_common=None, upper_limit=False, bayesephem=False,
-<<<<<<< HEAD
-             be_type='setIII', wideband=False, select='backend', rn_psrs='all',
-=======
-             be_type='orbel', white_vary=False, is_wideband=False,
-             use_dmdata=False, select='backend',
->>>>>>> master
-             pshift=False, pseed=None, psr_models=False):
+             be_type='setIII',  select='backend', rn_psrs='all',
+             white_vary=False, is_wideband=False,
+             use_dmdata=False, pshift=False, pseed=None, psr_models=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -553,7 +536,6 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-<<<<<<< HEAD
         if isinstance(rn_psrs, list):
             if p.name in rn_psrs:
                 ss = s + rn
@@ -561,22 +543,13 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                 ss = s
         else:
             ss = s
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
+        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = ss + white_noise_block(vary=False, inc_ecorr=True,
                                        select=select)
             models.append(s2(p))
         else:
             s3 = ss + white_noise_block(vary=False, inc_ecorr=False,
                                        select=select)
-=======
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                    select=select)
-            models.append(s2(p))
-        else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                    select=select)
->>>>>>> master
             models.append(s3(p))
 
     # set up PTA
@@ -599,32 +572,17 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-<<<<<<< HEAD
-                  Tspan=None, common_psd='powerlaw', red_psd='powerlaw', orf=None,
-                  common_components=30, red_components=30, dm_components=30,
-                  modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  noisedict=None, rn_psrs='all',
-                  tm_svd=False, tm_norm=True, gamma_common=None,
-                  upper_limit=False, upper_limit_red=None, upper_limit_dm=None,
-                  upper_limit_common=None,
-                  bayesephem=False, be_type='orbel', wideband=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw',
-                  dm_annual=False,
-                  white_vary=False, gequad=False, dm_chrom=False,
-                  dmchrom_psd='powerlaw', dmchrom_idx=4, delta_common=None,
-=======
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, gamma_common=None,
                   orf='crn', upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
->>>>>>> master
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30,
                   upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
                   dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
-                  select='backend'):
+                  rn_psrs='all', delta_common=None, select='backend'):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -799,32 +757,6 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         wgts = wgts**2.0
 
     # red noise
-<<<<<<< HEAD
-    rn = red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
-                         components=red_components, modes=modes, wgts=wgts,
-                         coefficients=coefficients,
-                         select=red_select, break_flat=red_breakflat,
-                         break_flat_fq=red_breakflat_fq)
-    if isinstance(rn_psrs, str) and rn_psrs=='all':
-        s += rn
-
-    # common red noise block
-    if orf is None:
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients, pshift=pshift,
-                                    gamma_val=gamma_common, delta_val=delta_common,
-                                    name='gw')
-    elif orf == 'hd':
-        s += common_red_noise_block(psd=common_psd, prior=amp_prior_common,
-                                    Tspan=Tspan,
-                                    components=common_components,
-                                    coefficients=coefficients,
-                                    gamma_val=gamma_common, delta_val=delta_common,
-                                    orf='hd',
-                                    name='gw')
-=======
     if red_var:
         s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
                             components=red_components, modes=modes, wgts=wgts,
@@ -841,7 +773,6 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                           coefficients=coefficients, pshift=pshift, pseed=None))
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
->>>>>>> master
 
     # DM variations
     if dm_var:
@@ -867,7 +798,6 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     models = []
 
     for p in psrs:
-<<<<<<< HEAD
         # The if/else statements either add achromatic RN to all psrs or
         # a list of pulsars
         if isinstance(rn_psrs, list):
@@ -877,13 +807,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                 ss = s
         else:
             ss = s
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = ss + white_noise_block(vary=white_vary, inc_ecorr=True)
-=======
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                    select=select)
->>>>>>> master
+            s2 = ss + white_noise_block(vary=white_vary, inc_ecorr=True)
             if gequad:
                 s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
                                                selection=selections.Selection(selections.no_selection),
@@ -897,12 +822,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             else:
                 models.append(s2(p))
         else:
-<<<<<<< HEAD
             s4 = ss + white_noise_block(vary=white_vary, inc_ecorr=False)
-=======
-            s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                    select=select)
->>>>>>> master
             if gequad:
                 s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
                                                selection=selections.Selection(selections.no_selection),
@@ -1277,21 +1197,13 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-<<<<<<< HEAD
-def model_3a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs = None, n_gwbfreqs=None, gamma_common=None,
-             delta_common=None, upper_limit=False, bayesephem=False,
-             be_type='setIII', wideband=False, correlationsonly=False,
-             rn_psrs='all', pshift=False, pseed=None, psr_models=False):
-=======
 def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, n_rnfreqs = None, n_gwbfreqs=None,
              gamma_common=None, delta_common=None, upper_limit=False,
-             bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend',
+             bayesephem=False, be_type='setIII', is_wideband=False,
+             use_dmdata=False, select='backend', rn_psrs='all',
              correlationsonly=False,
              pshift=False, pseed=None, psr_models=False):
->>>>>>> master
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -1403,7 +1315,6 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-<<<<<<< HEAD
         if isinstance(rn_psrs, list):
             if p.name in rn_psrs:
                 ss = s + rn
@@ -1412,20 +1323,11 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         else:
             ss = s
 
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
+        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = ss + white_noise_block(vary=False, inc_ecorr=True)
             models.append(s2(p))
         else:
             s3 = ss + white_noise_block(vary=False, inc_ecorr=False)
-=======
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                    select=select)
-            models.append(s2(p))
-        else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                    select=select)
->>>>>>> master
             models.append(s3(p))
 
     if psr_models:

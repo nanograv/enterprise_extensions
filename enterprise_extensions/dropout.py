@@ -22,14 +22,13 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
 
-    if k_drop >= k_threshold: k_switch = 1.0
-    elif k_drop < k_threshold: k_switch = 1e-40#0.0
-
+    if k_drop >= k_threshold:
+        k_switch = 1.0
+    elif k_drop < k_threshold:
+        k_switch = 1e-40#0.0
         return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
                        const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
-
     else:
-
         return ((10**log10_A)**2 / 12.0 / np.pi**2 *
                 const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
 
