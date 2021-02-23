@@ -303,13 +303,17 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
                 select=select)
         model = s2(psr)
+        if psr_model:
+            Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                 select=select)
         model = s3(psr)
+        if psr_model:
+            Model = s3
 
     if psr_model:
-        return model
+        return Model
     else:
         # set up PTA
         pta = signal_base.PTA([model])
