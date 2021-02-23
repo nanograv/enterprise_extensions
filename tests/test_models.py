@@ -101,11 +101,11 @@ def test_model_singlepsr_noise_chrom_diag(nodmx_psrs,caplog):
 def test_model_singlepsr_fact_like(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     psr = nodmx_psrs[1]
-    Tspan = model_utils.get_tspan(psr)
+    Tspan = model_utils.get_tspan([psr])
     m=models.model_singlepsr_noise(psr, chrom_gp=True,
                                    chrom_gp_kernel='diag',
                                    factorized_like=False,
-                                   Tspan=Tspan, fact_like_gamma=13./3, 
+                                   Tspan=Tspan, fact_like_gamma=13./3,
                                    gw_components=5)
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
