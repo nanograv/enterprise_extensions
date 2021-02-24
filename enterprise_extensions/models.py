@@ -769,7 +769,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     for elem in orf.split(','):
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                           components=common_components, gamma_val=gamma_common,
-                                          delta_val=None, orf=elem, name='gw_{}'.format(elem),
+                                          delta_val=delta_common, orf=elem, name='gw_{}'.format(elem),
                                           coefficients=coefficients, pshift=pshift, pseed=None))
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
