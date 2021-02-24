@@ -68,7 +68,8 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
 def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
               amp_lower=-18, amp_upper=-11,
-              freq_lower=-9, freq_upper=-7):
+              freq_lower=-9, freq_upper=-7,
+              use_fixed_freq=False, fixed_freq=-8):
     """
     Returns deterministic fuzzy dark matter model:
         1. FDM parameterized by frequency, phase, 
@@ -91,8 +92,12 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
     amp_name = '{}_log10_A'.format(name)
     log10_A_fdm = parameter.Uniform(amp_lower, amp_upper)(amp_name)
     
-    freq_name = '{}_log10_f'.format(name)
-    log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
+    if use_fixed_freq is True:
+        log10_f_fdm = fixed_freq
+
+    if use_fixed_freq is False:
+        freq_name = '{}_log10_f'.format(name)
+        log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
 
     phase_e_name = '{}_phase_e'.format(name)
     phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)

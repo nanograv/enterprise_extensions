@@ -2115,7 +2115,8 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
               upper_limit=False, bayesephem=False, wideband=False,
               pshift=False, pseed=None, model_CRN=False,
               amp_upper=-11, amp_lower=-18, 
-              freq_upper=-7, freq_lower=-9):
+              freq_upper=-7, freq_lower=-9,
+              use_fixed_freq=False, fixed_freq=-8):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with FDM model:
@@ -2184,6 +2185,10 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         FDM signal. 
     :param amp_upper, amp_lower, freq_upper, freq_lower:
         The log-space bounds on the amplitude and frequency priors.
+    :param use_fixed_freq:
+        Whether to do a fixed-frequency run and not search over the frequency.
+    :param fixed_freq:
+        The frequency value to do a fixed-frequency run with.
     :return: instantiated enterprise.PTA object
     """
 
@@ -2224,12 +2229,14 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
                                     components=n_gwbfreqs, gamma_val=gamma_common,
                                     delta_val=delta_common, name='gw',
                                     pshift=pshift, pseed=pseed)
-
+    
     # GW FDM signal block
     s += deterministic.fdm_block(Tmin_fdm, Tmax_fdm,
-                                 amp_prior=amp_prior, name='fdm',
-                                 amp_lower=amp_lower, amp_upper=amp_upper,
-                                 freq_lower=freq_lower, freq_upper=freq_upper)
+                                    amp_prior=amp_prior, name='fdm',
+                                    amp_lower=amp_lower, amp_upper=amp_upper,
+                                    freq_lower=freq_lower, freq_upper=freq_upper,
+                                    use_fixed_freq=use_fixed_freq, fixed_freq=fixed_freq)
+
 
     # ephemeris model
     if bayesephem:
