@@ -596,9 +596,9 @@ class JumpProposal(object):
 
         q = x.copy()
         lqxy = 0
-        
+
         fe_limit = np.max(self.fe)
-        
+
         #draw skylocation and frequency from f-stat map
         accepted = False
         while accepted==False:
@@ -618,31 +618,31 @@ class JumpProposal(object):
         psi = self.params[self.pimap['psi']].sample()
         phase0 = self.params[self.pimap['phase0']].sample()
         log10_h = self.params[self.pimap['log10_h']].sample()
-        
+
 
         #put new parameters into q
         signal_name = 'cw'
         for param_name, new_param in zip(['log10_fgw','gwphi','cos_gwtheta','cos_inc','psi','phase0','log10_h'],
                                            [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
             q[self.pimap[param_name]] = new_param
-        
+
         #calculate Hastings ratio
         log_f_old = x[self.pimap['log10_fgw']]
         f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
-        
+
         gw_theta_old = np.arccos(x[self.pimap['cos_gwtheta']])
         gw_phi_old = x[self.pimap['gwphi']]
         hp_idx_old = hp.ang2pix(hp.get_nside(self.fe), gw_theta_old, gw_phi_old)
-        
+
         fe_old_point = self.fe[f_idx_old, hp_idx_old]
         if fe_old_point>fe_limit:
             fe_old_point = fe_limit
-            
+
         log10_h_old = x[self.pimap['log10_h']]
         phase0_old = x[self.pimap['phase0']]
         psi_old = x[self.pimap['psi']]
         cos_inc_old = x[self.pimap['cos_inc']]
-        
+
         hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(log10_h_old)
         hastings_extra_factor *= 1/self.params[self.pimap['log10_h']].get_pdf(log10_h)
         hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(phase0_old)
@@ -650,8 +650,8 @@ class JumpProposal(object):
         hastings_extra_factor = self.params[self.pimap['psi']].get_pdf(psi_old)
         hastings_extra_factor *= 1/self.params[self.pimap['psi']].get_pdf(psi)
         hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(cos_inc_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)        
-        
+        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)
+
         lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
@@ -803,7 +803,7 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
         sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
     # GWB uniform distribution draw
-    if 'gw_log10_A' in pta.param_names:
+    if 'gw_log10_A' in pta.param_names or 'gw_crn_log10_A' in pta.param_names:
         print('Adding GWB uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
