@@ -86,6 +86,12 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
         log of maximum FDM amplitude for prior (log10)
     :param name:
         Name of FDM signal.
+    :param amp_upper, amp_lower, freq_upper, freq_lower:
+        The log-space bounds on the amplitude and frequency priors.
+    :param use_fixed_freq:
+        Whether to do a fixed-frequency run and not search over the frequency.
+    :param fixed_freq:
+        The frequency value to do a fixed-frequency run with.
     """
 
     # BWM parameters
