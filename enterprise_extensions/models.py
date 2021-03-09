@@ -27,7 +27,6 @@ from enterprise_extensions import chromatic as chrom
 from enterprise_extensions import dropout as do
 
 
-<<<<<<< HEAD
 def model_singlepsr_noise(
     psr,
     tm_var=False,
