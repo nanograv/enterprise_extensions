@@ -31,7 +31,7 @@ def linear_interp_basis_dm(toas, freqs, dt=30*86400):
     return U * Dm[:, None], avetoas
 
 @signal_base.function
-def linear_interp_basis_general(toas, toa_min=None, toa_max=None, dt=30 * 86400):
+def linear_interp_basis_general(toas, toa_min=None, toa_max=None, dt=14 * 86400):
     """Provides a basis for linear interpolation.
 
     :param toas: Pulsar TOAs in seconds
@@ -46,7 +46,7 @@ def linear_interp_basis_general(toas, toa_min=None, toa_max=None, dt=30 * 86400)
 
     if toa_max is None:
         toa_max= toas.max()
-        
+
     # evenly spaced points
     x = np.arange(toa_min, toa_max + dt, dt)
     M = np.zeros((len(toas), len(x)))
