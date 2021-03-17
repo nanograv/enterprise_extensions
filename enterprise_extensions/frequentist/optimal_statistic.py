@@ -53,6 +53,7 @@ class OptimalStatistic(object):
             self.pta = pta
 
 
+        self.gamma_common = gamma_common
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
@@ -134,8 +135,13 @@ class OptimalStatistic(object):
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
             for jj in range(ii+1, npsr):
-
-                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+                if self.gamma_common is None and 'gw_gamma' in params.keys():
+                    print('{0:1.2}'.format(params['gw_gamma']))
+                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                           gamma=params['gw_gamma'])
+                else:
+                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                           gamma=self.gamma_common)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
                 bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
@@ -170,7 +176,7 @@ class OptimalStatistic(object):
         :returns: (os, snr) array of OS and SNR values for each iteration.
 
         """
-        
+
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
             msg = 'MCMC chain does not have the same number of parameters '
@@ -182,7 +188,7 @@ class OptimalStatistic(object):
         setpars = {}
         for ii in range(N):
             idx = np.random.randint(0, chain.shape[0])
-            
+
             # if param_names is not specified, the parameter dictionary
             # is made by mapping the values from the chain to the
             # parameters in the pta object
@@ -217,7 +223,7 @@ class OptimalStatistic(object):
             warnings.warn(msg)
 
         idx = np.argmax(chain[:, -4])
-        
+
         # if param_names is not specified, the parameter dictionary
         # is made by mapping the values from the chain to the
         # parameters in the pta object
@@ -236,7 +242,7 @@ class OptimalStatistic(object):
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise' and signal.signal_id =='gw':
+                if signal.signal_name == 'red noise' and signal.signal_id in ['gw','gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -246,7 +252,7 @@ class OptimalStatistic(object):
     def _get_freqs(self,psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise' and sig.signal_id == 'gw':
+            if sig.signal_name == 'red noise' and sig.signal_id in ['gw','gw_crn']:
                 sig._construct_basis()
                 freqs = np.array(sig._labels[''])
                 break

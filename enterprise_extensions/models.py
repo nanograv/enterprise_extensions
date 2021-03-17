@@ -70,6 +70,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param tm_norm: normalize the timing model, or provide custom normalization
     :param white_vary: boolean for varying white noise or keeping fixed
     :param components: number of modes in Fourier domain processes
+    :param dm_components: number of modes in Fourier domain DM processes
+    :param fact_like_comp: number of modes in Fourier domain for a common
+           process in a factorized likelihood calculation.
+    :param fact_like: Whether to include a factorized likelihood GWB process.
     :param upper_limit: whether to do an upper-limit analysis
     :param is_wideband: whether input TOAs are wideband TOAs; will exclude
            ecorr from the white noise model
@@ -301,13 +305,17 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
         model = s2(psr)
+        if psr_model:
+            Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                 select=select)
         model = s3(psr)
+        if psr_model:
+            Model = s3
 
     if psr_model:
-        return model
+        return Model
     else:
         # set up PTA
         pta = signal_base.PTA([model])
