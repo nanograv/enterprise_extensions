@@ -30,6 +30,38 @@ def linear_interp_basis_dm(toas, freqs, dt=30*86400):
 
     return U * Dm[:, None], avetoas
 
+@signal_base.function
+def linear_interp_basis_general(toas, toa_min=None, toa_max=None, dt=30 * 86400):
+    """Provides a basis for linear interpolation.
+
+    :param toas: Pulsar TOAs in seconds
+    :param toa_min: Minimum TOA to be considered.
+    :param toa_max: Maximum TOA to be considered.
+    :param dt: Linear interpolation step size in seconds.
+
+    :returns: Linear interpolation basis and nodes
+    """
+    if toa_min is None:
+        toa_min= toas.min()
+
+    if toa_max is None:
+        toa_max= toas.max()
+        
+    # evenly spaced points
+    x = np.arange(toa_min, toa_max + dt, dt)
+    M = np.zeros((len(toas), len(x)))
+
+    # make linear interpolation basis
+    for ii in range(len(x) - 1):
+        idx = np.logical_and(toas >= x[ii], toas <= x[ii + 1])
+        M[idx, ii] = (toas[idx] - x[ii + 1]) / (x[ii] - x[ii + 1])
+        M[idx, ii + 1] = (toas[idx] - x[ii]) / (x[ii + 1] - x[ii])
+
+    # only return non-zero columns
+    idx = M.sum(axis=0) != 0
+
+    return M[:, idx], x[idx]
+
 # linear interpolation basis in time with nu^-4 scaling
 @signal_base.function
 def linear_interp_basis_chromatic(toas, freqs, dt=30*86400, idx=4):
