@@ -590,7 +590,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30,
                   upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
                   dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
-                  rn_psrs='all', delta_common=None, select='backend'):
+                  rn_psrs='all', delta_common=None, select='backend', names=None):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -693,6 +693,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param coefficients: boolean to form full hierarchical PTA object;
         (no analytic latent-coefficient marginalization)
         [default = False]
+    :param names: list of names of signals, if desired different than default.
+        [default=None]
     :param pshift: boolean to add random phase shift to red noise Fourier design
         matrices for false alarm rate studies.
         [default = False]
@@ -774,10 +776,13 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # common red noise block
     crn = []
-    for elem in orf.split(','):
+    if names is None:
+        names = ['gw_{}'.format(elem) for elem in orf.split(',')]
+
+    for nm, elem in zip(names,orf.split(',')):
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                           components=common_components, gamma_val=gamma_common,
-                                          delta_val=delta_common, orf=elem, name='gw_{}'.format(elem),
+                                          delta_val=delta_common, orf=elem, name=nm,
                                           coefficients=coefficients, pshift=pshift, pseed=None))
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
