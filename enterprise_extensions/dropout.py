@@ -30,11 +30,10 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
         k_switch = 1.0
     elif k_drop < k_threshold:
         k_switch = 1e-40#0.0
-        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
+        
+    return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
                        const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
-    else:
-        return ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
+
 
 @signal_base.function
 def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
@@ -237,19 +236,19 @@ def dropout_EquadNoise(log10_equad=parameter.Uniform(-10, -5),
     return dropout_EquadNoise
 
 @signal_base.function
-def dp_ecorr_basis_prior(weights, log10_ecorr=-8, equad_drop=0.5, equad_thresh=0.5):
+def dp_ecorr_basis_prior(weights, log10_ecorr=-8, ecorr_drop=0.5, ecorr_thresh=0.5):
     """Returns the ecorr prior.
     :param weights: A vector or weights for the ecorr prior.
     """
-    if equad_drop >= equad_thresh:
+    if ecorr_drop >= ecorr_thresh:
         return weights * 10 ** (2 * log10_ecorr)
-    elif equad_drop < equad_thresh:
+    elif ecorr_drop < ecorr_thresh:
         return weights * 1e-30
 
 
 def dropout_EcorrBasisModel(
     log10_ecorr=parameter.Uniform(-10, -5),
-    equad_drop=parameter.Uniform(0, 1), equad_thresh=0.5,
+    ecorr_drop=parameter.Uniform(0, 1), ecorr_thresh=0.5,
     coefficients=False,
     selection=Selection(selections.no_selection),
     name="basis_ecorr",
@@ -259,8 +258,8 @@ def dropout_EcorrBasisModel(
 
     basis = utils.create_quantization_matrix()
     prior = dp_ecorr_basis_prior(log10_ecorr=log10_ecorr,
-                                 equad_drop=equad_drop,
-                                 equad_thresh=equad_thresh)
+                                 ecorr_drop=ecorr_drop,
+                                 ecorr_thresh=ecorr_thresh)
     BaseClass = BasisGP(prior, basis, coefficients=coefficients, selection=selection, name=name)
 
     class dropout_EcorrBasisModel(BaseClass):
