@@ -3,7 +3,9 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+from Cython.Build import cythonize
+import numpy
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -17,6 +19,18 @@ requirements = ['numpy',
 setup_requirements = ['pytest-runner', ]
 
 test_requirements = ['pytest', ]
+
+ext_modules=[
+    Extension('jitterext',
+             ['./enterprise_extensions/outlier/jitterext.pyx'],
+             include_dirs = [numpy.get_include()],
+             extra_compile_args=["-O2"]),
+    Extension('choleskyext_omp',
+             ['./enterprise_extensions/outlier/choleskyext_omp.pyx'],
+             include_dirs = [numpy.get_include()],
+             extra_link_args=["-liomp5"],
+             extra_compile_args=["-O2", "-fopenmp", "-fno-wrapv"])
+]
 
 # Extract version
 def get_version():
@@ -45,9 +59,11 @@ setup(
     license='MIT',
     packages=['enterprise_extensions',
               'enterprise_extensions.frequentist',
-              'enterprise_extensions.chromatic'],
+              'enterprise_extensions.chromatic',
+              'enterprise_extensions.outlier'],
     package_data={'enterprise_extensions.chromatic':
                   ['ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt']},
+    ext_modules = cythonize(ext_modules),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
