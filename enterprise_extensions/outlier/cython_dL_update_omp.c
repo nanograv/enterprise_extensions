@@ -58,7 +58,7 @@ void dL_update_hmc2(const double *pdL, const double *pdLi, const double *pdp,
 #pragma omp parallel private(i, j, k, index, pdLdot, pdU, r, drdot, dcdot, ds, temp) shared(pdL, pdLtrans, pdLi, pdp, pdM, pdtj) default(none)
     {
         //const int nthreads = omp_get_num_threads();
-        const int ithread = omp_get_thread_num();
+        //const int ithread = omp_get_thread_num();
         double *pdMlocal, dtjlocal;
         pdMlocal = calloc(N, sizeof(double));
 
