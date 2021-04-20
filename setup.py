@@ -21,11 +21,11 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
 ext_modules=[
-    Extension('jitterext',
+    Extension('enterprise_extensions.outlier.jitterext',
              ['./enterprise_extensions/outlier/jitterext.pyx'],
              include_dirs = [numpy.get_include()],
              extra_compile_args=["-O2"]),
-    Extension('choleskyext_omp',
+    Extension('enterprise_extensions.outlier.choleskyext_omp',
              ['./enterprise_extensions/outlier/choleskyext_omp.pyx'],
              include_dirs = [numpy.get_include()],
              extra_link_args=["-liomp5"],
