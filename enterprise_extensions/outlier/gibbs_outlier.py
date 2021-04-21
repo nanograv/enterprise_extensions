@@ -27,7 +27,7 @@ class OutlierGibbs(object):
     
     Example usage:
     
-        > gibbs = Gibbs(pta, model='mixture', vary_df=True, 
+        > gibbs = OutlierGibbs(pta, model='mixture', vary_df=True, 
                         theta_prior='beta', vary_alpha=True)
         > params = np.array([p.sample() for p in gibbs.params]).flatten()
         > gibbs.sample(params, outdir='./outlier/', 

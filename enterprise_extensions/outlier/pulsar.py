@@ -257,6 +257,9 @@ class OutlierPulsar():
             flags = epp.flags['be']
    
         isort = ut.argsortTOAs(epp._toas, flags)
+        # Create map from new isort to old isort
+        # This is used for outputting original TOA indices after outlier analysis
+        self.isort_dict = dict(zip(isort, epp._isort))
         self.ephem = epp.model.EPHEM.value
         self.F0 = epp.model.F0.value
         self.P0 = 1.0 / self.F0
