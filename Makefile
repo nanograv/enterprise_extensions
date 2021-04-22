@@ -65,7 +65,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -rf coverage.xml
 
 COV_COVERAGE_PERCENT ?= 85
-test: lint ## run tests quickly with the default Python
+test: #lint ## run tests quickly with the default Python
 	pytest -v --durations=10 --full-trace --cov-report html --cov-report xml \
 		--cov-config .coveragerc --cov-fail-under=$(COV_COVERAGE_PERCENT) \
 		--cov=enterprise_extensions tests
