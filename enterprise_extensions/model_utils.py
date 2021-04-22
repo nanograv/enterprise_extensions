@@ -3,16 +3,21 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import scipy.stats as scistats
-import acor
+
 import matplotlib.pyplot as plt
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-    
-from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D, 
-                                                   EmpiricalDistribution2D, 
+
+try:
+    import acor
+except ImportError
+    import statsmodels.tsa.stattools as acor
+
+from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
+                                                   EmpiricalDistribution2D,
                                                    make_empirical_distributions)
 
 # Log-spaced frequncies
