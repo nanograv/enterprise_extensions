@@ -20,7 +20,7 @@ requirements = [
     "pint-pulsar>=0.8.2",
     "libstempo>=2.4.0",
     "enterprise-pulsar>=3.1.0",
-    "-e git+https://github.com/dfm/acor@master#egg=acor",
+    "acor",
 ]
 
 setup_requirements = ['pytest-runner', ]
