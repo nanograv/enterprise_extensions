@@ -11,8 +11,16 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['numpy',
-                'scipy',]
+requirements = [
+    "numpy>=1.16.3",
+    "scipy>=1.2.0",
+    "ephem>=3.7.6.0",
+    "healpy>=1.14.0",
+    "scikit-sparse>=0.4.5",
+    "pint-pulsar>=0.8.2",
+    "libstempo>=2.4.0",
+    "enterprise-pulsar>=3.1.0"
+]
 
 setup_requirements = ['pytest-runner', ]
 
@@ -35,7 +43,7 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
         'Topic :: Scientific/Engineering :: Mathematics',
         'Intended Audience :: Science/Research',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     keywords='gravitational-wave, black-hole binary, pulsar-timing arrays',
