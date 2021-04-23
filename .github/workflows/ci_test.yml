@@ -31,6 +31,7 @@ jobs:
       run: |
         brew reinstall gcc
         brew unlink gcc && brew link gcc
+        which gcc
         brew install automake suite-sparse
         curl -sSL https://raw.githubusercontent.com/vallis/libstempo/master/install_tempo2.sh | sh
     - name: Install non-python dependencies on linux
