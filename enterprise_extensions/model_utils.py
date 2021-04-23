@@ -13,7 +13,7 @@ except ImportError:
 
 try:
     import acor
-except ImportError
+except ImportError:
     import statsmodels.tsa.stattools as acor
 
 from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
