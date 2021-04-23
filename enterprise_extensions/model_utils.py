@@ -14,7 +14,7 @@ except ImportError:
 try:
     import acor
 except ImportError:
-    import statsmodels.tsa.stattools as acor
+    from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
                                                    EmpiricalDistribution2D,
