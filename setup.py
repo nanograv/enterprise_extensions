@@ -27,7 +27,7 @@ requirements = [
     "ptmcmcsampler",
 ]
 
-setup_requirements = ['pytest-runner', ]
+setup_requirements = ['pytest-runner', "Cython>=0.28.5",]
 
 test_requirements = ['pytest', ]
 
