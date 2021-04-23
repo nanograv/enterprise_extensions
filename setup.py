@@ -21,6 +21,7 @@ requirements = [
     "libstempo>=2.4.0",
     "enterprise-pulsar>=3.1.0",
     "statsmodels",
+    "ptmcmcsampler",
 ]
 
 setup_requirements = ['pytest-runner', ]
