@@ -13,6 +13,7 @@ on:
 jobs:
   tests:
     runs-on: ${{ matrix.os }}
+    compiler: gcc
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +30,7 @@ jobs:
     - name: Install non-python dependencies on mac
       if: runner.os == 'macOS'
       run: |
+        ls /usr/bin/
         brew reinstall gcc
         brew unlink gcc && brew link gcc
         alias gcc='gcc-10.2'
