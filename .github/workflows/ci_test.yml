@@ -18,9 +18,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9]
-        include:
-          - runs-on: macos-latest
-            compiler: gcc
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -34,7 +32,9 @@ jobs:
         ls /usr/bin/
         brew reinstall gcc
         brew unlink gcc && brew link gcc
-        alias gcc='gcc-10.2'
+        echo "PATH=\"/usr/local/bin:$PATH\"" >> ~/.bash_profile
+        ln -sf /usr/local/bin/gcc-10.2 /usr/local/bin/gcc
+        hash -r
         brew install automake suite-sparse
         curl -sSL https://raw.githubusercontent.com/vallis/libstempo/master/install_tempo2.sh | sh
     - name: Install non-python dependencies on linux
