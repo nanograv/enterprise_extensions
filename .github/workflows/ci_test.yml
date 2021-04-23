@@ -13,13 +13,14 @@ on:
 jobs:
   tests:
     runs-on: ${{ matrix.os }}
-    compiler: gcc
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9]
-
+        include:
+          - runs-on: macos-latest
+            compiler: gcc
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
