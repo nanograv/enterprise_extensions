@@ -43,7 +43,7 @@ jobs:
         python -m pip install flake8 pytest black pytest-cov Cython numpy scipy
     - name: mac install
       if: runner.os == 'macOS'
-        run: CC=/usr/local/bin/gcc-10 NO_MKL=1 python -m pip install -e .
+      run: CC=/usr/local/bin/gcc-10 NO_MKL=1 python -m pip install -e .
     - name: linuxx install
      if: runner.os == 'Linux'
      run: python -m pip install -e .
