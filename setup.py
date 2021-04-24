@@ -35,7 +35,7 @@ test_requirements = [
 
 if platform.system() == "Darwin":
     extra_compile_args = ["-O2", "-Xpreprocessor", "-fopenmp", "-fno-wrapv"]
-    exxtra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
+    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
 else:
     extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
     extra_link_args = ["-liomp5"]
