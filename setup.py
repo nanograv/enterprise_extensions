@@ -28,11 +28,6 @@ requirements = [
     "ptmcmcsampler",
 ]
 
-setup_requirements = [
-    "pytest-runner",
-    "Cython>=0.28.5",
-]
-
 test_requirements = [
     "pytest",
 ]
@@ -91,7 +86,6 @@ setup(
         ]
     },
     ext_modules=cythonize(ext_modules),
-    setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
     install_requires=requirements,
