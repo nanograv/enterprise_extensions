@@ -7,6 +7,7 @@ from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
 import os
 import numpy
+import platform
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()
@@ -32,6 +33,12 @@ test_requirements = [
     "pytest",
 ]
 
+if platform.system() == "Darwin":
+    extra_compile_args = ["-O2", "-Xpreprocessor", "-fopenmp", "-fno-wrapv"]
+else:
+    extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
+
+
 ext_modules = [
     Extension(
         "enterprise_extensions.outlier.jitterext",
@@ -43,8 +50,8 @@ ext_modules = [
         "enterprise_extensions.outlier.choleskyext_omp",
         ["./enterprise_extensions/outlier/choleskyext_omp.pyx"],
         include_dirs=[numpy.get_include()],
-        extra_link_args=["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else None,
-        extra_compile_args=["-O2", "-fopenmp", "-fno-wrapv"],
+        extra_link_args=["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"],
+        extra_compile_args=extra_compile_args,
     ),
 ]
 
