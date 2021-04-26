@@ -185,6 +185,7 @@ class OptimalStatistic(object):
             warnings.warn(msg)
 
         opt, sig = np.zeros(N), np.zeros(N)
+        xi, rho, rho_sig = [], [], []
         setpars = {}
         for ii in range(N):
             idx = np.random.randint(0, chain.shape[0])
@@ -196,9 +197,13 @@ class OptimalStatistic(object):
                 setpars.update(self.pta.map_params(chain[idx, :-4]))
             else:
                 setpars = dict(zip(param_names,chain[idx,:-4]))
-            _, _, _, opt[ii], sig[ii] = self.compute_os(params=setpars)
+            xi_tmp, rho_tmp, rho_sig_tmp, opt[ii], sig[ii] = self.compute_os(params=setpars)
+            xi.append(xi_tmp)
+            rho.append(rho_tmp)
+            rho_sig.append(rho_sig_tmp)
 
-        return (opt, opt/sig)
+        return (opt, opt/sig, np.array(xi), 
+                np.array(rho), np.array(rho_sig))
 
     def compute_noise_maximized_os(self, chain, param_names=None):
         """
