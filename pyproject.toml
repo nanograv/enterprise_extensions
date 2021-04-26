@@ -1,0 +1,10 @@
+[build-system]
+requires = [
+    "setuptools>=40.8.0",
+    "wheel",
+    "cython",
+    "pytest-runner",
+    "oldest-supported-numpy",
+    "scipy"
+]
+build-backend = "setuptools.build_meta"
