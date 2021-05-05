@@ -27,6 +27,7 @@ requirements = [
     "enterprise-pulsar>=3.1.0",
     "emcee",
     "ptmcmcsampler",
+    "mkl",
 ]
 
 test_requirements = [
