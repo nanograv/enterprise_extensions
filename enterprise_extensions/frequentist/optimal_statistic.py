@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
+
 import numpy as np
 import scipy.linalg as sl
 
@@ -8,6 +9,15 @@ from enterprise_extensions import models
 from enterprise.signals import utils
 from enterprise.signals import signal_base
 
+import warnings
+
+
+## Define the output to be on a single line.
+def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+    return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
+
+## Override default format.
+warnings.formatwarning = warning_on_one_line
 
 class OptimalStatistic(object):
     """
@@ -38,11 +48,12 @@ class OptimalStatistic(object):
                                        bayesephem=bayesephem,
                                        gamma_common=gamma_common,
                                        wideband=wideband,
-                                       select=select, noisedict=noisedict)
+                                       select='backend', noisedict=noisedict)
         else:
             self.pta = pta
 
 
+        self.gamma_common = gamma_common
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
@@ -84,6 +95,16 @@ class OptimalStatistic(object):
         if params is None:
             params = {name: par.sample() for name, par
                       in zip(self.pta.param_names, self.pta.params)}
+        else:
+            # check to see that the params dictionary includes values
+            # for all of the parameters in the model
+            for p in self.pta.param_names:
+                if p not in params.keys():
+                    msg = '{0} is not included '.format(p)
+                    msg += 'in the parameter dictionary. '
+                    msg += 'Drawing a random value.'
+
+                    warnings.warn(msg);
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -114,8 +135,13 @@ class OptimalStatistic(object):
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
             for jj in range(ii+1, npsr):
-
-                phiIJ = utils.powerlaw(self.freqs, log10_A=0, gamma=13/3)
+                if self.gamma_common is None and 'gw_gamma' in params.keys():
+                    print('{0:1.2}'.format(params['gw_gamma']))
+                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                           gamma=params['gw_gamma'])
+                else:
+                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                           gamma=self.gamma_common)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
                 bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
@@ -139,32 +165,51 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, OS, OS_sig
 
-    def compute_noise_marginalized_os(self, chain, N=10000):
+    def compute_noise_marginalized_os(self, chain, param_names=None, N=10000):
         """
         Compute noise marginalized OS.
 
         :param chain: MCMC chain from Bayesian run.
+        :param param_names: list of parameter names for the chain file
         :param N: number of iterations to run.
 
         :returns: (os, snr) array of OS and SNR values for each iteration.
 
         """
 
+        # check that the chain file has the same number of parameters as the model
+        if chain.shape[1] - 4 != len(self.pta.param_names):
+            msg = 'MCMC chain does not have the same number of parameters '
+            msg += 'as the model.'
+
+            warnings.warn(msg)
+
         opt, sig = np.zeros(N), np.zeros(N)
+        xi, rho, rho_sig = [], [], []
         setpars = {}
         for ii in range(N):
             idx = np.random.randint(0, chain.shape[0])
-            setpars.update(self.pta.map_params(chain[idx, :-4]))
-            _, _, _, opt[ii], sig[ii] = self.compute_os(params=setpars)
 
-        return (opt, opt/sig)
+            # if param_names is not specified, the parameter dictionary
+            # is made by mapping the values from the chain to the
+            # parameters in the pta object
+            if param_names is None:
+                setpars.update(self.pta.map_params(chain[idx, :-4]))
+            else:
+                setpars = dict(zip(param_names,chain[idx,:-4]))
+            xi_tmp, rho_tmp, rho_sig_tmp, opt[ii], sig[ii] = self.compute_os(params=setpars)
+            xi.append(xi_tmp)
+            rho.append(rho_tmp)
+            rho_sig.append(rho_sig_tmp)
 
-    def compute_noise_maximized_os(self, chain):
+        return (opt, opt/sig, np.array(xi), 
+                np.array(rho), np.array(rho_sig))
+
+    def compute_noise_maximized_os(self, chain, param_names=None):
         """
-        Compute noise marginalized OS.
+        Compute noise maximized OS.
 
         :param chain: MCMC chain from Bayesian run.
-        :param N: number of iterations to run.
 
         :returns:
             xi: angular separation [rad] for each pulsar pair
@@ -175,8 +220,23 @@ class OptimalStatistic(object):
 
         """
 
+        # check that the chain file has the same number of parameters as the model
+        if chain.shape[1] - 4 != len(self.pta.param_names):
+            msg = 'MCMC chain does not have the same number of parameters '
+            msg += 'as the model.'
+
+            warnings.warn(msg)
+
         idx = np.argmax(chain[:, -4])
-        setpars = self.pta.map_params(chain[idx, :-4])
+
+        # if param_names is not specified, the parameter dictionary
+        # is made by mapping the values from the chain to the
+        # parameters in the pta object
+        if param_names is None:
+            setpars = (self.pta.map_params(chain[idx, :-4]))
+        else:
+            setpars = dict(zip(param_names,chain[idx,:-4]))
+
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
         return (xi, rho, sig, Opt, Opt/Sig)
@@ -187,7 +247,7 @@ class OptimalStatistic(object):
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise':
+                if signal.signal_name == 'red noise' and signal.signal_id in ['gw','gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -197,7 +257,7 @@ class OptimalStatistic(object):
     def _get_freqs(self,psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise':
+            if sig.signal_name == 'red noise' and sig.signal_id in ['gw','gw_crn']:
                 sig._construct_basis()
                 freqs = np.array(sig._labels[''])
                 break

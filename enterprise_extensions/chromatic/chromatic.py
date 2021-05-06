@@ -232,7 +232,8 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
 
     return dmexp
 
-def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative', symmetric=False, name='dm_cusp'):
+def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
+                        symmetric=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -266,13 +267,14 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative', symmetric=False, nam
 
     wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp, sign_param=sign_param,
                         t0=t0_dm_cusp, log10_tau_pre=log10_tau_dm_cusp_pre,
-                        log10_tau_post=log10_tau_dm_cusp_post, symmetric=symmetric,
-                        idx=idx)
+                        log10_tau_post=log10_tau_dm_cusp_post,
+                        symmetric=symmetric, idx=idx)
     dm_cusp = deterministic_signals.Deterministic(wf, name=name)
 
     return dm_cusp
 
-def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative', symmetric=False, name='dual_dm_cusp'):
+def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
+                     symmetric=False, name='dual_dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -308,11 +310,15 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative', symmetric=Fals
         log10_tau_dual_cusp_post_1 = parameter.Uniform(0, 2.5)
         log10_tau_dual_cusp_post_2 = parameter.Uniform(0, 2.5)
 
-    wf = chrom_dual_exp_cusp(t0=t0_dual_cusp, sign_param=sign_param, symmetric=symmetric,
-                        log10_Amp_1=log10_Amp_dual_cusp_1, log10_tau_pre_1=log10_tau_dual_cusp_pre_1,
-                        log10_tau_post_1=log10_tau_dual_cusp_post_1, log10_Amp_2=log10_Amp_dual_cusp_2,
-                        log10_tau_pre_2=log10_tau_dual_cusp_pre_2, log10_tau_post_2=log10_tau_dual_cusp_post_2,
-                        idx1=idx1, idx2=idx2)
+    wf = chrom_dual_exp_cusp(t0=t0_dual_cusp, sign_param=sign_param,
+                             symmetric=symmetric,
+                             log10_Amp_1=log10_Amp_dual_cusp_1,
+                             log10_tau_pre_1=log10_tau_dual_cusp_pre_1,
+                             log10_tau_post_1=log10_tau_dual_cusp_post_1,
+                             log10_Amp_2=log10_Amp_dual_cusp_2,
+                             log10_tau_pre_2=log10_tau_dual_cusp_pre_2,
+                             log10_tau_post_2=log10_tau_dual_cusp_post_2,
+                             idx1=idx1, idx2=idx2)
     dm_cusp = deterministic_signals.Deterministic(wf, name=name)
 
     return dm_cusp

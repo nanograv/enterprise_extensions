@@ -4,7 +4,11 @@ import numpy as np
 import scipy.linalg as sl
 import scipy.special
 
-from enterprise_extensions import models
+from enterprise.signals import signal_base
+from enterprise.signals import gp_signals
+from enterprise.signals import deterministic_signals
+from enterprise_extensions import blocks
+from enterprise_extensions import deterministic
 
 
 class FpStat(object):
@@ -12,28 +16,65 @@ class FpStat(object):
     Class for the Fp-statistic.
 
     :param psrs: List of `enterprise` Pulsar instances.
+    :param noisedict: Dictionary of white noise parameter values. Default=None
     :param psrTerm: Include the pulsar term in the CW signal model. Default=True
     :param bayesephem: Include BayesEphem model. Default=True
     """
     
     def __init__(self, psrs, params=None,
-                 psrTerm=True, bayesephem=True, wideband=False, pta=None):
+                 psrTerm=True, bayesephem=True, pta=None):
         
         if pta is None:
         
-            # initialize standard model with fixed white noise and powerlaw red noise
+            # initialize standard model with fixed white noise
+            # and powerlaw red noise
+            # uses the implementation of ECORR in gp_signals
             print('Initializing the model...')
-            self.pta = models.model_cw(psrs, noisedict=params, rn_psd='powerlaw',
-                                       ecc=False, psrTerm=psrTerm,
-                                       bayesephem=bayesephem, wideband=wideband)
+            
+            tmin = np.min([p.toas.min() for p in psrs])
+            tmax = np.max([p.toas.max() for p in psrs])
+            Tspan = tmax - tmin
+            
+            s = deterministic.cw_block_circ(amp_prior='log-uniform',
+                                            psrTerm=psrTerm, tref=tmin, name='cw')
+            s += gp_signals.TimingModel()
+            s += blocks.red_noise_block(prior='log-uniform', psd='powerlaw',
+                                        Tspan=Tspan, components=30)
+                                            
+            if bayesephem:
+                s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+
+            # adding white-noise, and acting on psr objects
+            models = []
+            for p in psrs:
+                if 'NANOGrav' in p.flags['pta']:
+                    s2 = s + blocks.white_noise_block(vary=False, inc_ecorr=True,
+                                                      gp_ecorr=True)
+                    models.append(s2(p))
+                else:
+                    s3 = s + blocks.white_noise_block(vary=False, inc_ecorr=False)
+                    models.append(s3(p))
+                    
+            pta = signal_base.PTA(models)
+            
+            # set white noise parameters
+            if params is None:
+                print('No noise dictionary provided!')
+            else:
+                pta.set_default_params(params)
+
+            self.pta = pta
 
         else:
+        
+            # user can specify their own pta object
+            # if ECORR is included, use the implementation in gp_signals
             self.pta = pta
                     
         self.psrs = psrs
         self.params = params
                                    
-        self.Nmats = None
+        self.Nmats = self.get_Nmats()
 
     def get_Nmats(self):
         '''Makes the Nmatrix used in the fstatistic'''
@@ -61,10 +102,6 @@ class FpStat(object):
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
-        
-        if self.Nmats == None:
-            
-            self.Nmats = self.get_Nmats()
         
         N = np.zeros(2)
         M = np.zeros((2,2))
@@ -156,10 +193,10 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     cf = sl.cho_factor(Sigma)
     Nshape = np.shape(T)[0]
     
-    TtN = Nvec.solve(other = np.eye(Nshape),left_array = T)
+    TtN = np.multiply((1/Nvec)[:,None], T).T
     
     #Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = Nvec.solve(other = np.eye(Nshape),left_array = np.eye(Nshape))
+    Ndiag = np.diag(1/Nvec)
     
     expval2 = sl.cho_solve(cf,TtN)
     #TtNt = np.transpose(TtN)

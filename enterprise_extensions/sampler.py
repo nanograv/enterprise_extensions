@@ -5,18 +5,19 @@ import numpy as np
 import os
 from enterprise import constants as const
 import pickle
+import healpy as hp
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
-        self.npar = len(pta.params)
         self.ndim = sum(p.size or 1 for p in pta.params)
+        self.plist = [p.name for p in pta.params]
 
         # parameter map
         self.pmap = {}
@@ -49,7 +50,7 @@ class JumpProposal(object):
         if empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 with open(empirical_distr, 'rb') as f:
-                    pickled_distr = pickle.load(f, encoding='latin1')
+                    pickled_distr = pickle.load(f)
             except:
                 try:
                     with open(empirical_distr, 'rb') as f:
@@ -58,8 +59,7 @@ class JumpProposal(object):
                     print('I can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
 
-            if pickled_distr is None:
-                self.empirical_distr = None
+            self.empirical_distr = pickled_distr
 
         elif isinstance(empirical_distr,list):
             pass
@@ -81,6 +81,12 @@ class JumpProposal(object):
             else:
                 self.empirical_distr = None
 
+        #F-statistic map
+        if f_stat_file is not None and os.path.isfile(f_stat_file):
+            npzfile = np.load(f_stat_file)
+            self.fe_freqs = npzfile['freqs']
+            self.fe = npzfile['fe']
+
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
 
@@ -91,10 +97,9 @@ class JumpProposal(object):
         lqxy = 0
 
         # randomly choose parameter
-        idx = np.random.randint(0, self.npar)
+        param = np.random.choice(self.params)
 
         # if vector parameter jump in random component
-        param = self.params[idx]
         if param.size:
             idx2 = np.random.randint(0, param.size)
             q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
@@ -452,6 +457,202 @@ class JumpProposal(object):
         # forward-backward jump probability
         lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
                 param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+    def draw_from_par_prior(self, par_names):
+        # Preparing and comparing par_names with PTA parameters
+        par_names = np.atleast_1d(par_names)
+        par_list = []
+        name_list = []
+        for par_name in par_names:
+            pn_list = [n for n in self.plist if par_name in n]
+            if pn_list:
+                par_list.append(pn_list)
+                name_list.append(par_name)
+        if not par_list:
+            raise UserWarning("No parameter prior match found between {} and PTA.object."
+                              .format(par_names))
+        par_list = np.concatenate(par_list,axis=None)
+
+        def draw(x, iter, beta):
+            """Prior draw function generator for custom par_names.
+            par_names: list of strings
+
+            The function signature is specific to PTMCMCSampler.
+            """
+
+            q = x.copy()
+            lqxy = 0
+
+            # randomly choose parameter
+            idx_name = np.random.choice(par_list)
+            idx = self.plist.index(idx_name)
+
+            # if vector parameter jump in random component
+            param = self.params[idx]
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+            # scalar parameter
+            else:
+                q[self.pmap[str(param)]] = param.sample()
+
+            # forward-backward jump probability
+            lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                    param.get_logpdf(q[self.pmap[str(param)]]))
+
+            return q, float(lqxy)
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_prior'.format(name_string)
+        return draw
+
+    def draw_from_par_log_uniform(self, par_dict):
+        # Preparing and comparing par_dict.keys() with PTA parameters
+        par_list = []
+        name_list = []
+        for par_name in par_dict.keys():
+            pn_list = [n for n in self.plist if par_name in n and 'log' in n]
+            if pn_list:
+                par_list.append(pn_list)
+                name_list.append(par_name)
+        if not par_list:
+            raise UserWarning("No parameter dictionary match found between {} and PTA.object."
+                              .format(par_dict.keys()))
+        par_list = np.concatenate(par_list,axis=None)
+
+        def draw(x, iter, beta):
+            """log uniform prior draw function generator for custom par_names.
+            par_dict: dictionary with {"par_names":(lower bound,upper bound)}
+                                      { "string":(float,float)}
+
+            The function signature is specific to PTMCMCSampler.
+            """
+
+            q = x.copy()
+            lqxy = 0
+
+            # draw parameter from signal model
+            idx_name = np.random.choice(par_list)
+            idx = self.plist.index(idx_name)
+            q[idx] = np.random.uniform(par_dict[par_name][0],par_dict[par_name][1])
+
+            return q, 0
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_log_uniform'.format(name_string)
+        return draw
+
+    def draw_from_signal(self, signal_names):
+        # Preparing and comparing signal_names with PTA signals
+        signal_names = np.atleast_1d(signal_names)
+        signal_list = []
+        name_list = []
+        for signal_name in signal_names:
+            try:
+                param_list = self.snames[signal_name]
+                signal_list.append(param_list)
+                name_list.append(signal_name)
+            except:
+                pass
+        if not signal_list:
+            raise UserWarning("No signal match found between {} and PTA.object!"
+                              .format(signal_names))
+        signal_list = np.concatenate(signal_list,axis=None)
+
+        def draw(x, iter, beta):
+            """Signal draw function generator for custom signal_names.
+            signal_names: list of strings
+
+            The function signature is specific to PTMCMCSampler.
+            """
+
+            q = x.copy()
+            lqxy = 0
+
+            # draw parameter from signal model
+            param = np.random.choice(signal_list)
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+            # scalar parameter
+            else:
+                q[self.pmap[str(param)]] = param.sample()
+
+            # forward-backward jump probability
+            lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                    param.get_logpdf(q[self.pmap[str(param)]]))
+
+            return q, float(lqxy)
+
+        name_string = '_'.join(name_list)
+        draw.__name__ = 'draw_from_{}_signal'.format(name_string)
+        return draw
+
+    def fe_jump(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+        
+        fe_limit = np.max(self.fe)
+        
+        #draw skylocation and frequency from f-stat map
+        accepted = False
+        while accepted==False:
+            log_f_new = self.params[self.pimap['log10_fgw']].sample()
+            f_idx = (np.abs(np.log10(self.fe_freqs) - log_f_new)).argmin()
+
+            gw_theta = np.arccos(self.params[self.pimap['cos_gwtheta']].sample())
+            gw_phi = self.params[self.pimap['gwphi']].sample()
+            hp_idx = hp.ang2pix(hp.get_nside(self.fe), gw_theta, gw_phi)
+
+            fe_new_point = self.fe[f_idx, hp_idx]
+            if np.random.uniform()<(fe_new_point/fe_limit):
+                accepted = True
+
+        #draw other parameters from prior
+        cos_inc = self.params[self.pimap['cos_inc']].sample()
+        psi = self.params[self.pimap['psi']].sample()
+        phase0 = self.params[self.pimap['phase0']].sample()
+        log10_h = self.params[self.pimap['log10_h']].sample()
+        
+
+        #put new parameters into q
+        signal_name = 'cw'
+        for param_name, new_param in zip(['log10_fgw','gwphi','cos_gwtheta','cos_inc','psi','phase0','log10_h'],
+                                           [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
+            q[self.pimap[param_name]] = new_param
+        
+        #calculate Hastings ratio
+        log_f_old = x[self.pimap['log10_fgw']]
+        f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
+        
+        gw_theta_old = np.arccos(x[self.pimap['cos_gwtheta']])
+        gw_phi_old = x[self.pimap['gwphi']]
+        hp_idx_old = hp.ang2pix(hp.get_nside(self.fe), gw_theta_old, gw_phi_old)
+        
+        fe_old_point = self.fe[f_idx_old, hp_idx_old]
+        if fe_old_point>fe_limit:
+            fe_old_point = fe_limit
+            
+        log10_h_old = x[self.pimap['log10_h']]
+        phase0_old = x[self.pimap['phase0']]
+        psi_old = x[self.pimap['psi']]
+        cos_inc_old = x[self.pimap['cos_inc']]
+        
+        hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(log10_h_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['log10_h']].get_pdf(log10_h)
+        hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(phase0_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['phase0']].get_pdf(phase0)
+        hastings_extra_factor = self.params[self.pimap['psi']].get_pdf(psi_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['psi']].get_pdf(psi)
+        hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(cos_inc_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)        
+        
+        lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
 

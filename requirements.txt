@@ -1,8 +1,12 @@
-numpy==1.16.3
-scipy==1.2.0
+numpy>=1.16.3
+scipy>=1.2.0
+Cython>=0.28.5
 ephem>=3.7.6.0
-Cython==0.28.5
-jplephem==2.6
-setuptools>=40.0.0
-scikit-sparse==0.4.2 --no-binary scikit-sparse
--e git+https://github.com/nanograv/PINT.git#egg=PINT
+healpy>=1.14.0
+scikit-sparse>=0.4.5
+pint-pulsar>=0.8.2
+libstempo>=2.4.0
+enterprise-pulsar>=3.1.0
+emcee
+ptmcmcsampler
+numdifftools

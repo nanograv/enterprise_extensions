@@ -585,9 +585,9 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
 
     return rr
 
-def CWSignal(cw_wf, ecc=False, psrTerm=False):
+def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
 
-    BaseClass = deterministic_signals.Deterministic(cw_wf, name='cw')
+    BaseClass = deterministic_signals.Deterministic(cw_wf, name=name)
 
     class CWSignal(BaseClass):
 
@@ -597,7 +597,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False):
             if ecc:
                 pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name,
                                                                'pgam',
-                                                               'cw']))
+                                                               name]))
                 self._params['pgam'] = pgam
                 self._wf['']._params['pgam'] = pgam
 

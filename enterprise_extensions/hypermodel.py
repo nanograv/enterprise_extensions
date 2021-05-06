@@ -157,7 +157,7 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None):
+                      empirical_distr=None, groups=None):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -184,7 +184,8 @@ class HyperModel(object):
         cov = np.diag(np.ones(ndim) * 1**2) ## used to be 0.1
 
         # parameter groupings
-        groups = self.get_parameter_groups()
+        if groups is None:
+            groups = self.get_parameter_groups()
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
@@ -192,7 +193,7 @@ class HyperModel(object):
         np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
 
         # always add draw from prior
         sampler.addProposalToCycle(jp.draw_from_prior, 5)
@@ -267,6 +268,14 @@ class HyperModel(object):
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
+        # Prior distribution draw for parameters named GW
+        if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
+            print('Adding gw param prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_par_prior(
+                par_names=[str(p).split(':')[0] for 
+                           p in list(self.params) 
+                           if 'gw' in str(p)]), 10)
+        
         # Model index distribution draw
         if sample_nmodel:
             if 'nmodel' in self.param_names:

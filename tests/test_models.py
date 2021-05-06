@@ -52,8 +52,61 @@ def test_model_singlepsr_noise(nodmx_psrs,caplog):
 
 def test_model_singlepsr_noise_sw(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
-    m=models.model_singlepsr_noise(nodmx_psrs[1],dm_sw_deter=True,
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
                                    dm_sw_gp=True)
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+
+def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    dip_kwargs = {'dm_expdip':True,
+                  'dmexp_sign': 'negative',
+                  'num_dmdips':2,
+                  'dm_cusp_idx':[2,4],
+                  'dm_expdip_tmin':[54700,57450],
+                  'dm_expdip_tmax':[54850,57560],
+                  'dmdip_seqname':['1st_ism','2nd_ism'],
+                  'dm_cusp':False,
+                  'dm_cusp_sign':'negative',
+                  'dm_cusp_idx':[2,4],
+                  'dm_cusp_sym':False,
+                  'dm_cusp_tmin':None,
+                  'dm_cusp_tmax':None,
+                  'num_dm_cusps':2,
+                  'dm_dual_cusp':True,
+                  'dm_dual_cusp_tmin':[54700,57450],
+                  'dm_dual_cusp_tmax':[54850,57560],}
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
+                                   dm_sw_gp=True,**dip_kwargs)
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+
+def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True)
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+
+def test_model_singlepsr_noise_chrom_diag(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
+                                   chrom_gp_kernel='diag')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+
+def test_model_singlepsr_fact_like(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    psr = nodmx_psrs[1]
+    Tspan = model_utils.get_tspan([psr])
+    m=models.model_singlepsr_noise(psr, chrom_gp=True,
+                                   chrom_gp_kernel='diag',
+                                   factorized_like=False,
+                                   Tspan=Tspan, fact_like_gamma=13./3,
+                                   gw_components=5)
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
@@ -73,6 +126,25 @@ def test_model1(dmx_psrs,caplog):
 def test_model2a(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m2a=models.model_2a(dmx_psrs,noisedict=noise_dict)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_pshift(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs,noisedict=noise_dict,pshift=True,pseed=42)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_5gwb(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs, n_gwbfreqs=5, noisedict=noise_dict)
+    assert hasattr(m2a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model2a_broken_plaw(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m2a=models.model_2a(dmx_psrs, psd='broken_powerlaw',delta_common=0,
+                        noisedict=noise_dict)
     assert hasattr(m2a,'get_lnlikelihood')
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
@@ -100,6 +172,25 @@ def test_model3a(dmx_psrs,caplog):
     assert hasattr(m3a,'get_lnlikelihood')
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_pshift(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs,noisedict=noise_dict,pshift=True,pseed=42)
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_5rnfreqs(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs, n_rnfreqs=5, noisedict=noise_dict)
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model3a_broken_plaw(dmx_psrs,caplog):
+    caplog.set_level(logging.CRITICAL)
+    m3a=models.model_3a(dmx_psrs, psd='broken_powerlaw',delta_common=0,
+                        noisedict=noise_dict)
+    assert hasattr(m3a,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model3b(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m3b=models.model_3b(dmx_psrs)
@@ -116,3 +207,16 @@ def test_model3d(dmx_psrs,caplog):
     caplog.set_level(logging.CRITICAL)
     m3d=models.model_3d(dmx_psrs,noisedict=noise_dict)
     assert hasattr(m3d,'get_lnlikelihood')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_jumpproposal(dmx_psrs,caplog):
+    m2a=models.model_2a(dmx_psrs,noisedict=noise_dict)
+    jp=sampler.JumpProposal(m2a)
+    assert jp.draw_from_prior.__name__ == 'draw_from_prior'
+    assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
+    assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
+            'draw_from_J1713+0747_prior')
+    assert (jp.draw_from_par_log_uniform({'gw':(-20,-10)}).__name__ ==
+            'draw_from_gw_log_uniform')
+    assert (jp.draw_from_signal('red noise').__name__ ==
+            'draw_from_red noise_signal')
