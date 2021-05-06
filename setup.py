@@ -59,7 +59,7 @@ ext_modules = [
 
 # Extract version
 def get_version():
-    with open("enterprise_extensions/models.py") as f:
+    with open("enterprise_extensions/__init__.py") as f:
         for line in f.readlines():
             if "__version__" in line:
                 return line.split('"')[1]

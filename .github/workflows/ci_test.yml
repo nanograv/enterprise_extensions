@@ -1,4 +1,4 @@
-name: e_e CI targets
+name: Tests
 
 on:
   push:
