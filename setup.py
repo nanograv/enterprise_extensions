@@ -38,7 +38,7 @@ if platform.system() == "Darwin":
     extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
 else:
     extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
-    extra_link_args = ["-liomp5"]
+    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else []
 
 
 ext_modules = [
@@ -59,7 +59,7 @@ ext_modules = [
 
 # Extract version
 def get_version():
-    with open("enterprise_extensions/models.py") as f:
+    with open("enterprise_extensions/__init__.py") as f:
         for line in f.readlines():
             if "__version__" in line:
                 return line.split('"')[1]
