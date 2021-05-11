@@ -570,7 +570,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, gamma_common=None,
-                  orf='crn', upper_limit_common=None, upper_limit=False,
+                  orf='crn', orf_names=None, upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
@@ -617,6 +617,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param gamma_common: fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
     :param orf: comma de-limited string of multiple common processes with different orfs.
+        [default = crn]
+    :param orf_names: comma de-limited string of process names for different orfs. Manual 
+        control of these names is useful for embedding model_general within a hypermodel
+        analysis for a process with and without hd correlations where we want to avoid 
+        parameter duplication.
         [default = None]
     :param upper_limit_common: perform upper limit on common red noise amplitude. Note
         that when perfoming upper limits it is recommended that the spectral index also
@@ -761,10 +766,12 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # common red noise block
     crn = []
-    for elem in orf.split(','):
+    if orf_names is None:
+        orf_names = orf
+    for elem,elem_name in zip(orf.split(','),orf_names.split(',')):
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                           components=common_components, gamma_val=gamma_common,
-                                          delta_val=None, orf=elem, name='gw_{}'.format(elem),
+                                          delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
                                           coefficients=coefficients, pshift=pshift, pseed=None))
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
