@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 import os
 import json
 import numpy as np
@@ -93,26 +92,6 @@ def get_default_physical_tm_priors():
     return physical_tm_priors
 
 
-def get_pardict(psrs, datareleases):
-    """assigns a parameter dictionary for each psr per dataset the parfile values/errors
-    :param psrs: enterprise pulsar instances corresponding to datareleases
-    :param datareleases: list of datareleases
-    """
-    pardict = {}
-    for psr, dataset in zip(psrs, datareleases):
-        pardict[psr.name] = {}
-        pardict[psr.name][dataset] = {}
-        for par, vals, errs in zip(
-            psr.fitpars[1:],
-            np.longdouble(psr.t2pulsar.vals()),
-            np.longdouble(psr.t2pulsar.errs()),
-        ):
-            pardict[psr.name][dataset][par] = {}
-            pardict[psr.name][dataset][par]["val"] = vals
-            pardict[psr.name][dataset][par]["err"] = errs
-    return pardict
-
-
 def get_astrometric_priors(astrometric_px_file="../parallaxes.json"):
     # astrometric_px_file = '../parallaxes.json'
     astrometric_px = {}
@@ -182,7 +161,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
 
     :return: difference between new and old residuals in seconds
     """
-    residuals = t2pulsar.residuals()
+    residuals = np.longdouble(t2pulsar.residuals().copy())
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
     tm_params_rescaled = {}
@@ -222,7 +201,9 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
                     + tm_params_orig[tm_param][0]
                 )
 
-    # set to new values
+    #TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
+    #Sort residuals by toa to match with get_detres() call
+    isort = np.argsort(t2pulsar.toas(), kind="mergesort")
     t2pulsar.vals(tm_params_rescaled)
     new_res = np.longdouble(t2pulsar.residuals().copy())
 
@@ -230,7 +211,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     t2pulsar.vals(orig_params)
 
     # Return the time-series for the pulsar
-    return new_res - residuals
+    return -(new_res[isort] - residuals[isort])
 
 
 # Model component building blocks #
@@ -288,6 +269,8 @@ def timing_block(
     # Check to see if nan or inf in pulsar parameter errors.
     # The refit will populate the incorrect errors, but sometimes
     # changes the values by too much, which is why it is done in this order.
+    orig_vals = {p:v for p,v in zip(psr.t2pulsar.pars(),psr.t2pulsar.vals())}
+    orig_errs = {p:e for p,e in zip(psr.t2pulsar.pars(),psr.t2pulsar.errs())}
     if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
         [err == 0.0 for err in psr.t2pulsar.errs()]
     ):
@@ -298,6 +281,8 @@ def timing_block(
         for idx in eidxs:
             par = psr.t2pulsar.pars()[idx]
             psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
+    psr.t2pulsar.vals(orig_vals)
+    psr.t2pulsar.errs(orig_errs)
 
     tm_delay_kwargs = {}
     default_prior_params = [
