@@ -8,6 +8,7 @@ from enterprise_extensions import models
 
 from enterprise.signals import utils
 from enterprise.signals import signal_base
+from enterprise.signals import gp_priors
 
 import warnings
 
@@ -74,12 +75,14 @@ class OptimalStatistic(object):
         else:
             raise ValueError('Unknown ORF!')
 
-    def compute_os(self, params=None):
+    def compute_os(self, params=None, psd='powerlaw', fgw=None):
         """
         Computes the optimal statistic values given an
         `enterprise` parameter dictionary.
 
         :param params: `enterprise` parameter dictionary.
+        :param psd: choice of cross-power psd [powerlaw,spectrum]
+        :fgw: frequency of GW spectrum to probe, in Hz [default=None]
 
         :returns:
             xi: angular separation [rad] for each pulsar pair
@@ -88,7 +91,8 @@ class OptimalStatistic(object):
             OS: Optimal statistic value (units of A_gw^2)
             OS_sig: 1-sigma uncertainty on OS
 
-        .. note:: SNR is computed as OS / OS_sig.
+        .. note:: SNR is computed as OS / OS_sig. In the case of a 'spectrum' model
+        the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
 
         """
 
@@ -135,13 +139,21 @@ class OptimalStatistic(object):
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
             for jj in range(ii+1, npsr):
-                if self.gamma_common is None and 'gw_gamma' in params.keys():
-                    print('{0:1.2}'.format(params['gw_gamma']))
-                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
-                                           gamma=params['gw_gamma'])
-                else:
-                    phiIJ = utils.powerlaw(self.freqs, log10_A=0,
-                                           gamma=self.gamma_common)
+                
+                if psd == 'powerlaw':
+                    if self.gamma_common is None and 'gw_gamma' in params.keys():
+                        print('{0:1.2}'.format(params['gw_gamma']))
+                        phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                            gamma=params['gw_gamma'])
+                    else:
+                        phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                            gamma=self.gamma_common)
+                elif psd == 'spectrum':
+                    Sf = -np.inf * np.ones(int(len(self.freqs)/2))
+                    idx = (np.abs(np.unique(self.freqs) - fgw)).argmin()
+                    Sf[idx] = 0.0
+                    phiIJ = gp_priors.free_spectrum(self.freqs,
+                                                    log10_rho=Sf)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
                 bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
