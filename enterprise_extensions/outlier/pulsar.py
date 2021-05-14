@@ -255,15 +255,20 @@ class OutlierPulsar():
             flags = epp.flags['f']
         except:
             flags = epp.flags['be']
-   
+ 
         isort = ut.argsortTOAs(epp._toas, flags)
+
         # Create map from new isort to old isort
-        # This is used for outputting original TOA indices after outlier analysis
-        self.isort_dict = dict(zip(isort, epp._isort))
+        epp.desort = np.argsort(isort)
+
         self.ephem = epp.model.EPHEM.value
         self.F0 = epp.model.F0.value
         self.P0 = 1.0 / self.F0
-        epp.to_pickle() # write pickle object and delete pint_toas/model.
+
+        # Keep 'epp' lightweight (not positive this matters, but no longer need these)
+        del epp.pint_toas
+        del epp.model
+
         self.pname = epp.name
         epp._isort = isort
         self.psr = epp
