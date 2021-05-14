@@ -748,7 +748,10 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     ndim = len(params)
 
     # initial jump covariance matrix
-    cov = np.diag(np.ones(ndim) * 0.1**2)
+    if os.path.exists(outdir+'/cov.npy'):
+        cov = np.load(outdir+'/cov.npy')
+    else:
+        cov = np.diag(np.ones(ndim) * 0.1**2)
 
     # parameter groupings
     groups = get_parameter_groups(pta)
