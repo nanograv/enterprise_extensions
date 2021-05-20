@@ -598,9 +598,12 @@ def common_red_noise_block(
 
     """
 
-    orfs = {'crn': None, 'hd': utils.hd_orf(), 
-            'dipole': utils.dipole_orf(),
-            'monopole': utils.monopole_orf()}
+    orfs = {
+        "crn": None,
+        "hd": utils.hd_orf(),
+        "dipole": utils.dipole_orf(),
+        "monopole": utils.monopole_orf(),
+    }
 
     # common red noise parameters
     if psd in ["powerlaw", "turnover", "turnover_knee", "broken_powerlaw"]:
@@ -688,16 +691,26 @@ def common_red_noise_block(
             pseed=pseed,
         )
     elif orf in orfs.keys():
-        if orf == 'crn':
-            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
-                                        components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift, pseed=pseed)
+        if orf == "crn":
+            crn = gp_signals.FourierBasisGP(
+                cpl,
+                coefficients=coefficients,
+                components=components,
+                Tspan=Tspan,
+                name=name,
+                pshift=pshift,
+                pseed=pseed,
+            )
         else:
-            crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                                components=components,
-                                                Tspan=Tspan,
-                                                name=name, pshift=pshift,
-                                                pseed=pseed)
+            crn = gp_signals.FourierBasisCommonGP(
+                cpl,
+                orfs[orf],
+                components=components,
+                Tspan=Tspan,
+                name=name,
+                pshift=pshift,
+                pseed=pseed,
+            )
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(
             cpl,

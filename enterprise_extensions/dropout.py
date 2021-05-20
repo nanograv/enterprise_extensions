@@ -11,8 +11,9 @@ from enterprise import constants as const
 
 
 @signal_base.function
-def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
-                     dropout_psr='B1855+09', k_drop=0.5, k_threshold=0.5):
+def dropout_powerlaw(
+    f, name, log10_A=-16, gamma=5, dropout_psr="B1855+09", k_drop=0.5, k_threshold=0.5
+):
     """
     Dropout powerlaw for a stochastic process. Switches a stochastic
     process on or off in a single pulsar depending on whether k_drop exceeds
@@ -22,19 +23,32 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
 
     if name == dropout_psr:
-    
+
         if k_drop >= k_threshold:
             k_switch = 1.0
         elif k_drop < k_threshold:
             k_switch = 0.0
 
-        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                       const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
+        return k_switch * (
+            (10 ** log10_A) ** 2
+            / 12.0
+            / np.pi ** 2
+            * const.fyr ** (gamma - 3)
+            * f ** (-gamma)
+            * np.repeat(df, 2)
+        )
 
     else:
-        
-        return ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
+
+        return (
+            (10 ** log10_A) ** 2
+            / 12.0
+            / np.pi ** 2
+            * const.fyr ** (gamma - 3)
+            * f ** (-gamma)
+            * np.repeat(df, 2)
+        )
+
 
 @signal_base.function
 def dropout_physical_ephem_delay(

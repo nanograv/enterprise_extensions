@@ -201,8 +201,8 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
                     + tm_params_orig[tm_param][0]
                 )
 
-    #TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
-    #Sort residuals by toa to match with get_detres() call
+    # TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
+    # Sort residuals by toa to match with get_detres() call
     isort = np.argsort(t2pulsar.toas(), kind="mergesort")
     t2pulsar.vals(tm_params_rescaled)
     new_res = np.longdouble(t2pulsar.residuals().copy())
@@ -269,8 +269,8 @@ def timing_block(
     # Check to see if nan or inf in pulsar parameter errors.
     # The refit will populate the incorrect errors, but sometimes
     # changes the values by too much, which is why it is done in this order.
-    orig_vals = {p:v for p,v in zip(psr.t2pulsar.pars(),psr.t2pulsar.vals())}
-    orig_errs = {p:e for p,e in zip(psr.t2pulsar.pars(),psr.t2pulsar.errs())}
+    orig_vals = {p: v for p, v in zip(psr.t2pulsar.pars(), psr.t2pulsar.vals())}
+    orig_errs = {p: e for p, e in zip(psr.t2pulsar.pars(), psr.t2pulsar.errs())}
     if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
         [err == 0.0 for err in psr.t2pulsar.errs()]
     ):
@@ -407,11 +407,7 @@ def timing_block(
                             prior_lower_bound = np.float(val + err * prior_lower_bound)
 
         tm_delay_kwargs[par] = get_prior(
-            prior_type,
-            prior_sigma,
-            prior_lower_bound,
-            prior_upper_bound,
-            mu=prior_mu,
+            prior_type, prior_sigma, prior_lower_bound, prior_upper_bound, mu=prior_mu,
         )
     # timing model
     tm_func = tm_delay(**tm_delay_kwargs)
@@ -424,8 +420,7 @@ def timing_block(
         filter_Mmat(psr, ltm_list=ltm_list)
         if any(["DMX" in x for x in ltm_list]) and wideband_kwargs:
             ltm = gp_signals.WidebandTimingModel(
-                name="wideband_timing_model",
-                **wideband_kwargs,
+                name="wideband_timing_model", **wideband_kwargs,
             )
         else:
             ltm = gp_signals.TimingModel(coefficients=False)

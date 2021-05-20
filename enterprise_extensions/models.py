@@ -93,10 +93,10 @@ def model_singlepsr_noise(
     swgp_basis=None,
     coefficients=False,
     extra_sigs=None,
-    psr_model=False, 
+    psr_model=False,
     factorized_like=False,
-    Tspan=None, 
-    fact_like_gamma=13./3, 
+    Tspan=None,
+    fact_like_gamma=13.0 / 3,
     gw_components=10,
     select="backend",
 ):
@@ -244,26 +244,43 @@ def model_singlepsr_noise(
     # red noise
     if red_var and factorized_like:
         if Tspan is None:
-            msg = 'Must Timespan to match amongst all pulsars when doing '
-            msg += 'a factorized likelihood analysis.'
+            msg = "Must Timespan to match amongst all pulsars when doing "
+            msg += "a factorized likelihood analysis."
             raise ValueError(msg)
 
-        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                             components=components, gamma_val=gamma_val,
-                             coefficients=coefficients, select=red_select)
+        s += red_noise_block(
+            psd=psd,
+            prior=amp_prior,
+            Tspan=Tspan,
+            components=components,
+            gamma_val=gamma_val,
+            coefficients=coefficients,
+            select=red_select,
+        )
 
-        s += common_red_noise_block(psd=psd, prior=amp_prior,
-                                    Tspan=Tspan, components=gw_components,
-                                    gamma_val=fact_like_gamma, delta_val=None,
-                                    orf=None, name='gw',
-                                    coefficients=coefficients,
-                                    pshift=False, pseed=None)
-
+        s += common_red_noise_block(
+            psd=psd,
+            prior=amp_prior,
+            Tspan=Tspan,
+            components=gw_components,
+            gamma_val=fact_like_gamma,
+            delta_val=None,
+            orf=None,
+            name="gw",
+            coefficients=coefficients,
+            pshift=False,
+            pseed=None,
+        )
 
     elif red_var:
-        s += red_noise_block(psd=psd, prior=amp_prior,
-                             components=components, gamma_val=gamma_val,
-                             coefficients=coefficients, select=red_select)
+        s += red_noise_block(
+            psd=psd,
+            prior=amp_prior,
+            components=components,
+            gamma_val=gamma_val,
+            coefficients=coefficients,
+            select=red_select,
+        )
 
     # DM variations
     if dm_var:
@@ -288,12 +305,15 @@ def model_singlepsr_noise(
         if dm_annual:
             s += chrom.dm_annual_signal()
         if chrom_gp:
-            s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
-                                       psd=chrom_psd, idx=chrom_idx,
-                                       components=components,
-                                       nondiag_kernel=chrom_kernel,
-                                       include_quadratic=chrom_quad,
-                                       coefficients=coefficients)
+            s += chromatic_noise_block(
+                gp_kernel=chrom_gp_kernel,
+                psd=chrom_psd,
+                idx=chrom_idx,
+                components=components,
+                nondiag_kernel=chrom_kernel,
+                include_quadratic=chrom_quad,
+                coefficients=coefficients,
+            )
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
@@ -337,25 +357,31 @@ def model_singlepsr_noise(
                 tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
                 tmax = [psr.toas.max() / 86400 for ii in range(num_dm_cusps)]
             else:
-                tmin = (dm_cusp_tmin if isinstance(dm_cusp_tmin,list)
-                                     else [dm_cusp_tmin])
-                tmax = (dm_cusp_tmax if isinstance(dm_cusp_tmax,list)
-                                     else [dm_cusp_tmax])
+                tmin = (
+                    dm_cusp_tmin if isinstance(dm_cusp_tmin, list) else [dm_cusp_tmin]
+                )
+                tmax = (
+                    dm_cusp_tmax if isinstance(dm_cusp_tmax, list) else [dm_cusp_tmax]
+                )
             if dm_cusp_seqname is not None:
                 cusp_name_base = "dm_cusp_" + dm_cusp_seqname + "_"
             else:
-                cusp_name_base = 'dm_cusp_'
-            dm_cusp_idx = (dm_cusp_idx if isinstance(dm_cusp_idx,list)
-                                           else [dm_cusp_idx])
-            dm_cusp_sign = (dm_cusp_sign if isinstance(dm_cusp_sign,list)
-                                            else [dm_cusp_sign])
-            for dd in range(1,num_dm_cusps+1):
-                s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
-                                               tmax=tmax[dd-1],
-                                               idx=dm_cusp_idx[dd-1],
-                                               sign=dm_cusp_sign[dd-1],
-                                               symmetric=dm_cusp_sym,
-                                               name=cusp_name_base+str(dd))
+                cusp_name_base = "dm_cusp_"
+            dm_cusp_idx = (
+                dm_cusp_idx if isinstance(dm_cusp_idx, list) else [dm_cusp_idx]
+            )
+            dm_cusp_sign = (
+                dm_cusp_sign if isinstance(dm_cusp_sign, list) else [dm_cusp_sign]
+            )
+            for dd in range(1, num_dm_cusps + 1):
+                s += chrom.dm_exponential_cusp(
+                    tmin=tmin[dd - 1],
+                    tmax=tmax[dd - 1],
+                    idx=dm_cusp_idx[dd - 1],
+                    sign=dm_cusp_sign[dd - 1],
+                    symmetric=dm_cusp_sym,
+                    name=cusp_name_base + str(dd),
+                )
         if dm_dual_cusp:
             if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / 86400
@@ -412,7 +438,7 @@ def model_singlepsr_noise(
         # set white noise parameters
         if not white_vary or (is_wideband and use_dmdata):
             if noisedict is None:
-                print('No noise dictionary provided!...')
+                print("No noise dictionary provided!...")
             else:
                 noisedict = noisedict
                 pta.set_default_params(noisedict)
@@ -688,18 +714,51 @@ def model_2a(
         return pta
 
 
-def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
-                  tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
-                  Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  common_psd='powerlaw', common_components=30, gamma_common=None,
-                  orf='crn', upper_limit_common=None, upper_limit=False,
-                  red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
-                  red_select=None, red_breakflat=False, red_breakflat_fq=None,
-                  bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
-                  dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30,
-                  upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
-                  dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
-                  select='backend'):
+def model_general(
+    psrs,
+    tm_var=False,
+    tm_linear=False,
+    tmparam_list=None,
+    tm_svd=False,
+    tm_norm=True,
+    noisedict=None,
+    white_vary=False,
+    Tspan=None,
+    modes=None,
+    wgts=None,
+    logfreq=False,
+    nmodes_log=10,
+    common_psd="powerlaw",
+    common_components=30,
+    gamma_common=None,
+    orf="crn",
+    upper_limit_common=None,
+    upper_limit=False,
+    red_var=True,
+    red_psd="powerlaw",
+    red_components=30,
+    upper_limit_red=None,
+    red_select=None,
+    red_breakflat=False,
+    red_breakflat_fq=None,
+    bayesephem=False,
+    be_type="setIII_1980",
+    is_wideband=False,
+    use_dmdata=False,
+    dm_var=False,
+    dm_type="gp",
+    dm_psd="powerlaw",
+    dm_components=30,
+    upper_limit_dm=None,
+    dm_annual=False,
+    dm_chrom=False,
+    dmchrom_psd="powerlaw",
+    dmchrom_idx=4,
+    gequad=False,
+    coefficients=False,
+    pshift=False,
+    select="backend",
+):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -901,20 +960,38 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # red noise
     if red_var:
-        s += red_noise_block(psd=red_psd, prior=amp_prior_red, Tspan=Tspan,
-                            components=red_components, modes=modes, wgts=wgts,
-                            coefficients=coefficients,
-                            select=red_select, break_flat=red_breakflat,
-                            break_flat_fq=red_breakflat_fq)
+        s += red_noise_block(
+            psd=red_psd,
+            prior=amp_prior_red,
+            Tspan=Tspan,
+            components=red_components,
+            modes=modes,
+            wgts=wgts,
+            coefficients=coefficients,
+            select=red_select,
+            break_flat=red_breakflat,
+            break_flat_fq=red_breakflat_fq,
+        )
 
     # common red noise block
     crn = []
-    for elem in orf.split(','):
-        crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
-                                          components=common_components, gamma_val=gamma_common,
-                                          delta_val=None, orf=elem, name='gw_{}'.format(elem),
-                                          coefficients=coefficients, pshift=pshift, pseed=None))
-    crn = functools.reduce((lambda x,y:x+y), crn)
+    for elem in orf.split(","):
+        crn.append(
+            common_red_noise_block(
+                psd=common_psd,
+                prior=amp_prior_common,
+                Tspan=Tspan,
+                components=common_components,
+                gamma_val=gamma_common,
+                delta_val=None,
+                orf=elem,
+                name="gw_{}".format(elem),
+                coefficients=coefficients,
+                pshift=pshift,
+                pseed=None,
+            )
+        )
+    crn = functools.reduce((lambda x, y: x + y), crn)
     s += crn
 
     # DM variations
@@ -2144,10 +2221,20 @@ def model_2a_drop_be(
     return pta
 
 
-def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-                      components=30, gamma_common=None, upper_limit=False,
-                      bayesephem=False, is_wideband=False, use_dmdata=False,
-                      k_threshold=0.5, pshift=False):
+def model_2a_drop_crn(
+    psrs,
+    psd="powerlaw",
+    noisedict=None,
+    white_vary=False,
+    components=30,
+    gamma_common=None,
+    upper_limit=False,
+    bayesephem=False,
+    is_wideband=False,
+    use_dmdata=False,
+    k_threshold=0.5,
+    pshift=False,
+):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:

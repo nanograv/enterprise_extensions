@@ -296,6 +296,10 @@ def dm_exponential_cusp(
     else:
         sign_param = -1.0
 
+    if isinstance(idx, str):
+        if idx == "vary":
+            idx = parameter.Uniform(1.0, 6.0)
+
     if symmetric:
         log10_tau_dm_cusp_post = 1
     else:

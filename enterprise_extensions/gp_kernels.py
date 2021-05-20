@@ -143,10 +143,10 @@ def get_tf_quantization_matrix(toas, freqs, dt=30 * 86400, df=None, dm=False, dm
     else:
         weights = np.ones_like(freqs)
 
-    return U[:, idx] * weights[:, None], {
-        "avetoas": avetoas[idx],
-        "avefreqs": avefreqs[idx],
-    }
+    return (
+        U[:, idx] * weights[:, None],
+        {"avetoas": avetoas[idx], "avefreqs": avefreqs[idx],},
+    )
 
 
 # kernel is the product of a quasi-periodic time kernel and

@@ -9,10 +9,12 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
-    
-from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D, 
-                                                   EmpiricalDistribution2D, 
-                                                   make_empirical_distributions)
+
+from enterprise_extensions.empirical_distr import (
+    EmpiricalDistribution1D,
+    EmpiricalDistribution2D,
+    make_empirical_distributions,
+)
 
 # Log-spaced frequncies
 def linBinning(T, logmode, f_min, nlin, nlog):
