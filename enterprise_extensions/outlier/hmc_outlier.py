@@ -179,8 +179,8 @@ def OutlierHMC(pintpsr, outdir='.', Nsamples=20000, Nburnin=1000):
     
     residualplot = f'{outdir}/{psr}-residuals.pdf'
 
+    outliers = medps > 0.1
     if not os.path.isfile(residualplot):
-        outliers = medps > 0.1
         nout = np.sum(outliers)
         nbig = nout
         
