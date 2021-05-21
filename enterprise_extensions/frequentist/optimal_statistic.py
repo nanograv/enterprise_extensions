@@ -48,7 +48,7 @@ class OptimalStatistic(object):
             self.pta = models.model_2a(psrs, psd='powerlaw',
                                        bayesephem=bayesephem,
                                        gamma_common=gamma_common,
-                                       wideband=wideband,
+                                       is_wideband=wideband,
                                        select='backend', noisedict=noisedict)
         else:
             self.pta = pta
@@ -214,7 +214,7 @@ class OptimalStatistic(object):
             rho.append(rho_tmp)
             rho_sig.append(rho_sig_tmp)
 
-        return (opt, opt/sig, np.array(xi), 
+        return (opt, opt/sig, np.array(xi),
                 np.array(rho), np.array(rho_sig))
 
     def compute_noise_maximized_os(self, chain, param_names=None):
