@@ -540,7 +540,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                                 -1.0,1.0,size=7)('gw_orf_bin_zero_diag')),
             'freq_hd': model_orfs.freq_hd(params=[components,orf_ifreq]),
             'legendre_orf': model_orfs.legendre_orf(params=parameter.Uniform(
-                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre'))}'
+                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre')),
             'zero_diag_legendre_orf': model_orfs.zero_diag_legendre_orf(params=parameter.Uniform(
                                             -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre_zero_diag'))}
 
