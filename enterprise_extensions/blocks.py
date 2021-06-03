@@ -13,6 +13,7 @@ from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
 from . import gp_kernels as gpk
 from . import chromatic as chrom
+from . import model_orfs
 
 __all__ = ['white_noise_block',
            'red_noise_block',
@@ -482,7 +483,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, 
                            gamma_val=None, delta_val=None,
-                           orf=None, name='gw', coefficients=False,
+                           orf=None, orf_ifreq=0, leg_lmax=5, 
+                           name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
     Returns common red noise model:
@@ -510,6 +512,12 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
         values are ['hd', 'dipole', 'monopole'].
+    :param orf_ifreq:
+        Frequency bin at which to start the Hellings & Downs function with 
+        numbering beginning at 0. Currently only works with freq_hd orf.
+    :param leg_lmax:
+        Maximum multipole of a Legendre polynomial series representation 
+        of the overlap reduction function [default=5]
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
         null hypothesis.
@@ -521,7 +529,20 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     orfs = {'crn': None, 'hd': utils.hd_orf(), 
             'dipole': utils.dipole_orf(),
-            'monopole': utils.monopole_orf()}
+            'monopole': utils.monopole_orf(),
+            'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5,3.0)('gw_orf_param0'),
+                                     b=parameter.Uniform(-1.0,0.5)('gw_orf_param1'),
+                                     c=parameter.Uniform(-1.0,1.0)('gw_orf_param2')),
+            'spline_orf': model_orfs.spline_orf(params=parameter.Uniform(-0.9,0.9,size=7)('gw_orf_spline')),
+            'bin_orf': model_orfs.bin_orf(params=parameter.Uniform(-1.0,1.0,size=7)('gw_orf_bin')),
+            'zero_diag_hd': model_orfs.zero_diag_hd(),
+            'zero_diag_bin_orf': model_orfs.zero_diag_bin_orf(params=parameter.Uniform(
+                                -1.0,1.0,size=7)('gw_orf_bin_zero_diag')),
+            'freq_hd': model_orfs.freq_hd(params=[components,orf_ifreq]),
+            'legendre_orf': model_orfs.legendre_orf(params=parameter.Uniform(
+                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre'))}'
+            'zero_diag_legendre_orf': model_orfs.zero_diag_legendre_orf(params=parameter.Uniform(
+                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre_zero_diag'))}
 
     # common red noise parameters
     if psd in ['powerlaw', 'turnover', 'turnover_knee','broken_powerlaw']:

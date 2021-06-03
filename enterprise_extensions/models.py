@@ -570,7 +570,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, gamma_common=None,
-                  orf='crn', orf_names=None, upper_limit_common=None, upper_limit=False,
+                  orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5, 
+                  upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
@@ -623,6 +624,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         analysis for a process with and without hd correlations where we want to avoid 
         parameter duplication.
         [default = None]
+    :param orf_ifreq:
+        Frequency bin at which to start the Hellings & Downs function with 
+        numbering beginning at 0. Currently only works with freq_hd orf.
+        [default = 0]
+    :param leg_lmax:
+        Maximum multipole of a Legendre polynomial series representation 
+        of the overlap reduction function. 
+        [default = 5]
     :param upper_limit_common: perform upper limit on common red noise amplitude. Note
         that when perfoming upper limits it is recommended that the spectral index also
         be fixed to a specific value.
@@ -772,7 +781,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
                                           components=common_components, gamma_val=gamma_common,
                                           delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
+                                          orf_ifreq=orf_ifreq, leg_lmax=leg_lmax,
                                           coefficients=coefficients, pshift=pshift, pseed=None))
+                                          # orf_ifreq only affects freq_hd model. 
+                                          # leg_lmax only affects (zero_diag_)legendre_orf model.
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
 

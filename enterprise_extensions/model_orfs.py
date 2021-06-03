@@ -73,10 +73,10 @@ def bin_orf(pos1, pos2, params):
 
 @signal_base.function
 def zero_diag_bin_orf(pos1, pos2, params):
-    '''Agnostic binned spatial correlation function. o be
+    '''Agnostic binned spatial correlation function. To be
     used in a "split likelihood" model with an additional common 
     uncorrelated red process. The latter is necessary to regularize 
-    the overall \Phi covariance matrix.
+    the overall Phi covariance matrix.
 
     :param: params
         inter-pulsar correlation bin amplitudes.
@@ -98,7 +98,7 @@ def zero_diag_bin_orf(pos1, pos2, params):
 def zero_diag_hd(pos1, pos2):
     '''Off-diagonal Hellings & Downs spatial correlation function. To be
     used in a "split likelihood" model with an additional common uncorrelated
-    red process. The latter is necessary to regularize the overall \Phi 
+    red process. The latter is necessary to regularize the overall Phi 
     covariance matrix.  
 
     Author: S. R. Taylor (2020)
@@ -126,14 +126,14 @@ def freq_hd(pos1, pos2, params):
     Author: S. R. Taylor (2020)
     '''
     nfreq = params[0]
-    orf_startfreq = params[1]
+    orf_ifreq = params[1]
     if np.all(pos1 == pos2):
         return np.ones(2*nfreq)
     else:
         omc2 = (1 - np.dot(pos1, pos2)) / 2
         hd_coeff = 1.5 * omc2 * np.log(omc2) - 0.25 * omc2 + 0.5
         hd_coeff *= np.ones(2*nfreq)
-        hd_coeff[:2*orf_startfreq] = 0.0
+        hd_coeff[:2*orf_ifreq] = 0.0
         return hd_coeff
 
 
@@ -164,7 +164,7 @@ def legendre_orf(pos1, pos2, params):
 def zero_diag_legendre_orf(pos1, pos2, params):
     '''Legendre polynomial spatial correlation function. To be
     used in a "split likelihood" model with an additional common uncorrelated
-    red process. The latter is necessary to regularize the overall \Phi 
+    red process. The latter is necessary to regularize the overall Phi 
     covariance matrix.
 
     :param: params
