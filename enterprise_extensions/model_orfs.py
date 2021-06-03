@@ -72,6 +72,29 @@ def bin_orf(pos1, pos2, params):
 
 
 @signal_base.function
+def zero_diag_bin_orf(pos1, pos2, params):
+    '''Agnostic binned spatial correlation function. o be
+    used in a "split likelihood" model with an additional common 
+    uncorrelated red process. The latter is necessary to regularize 
+    the overall \Phi covariance matrix.
+
+    :param: params
+        inter-pulsar correlation bin amplitudes.
+
+    Author: S. R. Taylor (2020)
+    '''
+    if np.all(pos1 == pos2):
+        return 1e-20
+    else:
+        # bins in angsep space
+        bins = np.array([1e-3, 30.0, 50.0, 80.0, 100.0, 
+                         120.0, 150.0, 180.0]) * np.pi/180.0
+        angsep = np.arccos(np.dot(pos1, pos2))
+        idx = np.digitize(angsep, bins)
+        return params[idx-1]
+
+
+@signal_base.function
 def zero_diag_hd(pos1, pos2):
     '''Off-diagonal Hellings & Downs spatial correlation function. To be
     used in a "split likelihood" model with an additional common uncorrelated
@@ -131,6 +154,29 @@ def legendre_orf(pos1, pos2, params):
     '''
     if np.all(pos1 == pos2):
         return 1
+    else:
+        costheta = np.dot(pos1, pos2)
+        orf = np.polynomial.legendre.legval(costheta, params)
+        return orf
+
+
+@signal_base.function
+def zero_diag_legendre_orf(pos1, pos2, params):
+    '''Legendre polynomial spatial correlation function. To be
+    used in a "split likelihood" model with an additional common uncorrelated
+    red process. The latter is necessary to regularize the overall \Phi 
+    covariance matrix.
+
+    :param: params
+        Legendre polynomial amplitudes describing the Legendre series approximation
+        to the inter-pulsar correlation signature.
+        H&D coefficients are a_0=0, a_1=0, a_2=0.3125, a_3=0.0875, ...
+
+    Reference: Gair et al. (2014), https://arxiv.org/abs/1406.4664 
+    Author: S. R. Taylor (2020)
+    '''
+    if np.all(pos1 == pos2):
+        return 1e-20
     else:
         costheta = np.dot(pos1, pos2)
         orf = np.polynomial.legendre.legval(costheta, params)
