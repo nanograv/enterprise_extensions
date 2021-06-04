@@ -34,10 +34,12 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           dmjump_var=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
-                          dm_annual=False, gamma_dm_val=None, chrom_gp=False,
-                          chrom_gp_kernel='nondiag',
+                          dm_annual=False, gamma_dm_val=None,
+                          dm_dt=15, dm_df=200,
+                          chrom_gp=False, chrom_gp_kernel='nondiag',
                           chrom_psd='powerlaw', chrom_idx=4, chrom_quad=False,
                           chrom_kernel='periodic',
+                          chrom_dt=15, chrom_df=200,
                           dm_expdip=False, dmexp_sign='negative',
                           dm_expdip_idx=2,
                           dm_expdip_tmin=None, dm_expdip_tmax=None,
@@ -88,6 +90,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
     :param gamma_dm_val: spectral index of power-law DM variations
+    :param dm_dt: time-scale for DM linear interpolation basis (days)
+    :param dm_df: frequency-scale for DM linear interpolation basis (MHz)
     :param chrom_gp: include general chromatic noise
     :param chrom_gp_kernel: GP kernel type to use in chrom ['diag','nondiag']
     :param chrom_psd: power-spectral density of chromatic noise
@@ -96,6 +100,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
+    :param chrom_dt: time-scale for chromatic linear interpolation basis (days)
+    :param chrom_df: frequency-scale for chromatic linear interpolation basis (MHz)
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -211,6 +217,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
+                                    dt=dm_dt, df=dm_df,
                                     coefficients=coefficients)
         elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
@@ -221,13 +228,14 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components,
                                        nondiag_kernel=chrom_kernel,
+                                       dt=chrom_dt, df=chrom_df,
                                        include_quadratic=chrom_quad,
                                        coefficients=coefficients)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
-                tmin = [psr.toas.min() / 86400 for ii in range(num_dmdips)]
-                tmax = [psr.toas.max() / 86400 for ii in range(num_dmdips)]
+                tmin = [psr.toas.min() / const.day for ii in range(num_dmdips)]
+                tmax = [psr.toas.max() / const.day for ii in range(num_dmdips)]
             else:
                 tmin = (dm_expdip_tmin if isinstance(dm_expdip_tmin,list)
                                      else [dm_expdip_tmin])
@@ -250,8 +258,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                               name=dmdipname_base[dd])
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
-                tmin = [psr.toas.min() / 86400 for ii in range(num_dm_cusps)]
-                tmax = [psr.toas.max() / 86400 for ii in range(num_dm_cusps)]
+                tmin = [psr.toas.min() / const.day for ii in range(num_dm_cusps)]
+                tmax = [psr.toas.max() / const.day for ii in range(num_dm_cusps)]
             else:
                 tmin = (dm_cusp_tmin if isinstance(dm_cusp_tmin,list)
                                      else [dm_cusp_tmin])
@@ -274,8 +282,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                                name=cusp_name_base+str(dd))
         if dm_dual_cusp:
             if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
-                tmin = psr.toas.min() / 86400
-                tmax = psr.toas.max() / 86400
+                tmin = psr.toas.min() / const.day
+                tmax = psr.toas.max() / const.day
             else:
                 tmin = dm_dual_cusp_tmin
                 tmax = dm_dual_cusp_tmax
@@ -829,8 +837,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                                selection=selections.Selection(selections.no_selection),
                                                name='gequad')
             if '1713' in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
+                tmin = p.toas.min() / const.day
+                tmax = p.toas.max() / const.day
                 s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
                                                    sign=False, name='dmexp')
                 models.append(s3(p))
@@ -844,8 +852,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                                selection=selections.Selection(selections.no_selection),
                                                name='gequad')
             if '1713' in p.name and dm_var:
-                tmin = p.toas.min() / 86400
-                tmax = p.toas.max() / 86400
+                tmin = p.toas.min() / const.day
+                tmax = p.toas.max() / const.day
                 s5 = s4 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
                                                    sign=False, name='dmexp')
                 models.append(s5(p))
