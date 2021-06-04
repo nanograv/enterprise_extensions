@@ -482,7 +482,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30, 
-                           gamma_val=None, delta_val=None,
+                           log10_A_val = None, gamma_val=None, delta_val=None,
                            orf=None, orf_ifreq=0, leg_lmax=5, 
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
@@ -502,6 +502,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for individual pulsar.
+    :param log10_A_val:
+        Value of log10_A parameter for fixed amplitude analyses.
     :param gamma_val:
         Value of spectral index for power-law and turnover
         models. By default spectral index is varied of range [0,7]
@@ -547,15 +549,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     # common red noise parameters
     if psd in ['powerlaw', 'turnover', 'turnover_knee','broken_powerlaw']:
         amp_name = '{}_log10_A'.format(name)
-        if prior == 'uniform':
-            log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_Agw = parameter.Uniform(-18, -14)(amp_name)
+        if log10_A_val is not None:
+            log10_Agw = parameter.Constant(log10_A_val)(amp_name)
+        else:
+            if prior == 'uniform':
+                log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_Agw = parameter.Uniform(-18, -14)(amp_name)
+                else:
+                    log10_Agw = parameter.Uniform(-18, -11)(amp_name)
             else:
                 log10_Agw = parameter.Uniform(-18, -11)(amp_name)
-        else:
-            log10_Agw = parameter.Uniform(-18, -11)(amp_name)
 
         gam_name = '{}_gamma'.format(name)
         if gamma_val is not None:
