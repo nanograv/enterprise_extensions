@@ -217,6 +217,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
+                                    dt=dm_dt, df=dm_df,
                                     coefficients=coefficients)
         elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
@@ -227,6 +228,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        psd=chrom_psd, idx=chrom_idx,
                                        components=components,
                                        nondiag_kernel=chrom_kernel,
+                                       dt=chrom_dt, df=chrom_df,
                                        include_quadratic=chrom_quad,
                                        coefficients=coefficients)
 
