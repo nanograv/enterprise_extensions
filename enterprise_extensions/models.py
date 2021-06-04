@@ -605,7 +605,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = None]
     :param modes: list of frequencies on which to describe red processes.
         [default = None]
-    :param wgts: sqrt summation weights for each frequency bin, i.e. \sqrt(\delta f).
+    :param wgts: sqrt summation weights for each frequency bin, i.e. sqrt(delta f).
         [default = None]
     :param logfreq: boolean for including log-spaced bins.
         [default = False]
