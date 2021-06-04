@@ -216,7 +216,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
-                   prior='log-uniform', dt=dt, df=df,
+                   prior='log-uniform', dt=15, df=200,
                    Tspan=None, components=30,
                    gamma_val=None, coefficients=False):
     """
@@ -359,7 +359,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
 
 def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           nondiag_kernel='periodic',
-                          prior='log-uniform', dt=dt, df=df,
+                          prior='log-uniform', dt=15, df=200,
                           idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
                           coefficients=False):
