@@ -569,8 +569,10 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  common_psd='powerlaw', common_components=30, gamma_common=None,
-                  orf='crn', orf_names=None, upper_limit_common=None, upper_limit=False,
+                  common_psd='powerlaw', common_components=30, 
+                  log10_A_common=None, gamma_common=None,
+                  orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5, 
+                  upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
                   bayesephem=False, be_type='setIII_1980', is_wideband=False, use_dmdata=False,
@@ -603,7 +605,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = None]
     :param modes: list of frequencies on which to describe red processes.
         [default = None]
-    :param wgts: sqrt summation weights for each frequency bin, i.e. \sqrt(\delta f).
+    :param wgts: sqrt summation weights for each frequency bin, i.e. sqrt(delta f).
         [default = None]
     :param logfreq: boolean for including log-spaced bins.
         [default = False]
@@ -614,8 +616,12 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = 'powerlaw']
     :param common_components: number of frequencies starting at 1/T for common process.
         [default = 30]
+    :param log10_A_common: value of fixed log10_A_common parameter for 
+        fixed amplitude analyses.
+        [default = None]
     :param gamma_common: fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
+        [default = None]
     :param orf: comma de-limited string of multiple common processes with different orfs.
         [default = crn]
     :param orf_names: comma de-limited string of process names for different orfs. Manual 
@@ -623,6 +629,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         analysis for a process with and without hd correlations where we want to avoid 
         parameter duplication.
         [default = None]
+    :param orf_ifreq:
+        Frequency bin at which to start the Hellings & Downs function with 
+        numbering beginning at 0. Currently only works with freq_hd orf.
+        [default = 0]
+    :param leg_lmax:
+        Maximum multipole of a Legendre polynomial series representation 
+        of the overlap reduction function. 
+        [default = 5]
     :param upper_limit_common: perform upper limit on common red noise amplitude. Note
         that when perfoming upper limits it is recommended that the spectral index also
         be fixed to a specific value.
@@ -769,10 +783,18 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     if orf_names is None:
         orf_names = orf
     for elem,elem_name in zip(orf.split(','),orf_names.split(',')):
+        if elem == 'zero_diag_bin_orf' or elem == 'zero_diag_legendre_orf':
+            log10_A_val = log10_A_common
+        else:
+            log10_A_val = None
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
-                                          components=common_components, gamma_val=gamma_common,
+                                          components=common_components, 
+                                          log10_A_val=log10_A_val, gamma_val=gamma_common,
                                           delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
+                                          orf_ifreq=orf_ifreq, leg_lmax=leg_lmax,
                                           coefficients=coefficients, pshift=pshift, pseed=None))
+                                          # orf_ifreq only affects freq_hd model. 
+                                          # leg_lmax only affects (zero_diag_)legendre_orf model.
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
 
