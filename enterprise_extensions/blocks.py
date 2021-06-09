@@ -360,7 +360,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
 def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           nondiag_kernel='periodic',
                           prior='log-uniform', dt=15, df=200,
-                          idx=4, include_quadratic=False,
+                          idx_dm=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
                           coefficients=False):
     """
@@ -447,7 +447,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_gam_p = parameter.Uniform(-3, 2)
 
             chm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
-                                                       dm=True, idx=idx)
+                                                       dm=True, idx_dm=idx_dm)
             chm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
                                       log10_ell=log10_ell,
                                       log10_gam_p=log10_gam_p,
@@ -460,7 +460,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx_dm=idx_dm)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                          log10_ell=log10_ell)
         elif nondiag_kernel == 'sq_exp_rfband':
@@ -471,7 +471,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
             chm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
-                                                      dm=True, idx=idx)
+                                                      dm=True, idx_dm=idx_dm)
             chm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
                                      log10_ell=log10_ell,
                                      log10_alpha_wgt=log10_alpha_wgt,
@@ -482,7 +482,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
     if include_quadratic:
         # quadratic piece
-        basis_quad = chrom.chromatic_quad_basis(idx=idx)
+        basis_quad = chrom.chromatic_quad_basis(idx_dm=idx_dm)
         prior_quad = chrom.chromatic_quad_prior()
         cquad = gp_signals.BasisGP(prior_quad, basis_quad, name=name+'_quad')
         cgp += cquad
