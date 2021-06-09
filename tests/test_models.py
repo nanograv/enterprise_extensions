@@ -82,7 +82,7 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
-    
+
 def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True)
@@ -95,7 +95,7 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
-    
+
 def test_model_singlepsr_noise_chrom_diag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
