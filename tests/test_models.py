@@ -91,7 +91,7 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     m.get_lnlikelihood(x0)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
                                    chrom_gp_kernel='nondiag',
-                                   chrom_kernel='chrom')
+                                   chrom_kernel='sq_exp_rfband')
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
