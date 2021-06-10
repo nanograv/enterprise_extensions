@@ -360,7 +360,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
 def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           nondiag_kernel='periodic',
                           prior='log-uniform', dt=15, df=200,
-                          idx_dm=4, include_quadratic=False,
+                          idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
                           coefficients=False):
     """
