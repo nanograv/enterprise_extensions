@@ -94,6 +94,20 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     m=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
                                    dm_type=None, chrom_gp=True,
                                    chrom_gp_kernel='nondiag',
+                                   chrom_kernel='periodic_rfband')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='sq_exp')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
                                    chrom_kernel='sq_exp_rfband')
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
@@ -103,6 +117,18 @@ def test_model_singlepsr_noise_chrom_diag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
                                    chrom_gp_kernel='diag')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
+                                   chrom_gp_kernel='diag',
+                                   chrom_psd='turnover')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True,
+                                   chrom_gp_kernel='diag',
+                                   chrom_psd='spectrum')
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
