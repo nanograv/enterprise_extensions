@@ -66,6 +66,58 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     return bwm
 
 
+def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
+              amp_lower=-18, amp_upper=-11,
+              freq_lower=-9, freq_upper=-7,
+              use_fixed_freq=False, fixed_freq=-8):
+    """
+    Returns deterministic fuzzy dark matter model:
+        1. FDM parameterized by frequency, phase, 
+            and amplitude (mass and DM energy density).
+    :param Tmin:
+        Min time to search, probably first TOA (MJD).
+    :param Tmax:
+        Max time to search, probably last TOA (MJD).
+    :param amp_prior:
+        Prior on log10_A. 
+    :param logmin:
+        log of minimum FDM amplitude for prior (log10)
+    :param logmax:
+        log of maximum FDM amplitude for prior (log10)
+    :param name:
+        Name of FDM signal.
+    :param amp_upper, amp_lower, freq_upper, freq_lower:
+        The log-space bounds on the amplitude and frequency priors.
+    :param use_fixed_freq:
+        Whether to do a fixed-frequency run and not search over the frequency.
+    :param fixed_freq:
+        The frequency value to do a fixed-frequency run with.
+    """
+
+    # BWM parameters
+    amp_name = '{}_log10_A'.format(name)
+    log10_A_fdm = parameter.Uniform(amp_lower, amp_upper)(amp_name)
+    
+    if use_fixed_freq is True:
+        log10_f_fdm = fixed_freq
+
+    if use_fixed_freq is False:
+        freq_name = '{}_log10_f'.format(name)
+        log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
+
+    phase_e_name = '{}_phase_e'.format(name)
+    phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
+    
+    phase_p = parameter.Uniform(0, 2*np.pi)
+    
+    fdm_wf = utils.fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
+                             phase_e=phase_e_fdm, phase_p=phase_p)
+    
+    fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
+
+    return fdm
+
+
 def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
                   skyloc=None, log10_fgw=None,
                   psrTerm=False, tref=0, name='cw'):

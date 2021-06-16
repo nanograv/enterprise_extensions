@@ -263,6 +263,11 @@ class HyperModel(object):
             print('Adding BWM prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
+        # FDM prior draw
+        if 'fdm_log10_A' in self.param_names:
+            print('Adding FDM prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
+
         # CW prior draw
         if 'cw_log10_h' in self.param_names:
             print('Adding CW prior draws...\n')

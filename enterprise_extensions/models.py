@@ -2242,6 +2242,171 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     return pta
 
 
+def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
+              Tmin_fdm=None, Tmax_fdm=None, gw_psd='powerlaw',
+              red_psd='powerlaw', components=30, n_rnfreqs = None, 
+              n_gwbfreqs=None, gamma_common=None, delta_common=None,
+              dm_var=False, dm_psd='powerlaw', dm_annual=False,
+              upper_limit=False, bayesephem=False, wideband=False,
+              pshift=False, pseed=None, model_CRN=False,
+              amp_upper=-11, amp_lower=-18, 
+              freq_upper=-7, freq_lower=-9,
+              use_fixed_freq=False, fixed_freq=-8):
+    """
+    Reads in list of enterprise Pulsar instance and returns a PTA
+    instantiated with FDM model:
+
+    per pulsar:
+        1. fixed EFAC per backend/receiver system
+        2. fixed EQUAD per backend/receiver system
+        3. fixed ECORR per backend/receiver system (if NG channelized)
+        4. Red noise modeled by a specified psd
+        5. Linear timing model.
+        6. Optional DM-variation modeling
+        7. The pulsar phase term.
+    global:
+        1. Deterministic GW FDM signal.
+        2. Optional physical ephemeris modeling.
+
+    :param psrs:
+        list of enterprise.Pulsar objects for PTA
+    :param noisedict:
+        Dictionary of pulsar noise properties for fixed white noise.
+        Can provide manually, or the code will attempt to find it.
+    :param white_vary:
+        boolean for varying white noise or keeping fixed.
+    :param tm_svd:
+        boolean for svd-stabilised timing model design matrix
+    :param Tmin_fdm:
+        Min time to search for FDM (MJD). If omitted, uses first TOA.
+    :param Tmax_fdm:
+        Max time to search for FDM (MJD). If omitted, uses last TOA.
+    :param gw_psd:
+        PSD to use for the per pulsar GWB. 
+    :param red_psd:
+        PSD to use for per pulsar red noise. Available options
+        are ['powerlaw', 'turnover', tprocess, 'spectrum'].
+    :param components:
+        number of modes in Fourier domain processes (red noise, DM
+        variations, etc)
+    :param n_rnfreqs:
+        Number of frequencies to use in achromatic rednoise model.
+    :param n_gwbfreqs:
+        Number of frequencies to use in the GWB model.
+    :param gamma_common:
+        Fixed common red process spectral index value. By default we
+        vary the spectral index over the range [0, 7].
+    :param dm_var:
+        include gaussian process DM variations
+    :param dm_psd:
+        power-spectral density for gp DM variations
+    :param dm_annual:
+        include a yearly period DM variation
+    :param upper_limit:
+        Perform upper limit on FDM amplitude. By default this is
+        set to False for a 'detection' run.
+    :param bayesephem:
+        Include BayesEphem model.
+    :param wideband:
+        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
+        noise model.
+    :param pshift:
+        Option to use a random phase shift in design matrix. For testing the
+        null hypothesis.
+    :param pseed:
+        Option to provide a seed for the random phase shift.
+    :param model_CRN:
+        Option to model the common red process in addition to the
+        FDM signal. 
+    :param amp_upper, amp_lower, freq_upper, freq_lower:
+        The log-space bounds on the amplitude and frequency priors.
+    :param use_fixed_freq:
+        Whether to do a fixed-frequency run and not search over the frequency.
+    :param fixed_freq:
+        The frequency value to do a fixed-frequency run with.
+    :return: instantiated enterprise.PTA object
+    """
+
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
+
+    # find the maximum time span to set frequency sampling
+    tmin = np.min([p.toas.min() for p in psrs])
+    tmax = np.max([p.toas.max() for p in psrs])
+    Tspan = tmax - tmin
+
+    if Tmin_fdm is None:
+        Tmin_fdm = tmin/const.day
+    if Tmax_fdm is None:
+        Tmax_fdm = tmax/const.day
+
+    # red noise
+    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=n_rnfreqs)
+
+    # DM variations
+    if dm_var:
+        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
+                            gamma_val=None)
+        if dm_annual:
+            s += chrom.dm_annual_signal()
+
+        # DM exponential dip for J1713's DM event
+        dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
+
+    if model_CRN is True:
+        # common red noise block
+        s += common_red_noise_block(psd=gw_psd, prior=amp_prior, Tspan=Tspan,
+                                    components=n_gwbfreqs, gamma_val=gamma_common,
+                                    delta_val=delta_common, name='gw',
+                                    pshift=pshift, pseed=pseed)
+    
+    # GW FDM signal block
+    s += deterministic.fdm_block(Tmin_fdm, Tmax_fdm,
+                                    amp_prior=amp_prior, name='fdm',
+                                    amp_lower=amp_lower, amp_upper=amp_upper,
+                                    freq_lower=freq_lower, freq_upper=freq_upper,
+                                    use_fixed_freq=use_fixed_freq, fixed_freq=fixed_freq)
+
+
+    # ephemeris model
+    if bayesephem:
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+
+    # timing model
+    s += gp_signals.TimingModel(use_svd=tm_svd)
+
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            if dm_var and 'J1713+0747' == p.name:
+                s2 += dmexp
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            if dm_var and 'J1713+0747' == p.name:
+                s3 += dmexp
+            models.append(s3(p))
+
+    # set up PTA
+    pta = signal_base.PTA(models)
+
+    # set white noise parameters
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
+
+    return pta
+
+
 def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
              white_vary=False, components=30, bayesephem=False, skyloc=None,
              log10_F=None, ecc=False, psrTerm=False, is_wideband=False,
