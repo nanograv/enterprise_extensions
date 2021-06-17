@@ -190,7 +190,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
 
         elif swgp_basis == 'periodic':
             # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -6)
+            log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
