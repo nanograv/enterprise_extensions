@@ -109,8 +109,8 @@ class JumpProposal(object):
                 self.empirical_distr = None
                 
         if empirical_distr is not None and self.empirical_distr is None:
-          # if an emp dist path is provided, but fails the code, this helpful msg is provided
-          print("Adding empirical distributions failed!! Empirical distributions set to 'None'")
+            # if an emp dist path is provided, but fails the code, this helpful msg is provided
+            print("Adding empirical distributions failed!! Empirical distributions set to 'None'")
 
         #F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
