@@ -6,6 +6,7 @@ import os
 from enterprise import constants as const
 import pickle
 import healpy as hp
+import glob
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
