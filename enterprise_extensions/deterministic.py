@@ -110,8 +110,8 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
     
     phase_p = parameter.Uniform(0, 2*np.pi)
     
-    fdm_wf = utils.fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
-                             phase_e=phase_e_fdm, phase_p=phase_p)
+    fdm_wf = fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
+                        phase_e=phase_e_fdm, phase_p=phase_p)
     
     fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
 
@@ -689,3 +689,27 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
     (8*np.pi**2*f**3)
 
     return S_psd * np.repeat(df, 2)
+
+@signal_base.function
+def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
+    """
+    Function that calculates the earth-term gravitational-wave
+    fuzzy dark matter signal, as described in:
+    Kato et al. (2020).
+
+    :param toas: Time-of-arrival measurements [s]
+    :param log10_A: log10 of GW strain
+    :param log10_f: log10 of GW frequency
+    :param phase_e: The Earth-term phase of the GW 
+    :param phase_p: The Pulsar-term phase of the GW 
+
+    :return: the waveform as induced timing residuals (seconds)
+    """
+
+    # convert
+    A = 10 ** log10_A
+    
+    f = 10 ** log10_f
+
+    # Return the time-series for the pulsar
+    return - A / (2 * np.pi * f) * (np.sin(2 * np.pi * f * toas + phase_e) - np.sin(2 * np.pi * f * toas + phase_p))
