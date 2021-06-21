@@ -92,6 +92,56 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
 
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='nondiag',
+                                    dm_nondiag_kernel ='sq_exp')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='nondiag',
+                                    dm_nondiag_kernel ='periodic')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='nondiag',
+                                    dm_nondiag_kernel ='None')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
+def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='diag',
+                                    dm_diag_kernel ='dmx_like')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='diag',
+                                    dm_diag_kernel ='None')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='diag',
+                                    dm_diag_kernel ='sq_exp')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
+    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
+                                    dm_type='gp', dmgp_kernel ='diag',
+                                    dm_diag_kernel ='periodic')
+    assert hasattr(mn,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    mn.get_lnlikelihood(x0)
+
 def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
