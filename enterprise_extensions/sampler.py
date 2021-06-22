@@ -77,12 +77,15 @@ class JumpProposal(object):
         # check if single pkl file provided
         elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
             try:
+                # try opening the file
                 with open(empirical_distr, 'rb') as f:
                     pickled_distr = pickle.load(f)
             except:
+                # second attempt at opening the file
                 try:
                     with open(empirical_distr, 'rb') as f:
                         pickled_distr = pickle.load(f)
+                # if the second attempt fails...
                 except:
                     print('\nI can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
