@@ -35,6 +35,7 @@ def model_singlepsr_noise(
     ltm_list=[],
     tm_param_dict={},
     tm_prior="uniform",
+    normalize_prior_bound=5.0,
     fit_remaining_pars=True,
     red_var=True,
     psd="powerlaw",
@@ -109,6 +110,7 @@ def model_singlepsr_noise(
     :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
     :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
+    :param normalize_prior_bound: scaling value for parameter errors that sets the upper and lower bounds on the nonlinear timing model priors (e.g. Uniform(-5.,5.) as default)
     :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
     :param red var: include red noise in the model
     :param psd: red noise psd model
@@ -234,8 +236,8 @@ def model_singlepsr_noise(
                 ltm_list=ltm_list,
                 prior_type=tm_prior,
                 prior_sigma=2.0,
-                prior_lower_bound=-5.0,
-                prior_upper_bound=5.0,
+                prior_lower_bound=-normalize_prior_bound,
+                prior_upper_bound=normalize_prior_bound,
                 tm_param_dict=tm_param_dict,
                 fit_remaining_pars=fit_remaining_pars,
                 wideband_kwargs=wideband_kwargs,
