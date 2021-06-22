@@ -255,3 +255,8 @@ def test_jumpproposal(dmx_psrs,caplog):
             'draw_from_gw_log_uniform')
     assert (jp.draw_from_signal('red noise').__name__ ==
             'draw_from_red noise_signal')
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_model_fdm(dmx_psrs,caplog):
+    fdm=models.model_fdm(dmx_psrs,noisedict=noise_dict)
+    assert hasattr(fdm,'get_lnlikelihood')
