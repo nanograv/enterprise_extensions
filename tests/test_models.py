@@ -145,14 +145,14 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
                                     dm_type='gp', dmgp_kernel ='diag',
-                                    diag_kernel ='tprocess')
+                                    dm_psd ='tprocess')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
                                     dm_type='gp', dmgp_kernel ='diag',
-                                    diag_kernel ='tprocess_adapt')
+                                    dm_psd ='tprocess_adapt')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
