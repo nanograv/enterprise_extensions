@@ -64,7 +64,29 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
 
     return bwm
+    
+def ramp_block(Tmin, Tmax, amp_prior='log-uniform',
+               logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
 
+    if fixed_sign is None:
+        sign = parameter.Uniform(-1, 1)("sign")
+    else:
+        sign = np.sign(fixed_sign)
+
+    amp_name = '{}_log10_A'.format(name)
+    if amp_prior == 'uniform':
+        log10_A_ramp = parameter.LinearExp(logmin, logmax)(amp_name)
+    elif amp_prior == 'log-uniform':
+        log10_A_ramp = parameter.Uniform(logmin, logmax)(amp_name)
+
+    t0_name = '{}_t0'.format(name)
+    t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
+
+
+    ramp_wf = utils.ramp_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
+    ramp = deterministic_signals.Deterministic(ramp_wf, name=name)
+
+    return ramp
 
 def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
                   skyloc=None, log10_fgw=None,
