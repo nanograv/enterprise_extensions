@@ -2100,12 +2100,11 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, white_vary=False, tm_svd=False,
-              Tmin_bwm=None, Tmax_bwm=None, skyloc=None,
-              red_psd='powerlaw', components=30,
+def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, tm_svd=False,
+              Tmin_bwm=None, Tmax_bwm=None, skyloc=None, logmin=None, logmax=None,
+              burst_logmin=-17, burst_logmax=-12, red_psd='powerlaw', components=30,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
-              upper_limit=False, bayesephem=False, is_wideband=False,
-              use_dmdata=False):
+              upper_limit=False, bayesephem=False, wideband=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with BWM model:
@@ -2126,8 +2125,6 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
     :param noisedict:
         Dictionary of pulsar noise properties for fixed white noise.
         Can provide manually, or the code will attempt to find it.
-    :param white_vary:
-        boolean for varying white noise or keeping fixed.
     :param tm_svd:
         boolean for svd-stabilised timing model design matrix
     :param Tmin_bwm:
@@ -2137,6 +2134,14 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
     :param skyloc:
         Fixed sky location of BWM signal search as [cos(theta), phi].
         Search over sky location if ``None`` given.
+    :param logmin:
+        Lower bound on log10_A of the red noise process in each pulsar`
+    :param logmax:
+        Upper bound on log10_A of the red noise process in each pulsar
+    :param burst_logmin:
+        Lower bound on the log10_A of the burst amplitude in each pulsar
+    :param burst_logmax:
+        Upper boudn on the log10_A of the burst amplitude in each pulsar
     :param red_psd:
         PSD to use for per pulsar red noise. Available options
         are ['powerlaw', 'turnover', tprocess, 'spectrum'].
@@ -2154,11 +2159,6 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
         set to False for a 'detection' run.
     :param bayesephem:
         Include BayesEphem model.
-    :param is_wideband:
-        Whether input TOAs are wideband TOAs; will exclude ecorr from the white
-        noise model.
-    :param use_dmdata: whether to use DM data (WidebandTimingModel) if
-        is_wideband.
     :return: instantiated enterprise.PTA object
     """
 
@@ -2175,7 +2175,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
         Tmax_bwm = tmax/const.day
 
     # red noise
-    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components)
+    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components, logmin=logmin, logmax=logmax)
 
     # DM variations
     if dm_var:
@@ -2188,7 +2188,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += deterministic.bwm_block(Tmin_bwm, Tmax_bwm,
+    s += deterministic.bwm_block(Tmin_bwm, Tmax_bwm, logmin=burst_logmin, logmax=burst_logmax,
                                          amp_prior=amp_prior,
                                          skyloc=skyloc, name='bwm')
 
@@ -2197,49 +2197,31 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, whi
         s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
 
     # timing model
-    if (is_wideband and use_dmdata):
-        dmjump = parameter.Constant()
-        if white_vary:
-            dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
-            log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
-        else:
-            dmefac = parameter.Constant()
-            log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
-        s += gp_signals.WidebandTimingModel(dmefac=dmefac,
-                log10_dmequad=log10_dmequad, dmjump=dmjump,
-                dmefac_selection=selections.Selection(selections.by_backend),
-                log10_dmequad_selection=selections.Selection(
-                    selections.by_backend),
-                dmjump_selection=selections.Selection(selections.by_frontend))
-    else:
-        s += gp_signals.TimingModel(use_svd=tm_svd)
+    s += gp_signals.TimingModel(use_svd=tm_svd)
 
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
             if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
 
     # set up PTA
-    pta = signal_base.PTA(models)
+    pta = signal_base.PTA(models, likelihood, lookupdir)
 
     # set white noise parameters
-    if not white_vary or (is_wideband and use_dmdata):
-        if noisedict is None:
-            print('No noise dictionary provided!...')
-        else:
-            noisedict = noisedict
-            pta.set_default_params(noisedict)
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
 
     return pta
 
