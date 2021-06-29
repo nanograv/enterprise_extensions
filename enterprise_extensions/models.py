@@ -23,6 +23,8 @@ from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 from enterprise_extensions import chromatic as chrom
 from enterprise_extensions import dropout as do
+from enterprise.signals.signal_base import LogLikelihood
+from enterprise.signals.signal_base import LookupLikelihood
 
 
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
@@ -2098,7 +2100,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
+def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, white_vary=False, tm_svd=False,
               Tmin_bwm=None, Tmax_bwm=None, skyloc=None,
               red_psd='powerlaw', components=30,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
