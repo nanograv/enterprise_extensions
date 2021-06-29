@@ -577,9 +577,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  common_psd='powerlaw', common_components=30, 
+                  common_psd='powerlaw', common_components=30,
                   log10_A_common=None, gamma_common=None,
-                  orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5, 
+                  orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5,
                   upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
                   red_select=None, red_breakflat=False, red_breakflat_fq=None,
@@ -624,7 +624,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = 'powerlaw']
     :param common_components: number of frequencies starting at 1/T for common process.
         [default = 30]
-    :param log10_A_common: value of fixed log10_A_common parameter for 
+    :param log10_A_common: value of fixed log10_A_common parameter for
         fixed amplitude analyses.
         [default = None]
     :param gamma_common: fixed common red process spectral index value. By default we
@@ -632,18 +632,18 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = None]
     :param orf: comma de-limited string of multiple common processes with different orfs.
         [default = crn]
-    :param orf_names: comma de-limited string of process names for different orfs. Manual 
+    :param orf_names: comma de-limited string of process names for different orfs. Manual
         control of these names is useful for embedding model_general within a hypermodel
-        analysis for a process with and without hd correlations where we want to avoid 
+        analysis for a process with and without hd correlations where we want to avoid
         parameter duplication.
         [default = None]
     :param orf_ifreq:
-        Frequency bin at which to start the Hellings & Downs function with 
+        Frequency bin at which to start the Hellings & Downs function with
         numbering beginning at 0. Currently only works with freq_hd orf.
         [default = 0]
     :param leg_lmax:
-        Maximum multipole of a Legendre polynomial series representation 
-        of the overlap reduction function. 
+        Maximum multipole of a Legendre polynomial series representation
+        of the overlap reduction function.
         [default = 5]
     :param upper_limit_common: perform upper limit on common red noise amplitude. Note
         that when perfoming upper limits it is recommended that the spectral index also
@@ -796,12 +796,12 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         else:
             log10_A_val = None
         crn.append(common_red_noise_block(psd=common_psd, prior=amp_prior_common, Tspan=Tspan,
-                                          components=common_components, 
+                                          components=common_components,
                                           log10_A_val=log10_A_val, gamma_val=gamma_common,
                                           delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
                                           orf_ifreq=orf_ifreq, leg_lmax=leg_lmax,
                                           coefficients=coefficients, pshift=pshift, pseed=None))
-                                          # orf_ifreq only affects freq_hd model. 
+                                          # orf_ifreq only affects freq_hd model.
                                           # leg_lmax only affects (zero_diag_)legendre_orf model.
     crn = functools.reduce((lambda x,y:x+y), crn)
     s += crn
@@ -2238,6 +2238,123 @@ def model_bwm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         else:
             noisedict = noisedict
             pta.set_default_params(noisedict)
+
+    return pta
+
+def model_ramp(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
+              Tmin_bwm=None, Tmax_bwm=None,  burst_logmin=-17, burst_logmax=-12, fixed_sign=None,
+              red_psd='powerlaw', logmin=None, logmax=None, components=30,
+              dm_var=False, dm_psd='powerlaw', dm_annual=False,
+              upper_limit=False, bayesephem=False, wideband=False):
+    """
+    Burst-With-Memory model for single pulsar runs
+    Because all of the geometric parameters (pulsar_position, source_position, gw_pol) are all degenerate with each other in a single pulsar BWM search,
+    this model can only search over burst epoch and residual-space ramp amplitude (t0, ramp_amplitude)
+
+    Reads in list of enterprise Pulsar instance and returns a PTA
+    instantiated with single-pulsar BWM model (called a ramp):
+
+    per pulsar:
+        1. fixed EFAC per backend/receiver system
+        2. fixed EQUAD per backend/receiver system
+        3. fixed ECORR per backend/receiver system (if NG channelized)
+        4. Red noise modeled by a specified psd
+        5. Linear timing model.
+        6. Optional DM-variation modeling
+        7. Deterministic GW burst with memory signal for this pulsar
+
+    :param psrs:
+        list of enterprise.Pulsar objects for PTA
+    :param likelihood:
+        The likelihood function to use. The options are [enterprise.signals.signal_base.LogLikelihood, enterprise.signals.signal_base.LookupLikelihood]
+    :param noisedict:
+        Dictionary of pulsar noise properties for fixed white noise.
+        Can provide manually, or the code will attempt to find it.
+    :param tm_svd:
+        boolean for svd-stabilised timing model design matrix
+    :param Tmin_bwm:
+        Min time to search for BWM (MJD). If omitted, uses first TOA.
+    :param Tmax_bwm:
+        Max time to search for BWM (MJD). If omitted, uses last TOA.
+    :param red_psd:
+        PSD to use for per pulsar red noise. Available options
+        are ['powerlaw', 'turnover', tprocess, 'spectrum'].
+    :param components:
+        number of modes in Fourier domain processes (red noise, DM
+        variations, etc)
+    :param dm_var:
+        include gaussian process DM variations
+    :param dm_psd:
+        power-spectral density for gp DM variations
+    :param dm_annual:
+        include a yearly period DM variation
+    :param upper_limit:
+        Perform upper limit on BWM amplitude. By default this is
+        set to False for a 'detection' run.
+    :param bayesephem:
+        Include BayesEphem model.
+    :return: instantiated enterprise.PTA object
+
+
+    """
+    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+
+    # find the maximum time span to set frequency sampling
+    tmin = np.min([p.toas.min() for p in psrs])
+    tmax = np.max([p.toas.max() for p in psrs])
+    Tspan = tmax - tmin
+
+    if Tmin_bwm is None:
+        Tmin_bwm = tmin/const.day
+    if Tmax_bwm is None:
+        Tmax_bwm = tmax/const.day
+
+    # red noise
+    s = red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components, logmin=logmin, logmax=logmax)
+
+    # DM variations
+    if dm_var:
+        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
+                            gamma_val=None)
+        if dm_annual:
+            s += chrom.dm_annual_signal()
+
+        # DM exponential dip for J1713's DM event
+        dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
+
+    # GW BWM signal block
+    s += deterministic.ramp_block(Tmin_bwm, Tmax_bwm,amp_prior=amp_prior, name='ramp', logmin=burst_logmin, logmax=burst_logmax, fixed_sign=fixed_sign)
+
+    # ephemeris model
+    if bayesephem:
+        s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
+
+    # timing model
+    s += gp_signals.TimingModel(use_svd=tm_svd)
+
+    # adding white-noise, and acting on psr objects
+    models = []
+    for p in psrs:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            if dm_var and 'J1713+0747' == p.name:
+                s2 += dmexp
+            models.append(s2(p))
+        else:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            if dm_var and 'J1713+0747' == p.name:
+                s3 += dmexp
+            models.append(s3(p))
+
+    # set up PTA
+    pta = signal_base.PTA(models, likelihood, lookupdir)
+
+    # set white noise parameters
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
 
     return pta
 
