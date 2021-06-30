@@ -53,7 +53,7 @@ def test_model_singlepsr_noise(nodmx_psrs,caplog):
 def test_model_singlepsr_noise_sw(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
-                                   dm_sw_gp=True, swgp_basis='powerlaw)
+                                   dm_sw_gp=True, swgp_basis='powerlaw')
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
