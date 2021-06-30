@@ -101,7 +101,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
                     select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None):
+                    break_flat=False, break_flat_fq=None, logmin=None, logmax=None):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies
@@ -124,6 +124,12 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
                'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
+        if logmin is not None and logmax is not None:
+            if prior == 'uniform':
+                log10_A = parameter.LinearExp(logmin, logmax)
+            else:
+                log10_A = parameter.Uniform(logmin, logmax)
+
         if prior == 'uniform':
             log10_A = parameter.LinearExp(-20, -11)
         elif prior == 'log-uniform' and gamma_val is not None:
@@ -491,9 +497,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30, 
+                           Tspan=None, components=30,
                            log10_A_val = None, gamma_val=None, delta_val=None,
-                           orf=None, orf_ifreq=0, leg_lmax=5, 
+                           orf=None, orf_ifreq=0, leg_lmax=5,
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
@@ -525,10 +531,10 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         By default we do not use any spatial correlations. Permitted
         values are ['hd', 'dipole', 'monopole'].
     :param orf_ifreq:
-        Frequency bin at which to start the Hellings & Downs function with 
+        Frequency bin at which to start the Hellings & Downs function with
         numbering beginning at 0. Currently only works with freq_hd orf.
     :param leg_lmax:
-        Maximum multipole of a Legendre polynomial series representation 
+        Maximum multipole of a Legendre polynomial series representation
         of the overlap reduction function [default=5]
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
@@ -539,7 +545,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     """
 
-    orfs = {'crn': None, 'hd': utils.hd_orf(), 
+    orfs = {'crn': None, 'hd': utils.hd_orf(),
             'dipole': utils.dipole_orf(),
             'monopole': utils.monopole_orf(),
             'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5,3.0)('gw_orf_param0'),
