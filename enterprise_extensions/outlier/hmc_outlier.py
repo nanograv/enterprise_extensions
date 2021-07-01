@@ -45,8 +45,8 @@ def poutlier(p,likob):
     return num/den, r/np.sqrt(N)
 
 
-def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
-    """Run full outlier analysis for given pulsar
+def OutlierHMC(pintpsr, outdir='.', Nsamples=20000, Nburnin=1000):
+    """Run full Hamiltonian Monte Carlo outlier analysis for given pulsar
     
     :param pintpsr: enterprise PintPulsar object
     :param outdir: Desired output directory for chains and
@@ -68,9 +68,12 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     def jac(x):
         _, j = likob.full_loglikelihood_grad(x)
         return j
+
+    # Ensure full path to outdir exists
+    os.makedirs(outdir, exist_ok=True)
     
     # Compute the approximate max and save to a pickle file
-    endpfile = outdir + psr + '-endp.pickle'
+    endpfile = f'{outdir}/{psr}-endp.pickle'
     if not os.path.isfile(endpfile):
         endp = likob.pstart
         for iter in range(3):
@@ -87,7 +90,7 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     
     # Next to whiten the likelihood, compute the Hessian of the posterior
     nhyperpars = likob.ptadict[likob.pname + '_outlierprob'] + 1
-    hessfile = outdir + psr + '-fullhessian.pickle'
+    hessfile = f'{outdir}/{psr}-fullhessian.pickle'
     if not os.path.isfile(hessfile):
         reslice = np.arange(0,nhyperpars)
 
@@ -114,11 +117,11 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     wlps = wl.forward(endp)
     
     # Set up and run HMC sampler
-    chaindir = outdir + 'chains_' + psr
+    chaindir = f'{outdir}/chains_{psr}'
     if not os.path.exists(chaindir):
         os.makedirs(chaindir)
     chainfile = chaindir + '/samples.txt'
-    if not os.path.isfile(chainfile) or len(open(chainfile,'r').readlines()) < 19999:
+    if not os.path.isfile(chainfile) or len(open(chainfile,'r').readlines()) < Nsamples-1:
         # Run NUTS for 20000 samples, with a burn-in of
         # 1000 samples (target acceptance = 0.6)
         samples, lnprob, epsilon = nuts6(wl.loglikelihood_grad, Nsamples, Nburnin,
@@ -130,7 +133,7 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     #------------POST PROCESSING------------
     
     # Undo all the coordinate transformations and save samples to file
-    parsfile = outdir + psr + '-pars.npy'
+    parsfile = f'{outdir}/{psr}-pars.npy'
     if not os.path.isfile(parsfile):
         samples = np.loadtxt(chaindir + '/samples.txt')
         fullsamp = wl.backward(samples[:,:-2])
@@ -142,12 +145,12 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     
     # Corner plot of the hyperparameter posteriors
     parnames = list(likob.ptadict.keys())
-    if not os.path.isfile(outdir + psr + '-corner.pdf'):
+    if not os.path.isfile(f'{outdir}/{psr}-corner.pdf'):
         corner.corner(pars[:,:nhyperpars], labels=parnames[:nhyperpars], show_titles=True);
-        plt.savefig(outdir + psr + '-corner.pdf')
+        plt.savefig(f'{outdir}/{psr}-corner.pdf')
     
     # Array of outlier probabilities
-    pobsfile = outdir + psr + '-pobs.npy'
+    pobsfile = f'{outdir}/{psr}-pobs.npy'
     if not os.path.isfile(pobsfile):
         nsamples = len(pars)
         nobs = len(likob.Nvec)
@@ -173,12 +176,11 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     
     # Residual plot with outliers highlighted
     spd = 86400.0   # seconds per day
-    T0 = 53000.0        # reference MJD
     
-    residualplot = psr + '-residuals.pdf'
+    residualplot = f'{outdir}/{psr}-residuals.pdf'
 
+    outliers = medps > 0.1
     if not os.path.isfile(residualplot):
-        outliers = medps > 0.1
         nout = np.sum(outliers)
         nbig = nout
         
@@ -195,7 +197,7 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
         psrobj = likob.psr
 
         # convert toas to mjds
-        toas = psrobj.toas/spd + T0
+        toas = psrobj.toas/spd
 
         # red noise at the starting fit point
         _, _ = likob.full_loglikelihood_grad(endp)
@@ -214,10 +216,10 @@ def run_outlier(pintpsr, outdir='', Nsamples=20000, Nburnin=1000):
     
     # Text file with exact indices of outlying TOAs and their
     # outlier probabilities
-    outlier_indices = 'outliers.txt'
+    outlier_indices = f'{outdir}/outliers.txt'
     with open(outlier_indices, 'w') as f:
         for ii, elem in enumerate(outliers):
             if elem:
-                f.write('TOA Index {}: Outlier Probability {}\n'.format(likob.isort_dict[ii], medps[ii]))
-    
-    return
+                f.write('TOA Index {}: Outlier Probability {}\n'.format(likob.psr.desort[ii], medps[ii]))
+
+    return medps[likob.psr.desort]
