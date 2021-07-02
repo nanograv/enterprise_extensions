@@ -772,7 +772,7 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     # try adding empirical proposals
     if empirical_distr is not None:
         print('Adding empirical proposals...\n')
-        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 50)
 
     # Red noise prior draw
     if 'red noise' in jp.snames:

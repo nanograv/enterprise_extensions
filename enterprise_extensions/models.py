@@ -271,7 +271,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             for dd in range(1,num_dm_cusps+1):
                 s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
                                                tmax=tmax[dd-1],
-                                               idx=dm_cusp_idx,
+                                               idx=dm_cusp_idx[dd-1],
                                                sign=dm_cusp_sign[dd-1],
                                                symmetric=dm_cusp_sym,
                                                name=cusp_name_base+str(dd))
