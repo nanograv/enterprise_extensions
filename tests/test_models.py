@@ -53,6 +53,14 @@ def test_model_singlepsr_noise(nodmx_psrs,caplog):
 
 def test_model_singlepsr_noise_faclike(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
+    # default behaviour
+    m=models.model_singlepsr_noise(nodmx_psrs[1],
+                                   factorized_like=True, Tspan=10*const.yr)
+    assert hasattr(m,'get_lnlikelihood')
+    assert 'gw_log10_A' in m.param_names
+    assert 'J1713+0747_red_noise_log10_A' in m.param_names
+
+    # gw but no RN
     m=models.model_singlepsr_noise(nodmx_psrs[1], red_var=False,
                                    factorized_like=True, Tspan=10*const.yr)
     assert hasattr(m,'get_lnlikelihood')
