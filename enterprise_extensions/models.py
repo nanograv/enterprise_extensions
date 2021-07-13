@@ -73,9 +73,6 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param white_vary: boolean for varying white noise or keeping fixed
     :param components: number of modes in Fourier domain processes
     :param dm_components: number of modes in Fourier domain DM processes
-    :param fact_like_comp: number of modes in Fourier domain for a common
-           process in a factorized likelihood calculation.
-    :param fact_like: Whether to include a factorized likelihood GWB process.
     :param upper_limit: whether to do an upper-limit analysis
     :param is_wideband: whether input TOAs are wideband TOAs; will exclude
            ecorr from the white noise model
@@ -137,7 +134,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         rather than an instantiated PTA object, i.e. model(psr) rather than
         PTA(model(psr)).
     :param factorized_like: Whether to run a factorized likelihood analyis Boolean
-    Tspan=None, fact_like_gamma=13./3, gw_components=10
+    :param gw_components: number of modes in Fourier domain for a common
+           process in a factorized likelihood calculation.
+    :param fact_like_gamma: fixed common process spectral index
+    :param Tspan: time baseline used to determine Fourier GP frequencies
     :param extra_sigs: Any additional `enterprise` signals to be added to the
         model.
 
@@ -182,16 +182,12 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         else:
             pass
 
-    # red noise
-    if red_var and factorized_like:
+    # red noise and common process
+    if factorized_like:
         if Tspan is None:
             msg = 'Must Timespan to match amongst all pulsars when doing '
             msg += 'a factorized likelihood analysis.'
             raise ValueError(msg)
-
-        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                             components=components, gamma_val=gamma_val,
-                             coefficients=coefficients, select=red_select)
 
         s += common_red_noise_block(psd=psd, prior=amp_prior,
                                     Tspan=Tspan, components=gw_components,
@@ -199,10 +195,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     orf=None, name='gw',
                                     coefficients=coefficients,
                                     pshift=False, pseed=None)
-
-
+        
     elif red_var:
-        s += red_noise_block(psd=psd, prior=amp_prior,
+        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                              components=components, gamma_val=gamma_val,
                              coefficients=coefficients, select=red_select)
 
