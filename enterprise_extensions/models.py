@@ -195,8 +195,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     orf=None, name='gw',
                                     coefficients=coefficients,
                                     pshift=False, pseed=None)
-        
-    elif red_var:
+
+    if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
                              components=components, gamma_val=gamma_val,
                              coefficients=coefficients, select=red_select)
