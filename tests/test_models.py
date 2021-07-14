@@ -97,7 +97,7 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
                                 dm_nondiag_kernel ='dmx_like')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
-    assert psr_name +'_dm_gp_log10_sigma' in mn.param_names
+    assert psr_name[ii]+'_dm_gp_log10_sigma' in mn.param_names
     mn.get_lnlikelihood(x0)
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
