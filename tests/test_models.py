@@ -44,6 +44,12 @@ def nodmx_psrs(caplog):
             psrs.append(pickle.load(fin))
 
     return psrs
+def psr_name(nodmx_psrs):
+    psn = []
+    for p in psr_names:
+         with open(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.pkl'.format(p),'rb'):
+            psn.append(p)
+    return psn
 
 def test_model_singlepsr_noise(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
@@ -85,11 +91,13 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
 
 def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
-    mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
-                                    dm_type='gp', dmgp_kernel ='nondiag',
-                                    dm_nondiag_kernel ='dmx_like')
+    ii = 1
+    mn=models.model_singlepsr_noise(nodmx_psrs[ii], dm_var=True,
+                                dm_type='gp', dmgp_kernel ='nondiag',
+                                dm_nondiag_kernel ='dmx_like')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    assert psr_name +'_dm_gp_log10_sigma' in mn.param_names
     mn.get_lnlikelihood(x0)
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
