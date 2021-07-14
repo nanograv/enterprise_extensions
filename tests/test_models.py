@@ -56,9 +56,10 @@ def test_model_singlepsr_noise_faclike(nodmx_psrs,caplog):
     # default behaviour
     m=models.model_singlepsr_noise(nodmx_psrs[1],
                                    factorized_like=True, Tspan=10*const.yr)
-    assert hasattr(m,'get_lnlikelihood')
+    m.get_basis()
     assert 'gw_log10_A' in m.param_names
     assert 'J1713+0747_red_noise_log10_A' in m.param_names
+    assert m.signals["J1713+0747_gw"]._labels[''][-1] == const.fyr
 
     # gw but no RN
     m=models.model_singlepsr_noise(nodmx_psrs[1], red_var=False,
