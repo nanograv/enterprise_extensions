@@ -6,6 +6,7 @@
 import pytest
 import pickle, json, os
 import logging
+from enterprise import constants as const
 from enterprise_extensions import models, model_utils, sampler
 
 testdir = os.path.dirname(os.path.abspath(__file__))
@@ -49,6 +50,23 @@ def test_model_singlepsr_noise(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1])
     assert hasattr(m,'get_lnlikelihood')
+
+def test_model_singlepsr_noise_faclike(nodmx_psrs,caplog):
+    # caplog.set_level(logging.CRITICAL)
+    # default behaviour
+    m=models.model_singlepsr_noise(nodmx_psrs[1],
+                                   factorized_like=True, Tspan=10*const.yr)
+    m.get_basis()
+    assert 'gw_log10_A' in m.param_names
+    assert 'J1713+0747_red_noise_log10_A' in m.param_names
+    assert m.signals["J1713+0747_gw"]._labels[''][-1] == const.fyr
+
+    # gw but no RN
+    m=models.model_singlepsr_noise(nodmx_psrs[1], red_var=False,
+                                   factorized_like=True, Tspan=10*const.yr)
+    assert hasattr(m,'get_lnlikelihood')
+    assert 'gw_log10_A' in m.param_names
+    assert 'J1713+0747_red_noise_log10_A' not in m.param_names
 
 def test_model_singlepsr_noise_sw(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
