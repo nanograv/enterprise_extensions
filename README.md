@@ -17,13 +17,13 @@ pip install git+https://github.com/nanograv/enterprise_extensions@master
 
 ## citation
 Did you use `enterprise_extensions`?
-Remember to cite it as
+Remember to cite it as:
+
+>Taylor, S. R., Baker, P. T., Hazboun, J. S., Simon, J., & Vigeland, S. J. (2021). enterprise_extensions v0.9.2. https://github.com/nanograv/enterprise_extensions
+
 ```latex
-Taylor, S. R., Baker, P. T., Hazboun, J. S., Simon, J. J., & Vigeland, S. J. (2021). enterprise_extensions v0.9.2. https://github.com/nanograv/enterprise_extensions
-
-
 @misc{enterprise,
-  author       = {Stephen R. Taylor and Paul T. Baker and Jeffry S. Hazboun and Joseph J. Simon and Sarah J. Vigeland},
+  author       = {Stephen R. Taylor and Paul T. Baker and Jeffrey S. Hazboun and Joseph Simon and Sarah J. Vigeland},
   title        = {enterprise_extensions},
   year         = {2021},
   url          = {https://github.com/nanograv/enterprise_extensions},
