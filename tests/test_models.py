@@ -91,6 +91,7 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     assert psr_names[1]+'_dm_gp_log10_sigma' in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_ell' not in mn.param_names
     mn.get_lnlikelihood(x0)
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
@@ -98,6 +99,9 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
                                     dm_nondiag_kernel ='sq_exp')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    assert psr_names[1]+'_dm_gp_log10_ell'in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_ell2' not in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_p' not in mn.param_names
     mn.get_lnlikelihood(x0)
     
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
@@ -105,6 +109,8 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
                                     dm_nondiag_kernel ='sq_exp_rfband')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    assert psr_names[1]+'_dm_gp_log10_alpha_wgt'in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_p' not in mn.param_names
     mn.get_lnlikelihood(x0)
 
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
@@ -112,6 +118,8 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
                                     dm_nondiag_kernel ='periodic')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    assert psr_names[1]+'_dm_gp_log10_p' in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_alpha_wgt' not in mn.param_names
     mn.get_lnlikelihood(x0)
     
     mn=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
@@ -119,6 +127,8 @@ def test_model_singlepsr_noise_dm_nondiag(nodmx_psrs,caplog):
                                     dm_nondiag_kernel ='periodic_rfband')
     assert hasattr(mn,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
+    assert psr_names[1]+'_dm_gp_log10_alpha_wgt' in mn.param_names
+    assert psr_names[1]+'_dm_gp_log10_p' in mn.param_names
     mn.get_lnlikelihood(x0)
 
 
