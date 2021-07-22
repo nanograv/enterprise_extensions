@@ -64,7 +64,7 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
 
     return bwm
-    
+
 def ramp_block(Tmin, Tmax, amp_prior='log-uniform',
                logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
 
