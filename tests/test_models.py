@@ -138,6 +138,9 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
                                     dm_type='gp', dmgp_kernel ='diag',
                                     dm_psd ='powerlaw')
     assert hasattr(mn,'get_lnlikelihood')
+    assert psr_names[1]+'_red_noise_log10_A' in mn.param_names
+    assert psr_names[1]+'_red_noise_kappa' not in mn.param_names
+    assert psr_names[1]+'_red_noise_alphas_adapt_0' not in mn.param_names
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
     
@@ -145,6 +148,8 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
                                     dm_type='gp', dmgp_kernel ='diag',
                                     dm_psd ='turnover')
     assert hasattr(mn,'get_lnlikelihood')
+    assert psr_names[1]+'_red_noise_log10_A' in mn.param_names
+    assert psr_names[1]+'_red_noise_kappa' in mn.param_names
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
 
@@ -152,6 +157,8 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
                                     dm_type='gp', dmgp_kernel ='diag',
                                     dm_psd ='tprocess')
     assert hasattr(mn,'get_lnlikelihood')
+    assert psr_names[1]+'_red_noise_alphas_adapt_0' in mn.param_names
+    assert psr_names[1]+'_red_noise_nfreq' not in mn.param_names
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
 
@@ -159,6 +166,8 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs,caplog):
                                     dm_type='gp', dmgp_kernel ='diag',
                                     dm_psd ='tprocess_adapt')
     assert hasattr(mn,'get_lnlikelihood')
+    assert psr_names[1]+'_red_noise_log10_A' in mn.param_names
+    assert psr_names[1]+'_red_noise_alphas_adapt_0' in mn.param_names
     x0 = {pname:p.sample() for pname,p in zip(mn.param_names, mn.params)}
     mn.get_lnlikelihood(x0)
     
