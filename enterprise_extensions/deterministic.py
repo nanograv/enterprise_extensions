@@ -65,7 +65,7 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
     return bwm
 
-def ramp_block(Tmin, Tmax, amp_prior='log-uniform',
+def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
                logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
 
     if fixed_sign is None:

@@ -2225,7 +2225,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, tm_
 
     return pta
 
-def model_ramp(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
+def model_bwm_sglpsr (psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
               Tmin_bwm=None, Tmax_bwm=None,  burst_logmin=-17, burst_logmax=-12, fixed_sign=None,
               red_psd='powerlaw', logmin=None, logmax=None, components=30,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
