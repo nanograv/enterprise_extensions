@@ -151,17 +151,6 @@ def test_model1(dmx_psrs,caplog):
     m1=models.model_1(dmx_psrs,noisedict=noise_dict)
     assert hasattr(m1,'get_lnlikelihood')
 
-def test_modelramp(nodmx_psrs, caplog):
-    tmax = max([p.toas.max() for p in nodmx_psrs])
-    tmin = min([p.toas.min() for p in nodmx_psrs])
-    Tspan = tmax - tmin
-
-    m=models.model_ramp(nodmx_psrs) # should I be testing the Log and Lookup Likelihoods?
-                                    # If this test belongs in enterprise/tests instead, do
-                                    # I need to include the lookup table in tests/data?
-    assert hassattr(m, 'get_lnlikelihood')
-
-
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model1(dmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
