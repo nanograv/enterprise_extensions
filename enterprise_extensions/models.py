@@ -19,7 +19,9 @@ from enterprise_extensions.timing import timing_block
 from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
                                           dm_noise_block,
                                           chromatic_noise_block,
-                                          common_red_noise_block)
+                                          common_red_noise_block,
+                                          bwm_block,
+                                          bwm_sglpsr_block)
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 from enterprise_extensions import chromatic as chrom
 from enterprise_extensions import dropout as do
@@ -2188,7 +2190,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, tm_
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += deterministic.bwm_block(Tmin_bwm, Tmax_bwm, logmin=burst_logmin, logmax=burst_logmax,
+    s += bwm_block(Tmin_bwm, Tmax_bwm, logmin=burst_logmin, logmax=burst_logmax,
                                          amp_prior=amp_prior,
                                          skyloc=skyloc, name='bwm')
 
@@ -2307,7 +2309,7 @@ def model_bwm_sglpsr (psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += deterministic.bwm_sglpsr_block(Tmin_bwm, Tmax_bwm,amp_prior=amp_prior, name='ramp', logmin=burst_logmin, logmax=burst_logmax, fixed_sign=fixed_sign)
+    s += bwm_sglpsr_block(Tmin_bwm, Tmax_bwm,amp_prior=amp_prior, name='ramp', logmin=burst_logmin, logmax=burst_logmax, fixed_sign=fixed_sign)
 
     # ephemeris model
     if bayesephem:
