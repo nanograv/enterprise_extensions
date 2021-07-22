@@ -105,7 +105,3 @@ ENV/
 
 # mypy
 .mypy_cache/
-
-#Some outlier stuff that's broken
-./enterprise_extensions/outlier/cholesky_omp.c
-./enterprise_extensions/outlier/jitterext.c
