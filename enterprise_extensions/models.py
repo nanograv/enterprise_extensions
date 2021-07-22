@@ -2307,7 +2307,7 @@ def model_bwm_sglpsr (psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=
         dmexp = chrom.dm_exponential_dip(tmin=54500, tmax=54900)
 
     # GW BWM signal block
-    s += deterministic.ramp_block(Tmin_bwm, Tmax_bwm,amp_prior=amp_prior, name='ramp', logmin=burst_logmin, logmax=burst_logmax, fixed_sign=fixed_sign)
+    s += deterministic.bwm_sglpsr_block(Tmin_bwm, Tmax_bwm,amp_prior=amp_prior, name='ramp', logmin=burst_logmin, logmax=burst_logmax, fixed_sign=fixed_sign)
 
     # ephemeris model
     if bayesephem:
