@@ -71,7 +71,17 @@ def test_model_singlepsr_noise_faclike(nodmx_psrs,caplog):
 def test_model_singlepsr_noise_sw(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
-                                   dm_sw_gp=True)
+                                   dm_sw_gp=True, swgp_basis='powerlaw')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
+                                   dm_sw_gp=True, swgp_basis='periodic')
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[1], dm_sw_deter=True,
+                                   dm_sw_gp=True, swgp_basis='sq_exp')
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
@@ -103,9 +113,52 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs,caplog):
 
 def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
     # caplog.set_level(logging.CRITICAL)
+    m=models.model_singlepsr_noise(nodmx_psrs[0], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag')
+    assert 'J0613-0200_chrom_gp_log10_sigma' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell2' not in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_alpha_wgt' not in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_p' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_gam_p' in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
     m=models.model_singlepsr_noise(nodmx_psrs[1], dm_var=True,
                                    dm_type=None, chrom_gp=True,
                                    chrom_gp_kernel='nondiag')
+    assert 'J1713+0747_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell2' not in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_alpha_wgt' not in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_p' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_gam_p' in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[2], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag')
+    assert 'J1909-3744_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell2' not in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_alpha_wgt' not in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_p' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_gam_p' in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[0], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='periodic_rfband')
+    assert 'J0613-0200_chrom_gp_log10_sigma' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell2' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_p' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_gam_p' in m.param_names
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
@@ -113,6 +166,36 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
                                    dm_type=None, chrom_gp=True,
                                    chrom_gp_kernel='nondiag',
                                    chrom_kernel='periodic_rfband')
+    assert 'J1713+0747_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell2' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_p' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_gam_p' in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[2], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='periodic_rfband')
+    assert 'J1909-3744_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell2' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_p' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_gam_p' in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[0], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='sq_exp')
+    assert 'J0613-0200_chrom_gp_log10_sigma' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_p' not in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_gam_p' not in m.param_names
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
@@ -120,6 +203,34 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
                                    dm_type=None, chrom_gp=True,
                                    chrom_gp_kernel='nondiag',
                                    chrom_kernel='sq_exp')
+    assert 'J1713+0747_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_p' not in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_gam_p' not in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[2], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='sq_exp')
+    assert 'J1909-3744_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_p' not in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_gam_p' not in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[0], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='sq_exp_rfband')
+    assert 'J0613-0200_chrom_gp_log10_sigma' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_ell2' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_p' not in m.param_names
+    assert 'J0613-0200_chrom_gp_log10_gam_p' not in m.param_names
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
@@ -127,6 +238,25 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs,caplog):
                                    dm_type=None, chrom_gp=True,
                                    chrom_gp_kernel='nondiag',
                                    chrom_kernel='sq_exp_rfband')
+    assert 'J1713+0747_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_ell2' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_p' not in m.param_names
+    assert 'J1713+0747_chrom_gp_log10_gam_p' not in m.param_names
+    assert hasattr(m,'get_lnlikelihood')
+    x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
+    m.get_lnlikelihood(x0)
+    m=models.model_singlepsr_noise(nodmx_psrs[2], dm_var=True,
+                                   dm_type=None, chrom_gp=True,
+                                   chrom_gp_kernel='nondiag',
+                                   chrom_kernel='sq_exp_rfband')
+    assert 'J1909-3744_chrom_gp_log10_sigma' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_ell2' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_alpha_wgt' in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_p' not in m.param_names
+    assert 'J1909-3744_chrom_gp_log10_gam_p' not in m.param_names
     assert hasattr(m,'get_lnlikelihood')
     x0 = {pname:p.sample() for pname,p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
