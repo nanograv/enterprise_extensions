@@ -2227,7 +2227,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, tm_
 
     return pta
 
-def model_bwm_sglpsr (psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
+def model_bwm_sglpsr (psr, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
               Tmin_bwm=None, Tmax_bwm=None,  burst_logmin=-17, burst_logmax=-12, fixed_sign=None,
               red_psd='powerlaw', logmin=None, logmax=None, components=30,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
@@ -2249,8 +2249,8 @@ def model_bwm_sglpsr (psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=
         6. Optional DM-variation modeling
         7. Deterministic GW burst with memory signal for this pulsar
 
-    :param psrs:
-        list of enterprise.Pulsar objects for PTA
+    :param psr:
+        enterprise.Pulsar objects for PTA. This model is only for one pulsar at a time.
     :param likelihood:
         The likelihood function to use. The options are [enterprise.signals.signal_base.LogLikelihood, enterprise.signals.signal_base.LookupLikelihood]
     :param noisedict:
