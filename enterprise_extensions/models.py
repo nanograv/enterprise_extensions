@@ -2286,8 +2286,8 @@ def model_bwm_sglpsr (psr, likelihood=LogLikelihood, lookupdir=None, noisedict=N
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set frequency sampling
-    tmin = np.min([p.toas.min() for p in psrs])
-    tmax = np.max([p.toas.max() for p in psrs])
+    tmin = psr.toas.min()
+    tmax = psr.toas.max()
     Tspan = tmax - tmin
 
     if Tmin_bwm is None:
@@ -2320,17 +2320,17 @@ def model_bwm_sglpsr (psr, likelihood=LogLikelihood, lookupdir=None, noisedict=N
 
     # adding white-noise, and acting on psr objects
     models = []
-    for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if dm_var and 'J1713+0747' == p.name:
-                s2 += dmexp
-            models.append(s2(p))
-        else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-            if dm_var and 'J1713+0747' == p.name:
-                s3 += dmexp
-            models.append(s3(p))
+
+    if 'NANOGrav' in psr.flags['pta'] and not wideband:
+        s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        if dm_var and 'J1713+0747' == p.name:
+            s2 += dmexp
+        models.append(s2(psr))
+    else:
+        s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+        if dm_var and 'J1713+0747' == p.name:
+            s3 += dmexp
+        models.append(s3(psr))
 
     # set up PTA
     pta = signal_base.PTA(models, likelihood, lookupdir)
