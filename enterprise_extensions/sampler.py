@@ -103,7 +103,18 @@ class JumpProposal(object):
             tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
             tm_groups.extend(tm_idx)
             self.tm_groups = np.array(tm_groups, dtype=object)
-            special_pars = ["PX", "SINI", "COSI", "ECC"]
+            # special_pars = ["PX", "SINI", "COSI", "ECC"]
+            # Any parameter not centered around zero is considered a "special parameter" that does not draw from a zero-centered Gaussian
+            special_pars = []
+            for x in [
+                str(y)
+                for y in pta.params
+                if "Uniform" in str(y) and "timing_model" in str(y)
+            ]:
+                pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
+                pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
+                if pmin + pmax != 0.0:
+                    special_pars.append(x.split(":")[0])
             self.special_idxs = [
                 ii
                 for par, ii in self.pimap.items()
@@ -952,6 +963,16 @@ def setup_sampler(
     groups = get_parameter_groups(pta)
     if timing:
         groups.extend(get_timing_groups(pta))
+        groups.append(
+            group_from_params(
+                pta,
+                [
+                    x
+                    for x in pta.param_names
+                    if any(y in x for y in ["timing_model", "ecorr"])
+                ],
+            )
+        )
 
     sampler = ptmcmc(
         ndim,
@@ -974,7 +995,7 @@ def setup_sampler(
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(jp.draw_from_prior, 5)
+    sampler.addProposalToCycle(jp.draw_from_prior, 15)
 
     # try adding empirical proposals
     if empirical_distr is not None:
@@ -1052,7 +1073,7 @@ def setup_sampler(
     # Non Linear Timing Draws
     if "timing_model" in jp.snames:
         print("Adding timing model jump proposal...\n")
-        sampler.addProposalToCycle(jp.draw_from_timing_model, 60)
+        sampler.addProposalToCycle(jp.draw_from_timing_model, 25)
     if "timing_model" in jp.snames:
         print("Adding timing model prior draw...\n")
         sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
