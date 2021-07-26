@@ -16,6 +16,8 @@ from . import gp_kernels as gpk
 from . import chromatic as chrom
 from . import model_orfs
 
+from enterprise_extensions import deterministic as ee_deterministic
+
 __all__ = ['white_noise_block',
            'red_noise_block',
            'bwm_block',
@@ -271,7 +273,7 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
 
 
     # BWM signal
-    bwm_wf = utils.bwm_delay(log10_h=log10_A_bwm, t0=t0,
+    bwm_wf = ee_deterministic.bwm_delay(log10_h=log10_A_bwm, t0=t0,
                             cos_gwtheta=costh, gwphi=phi, gwpol=pol)
     bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
 
@@ -295,7 +297,7 @@ def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
 
-    ramp_wf = utils.ramp_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
+    ramp_wf = ee_deterministic.ramp_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
     ramp = deterministic_signals.Deterministic(ramp_wf, name=name)
 
     return ramp
