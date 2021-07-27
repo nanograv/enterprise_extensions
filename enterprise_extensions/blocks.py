@@ -297,7 +297,7 @@ def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
 
-    ramp_wf = ee_deterministic.ramp_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
+    ramp_wf = ee_deterministic.bwm_sglpsr_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
     ramp = deterministic_signals.Deterministic(ramp_wf, name=name)
 
     return ramp
