@@ -355,6 +355,7 @@ def cw_delay(toas, pos, pdist,
 
     return res
 
+@signal_base.function
 def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t0=55000,
                 antenna_pattern_fn=None):
     """
@@ -398,7 +399,7 @@ def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t
     # Return the time-series for the pulsar
     return pol * h * np.heaviside(toas - t0, 0.5) * (toas - t0)
 
-
+@signal_base.function
 def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
 
     """
