@@ -11,6 +11,7 @@ from enterprise.signals import gp_signals
 from enterprise.signals import utils
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
+from enterprise.signals import deterministic_signals
 from enterprise import constants as const
 from . import gp_kernels as gpk
 from . import chromatic as chrom
