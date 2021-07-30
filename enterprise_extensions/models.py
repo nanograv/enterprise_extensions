@@ -2216,7 +2216,7 @@ def model_bwm(psrs, likelihood=LogLikelihood,lookupdir=None, noisedict=None, tm_
             models.append(s3(p))
 
     # set up PTA
-    pta = signal_base.PTA(models, likelihood, lookupdir)
+    pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
@@ -2333,7 +2333,7 @@ def model_bwm_sglpsr (psr, likelihood=LogLikelihood, lookupdir=None, noisedict=N
         models.append(s3(psr))
 
     # set up PTA
-    #TODO: decide on a way to handle likelihood 
+    #TODO: decide on a way to handle likelihood
     pta = signal_base.PTA(models)
 
     # set white noise parameters

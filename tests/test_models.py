@@ -162,6 +162,25 @@ def test_modelbwmsglpsr(nodmx_psrs, caplog):
                                     # If this test belongs in enterprise/tests instead, do
                                     # I need to include the lookup table in tests/data?
     assert hasattr(m, 'get_lnlikelihood')
+    assert "ramp_log10_A" in m.param_names
+    assert "ramp_t0" in m.param_names
+
+def test_modelbwm(nodmx_psrs, caplog):
+    tmax = max([p.toas.max() for p in nodmx_psrs])
+    tmin = min([p.toas.min() for p in nodmx_psrs])
+    Tspan = tmax - tmin
+
+
+    m=models.model_bwm(nodmx_psrs) # should I be testing the Log and Lookup Likelihoods?
+                                    # If this test belongs in enterprise/tests instead, do
+                                    # I need to include the lookup table in tests/data?
+    assert hasattr(m, 'get_lnlikelihood')
+    assert "bwm_log10_A" in m.param_names
+    assert "bwm_t0" in m.param_names
+    assert "bwm_phi" in m.param_names
+    assert "bwm_pol" in m.param_names
+    assert "bwm_costheta" in m.param_names
+
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model1(dmx_psrs,caplog):
