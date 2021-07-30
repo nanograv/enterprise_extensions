@@ -161,7 +161,7 @@ def test_modelbwmsglpsr(nodmx_psrs, caplog):
     m=models.model_bwm_sglpsr(nodmx_psr) # should I be testing the Log and Lookup Likelihoods?
                                     # If this test belongs in enterprise/tests instead, do
                                     # I need to include the lookup table in tests/data?
-    assert hassattr(m, 'get_lnlikelihood')
+    assert hasattr(m, 'get_lnlikelihood')
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_model1(dmx_psrs,caplog):
