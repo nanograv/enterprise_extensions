@@ -4,9 +4,7 @@
 """The setup script."""
 
 from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
 import os
-import numpy
 import platform
 
 with open("README.rst") as readme_file:
@@ -33,29 +31,14 @@ test_requirements = [
     "pytest",
 ]
 
+"""
 if platform.system() == "Darwin":
     extra_compile_args = ["-O2", "-Xpreprocessor", "-fopenmp", "-fno-wrapv"]
     extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
 else:
     extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
     extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else []
-
-
-ext_modules = [
-    Extension(
-        "enterprise_extensions.outlier.jitterext",
-        ["./enterprise_extensions/outlier/jitterext.pyx"],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=["-O2"],
-    ),
-    Extension(
-        "enterprise_extensions.outlier.choleskyext_omp",
-        ["./enterprise_extensions/outlier/choleskyext_omp.pyx"],
-        include_dirs=[numpy.get_include()],
-        extra_link_args=extra_link_args,
-        extra_compile_args=extra_compile_args,
-    ),
-]
+"""
 
 # Extract version
 def get_version():
@@ -87,14 +70,12 @@ setup(
         "enterprise_extensions",
         "enterprise_extensions.frequentist",
         "enterprise_extensions.chromatic",
-        "enterprise_extensions.outlier",
     ],
     package_data={
         "enterprise_extensions.chromatic": [
             "ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt"
         ]
     },
-    ext_modules=cythonize(ext_modules),
     test_suite="tests",
     tests_require=test_requirements,
     install_requires=requirements,
