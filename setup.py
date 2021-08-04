@@ -16,7 +16,6 @@ with open("HISTORY.rst") as history_file:
 requirements = [
     "numpy>=1.16.3",
     "scipy>=1.2.0",
-    "Cython>=0.28.5",
     "ephem>=3.7.6.0",
     "healpy>=1.14.0",
     "scikit-sparse>=0.4.5",
