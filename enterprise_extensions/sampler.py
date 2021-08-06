@@ -81,6 +81,7 @@ class JumpProposal(object):
             else:
                 self.empirical_distr = None
 
+            self.pulsars = pta.pulsars
         #F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
             npzfile = np.load(f_stat_file)
@@ -168,6 +169,41 @@ class JumpProposal(object):
                         self.empirical_distr[distr_idx].logprob(newsample))
 
         return q, float(lqxy)
+
+    # def draw_from_psr_empirical_distr(self, x, iter, beta):
+    #
+    #     q = x.copy()
+    #     lqxy = 0
+    #
+    #     if self.empirical_distr is not None:
+    #
+    #         # make list of empirical distributions with psr name
+    #         psr = np.random.choice(self.pulsars)
+    #         pnames = [ed.param_name if ed.ndim==1 else ed.param_names
+    #                   for ed in self.empirical_distr ]
+    #
+    #
+    #         if self.empirical_distr[distr_idx].ndim == 1:
+    #
+    #             idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
+    #             q[idx] = self.empirical_distr[distr_idx].draw()
+    #
+    #             lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
+    #                     self.empirical_distr[distr_idx].logprob(q[idx]))
+    #
+    #         else:
+    #
+    #             oldsample = [x[self.pnames.index(p)]
+    #                          for p in self.empirical_distr[distr_idx].param_names]
+    #             newsample = self.empirical_distr[distr_idx].draw()
+    #
+    #             for p,n in zip(self.empirical_distr[distr_idx].param_names, newsample):
+    #                 q[self.pnames.index(p)] = n
+    #
+    #             lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
+    #                     self.empirical_distr[distr_idx].logprob(newsample))
+    #
+    #     return q, float(lqxy)
 
     def draw_from_dm_gp_prior(self, x, iter, beta):
 
