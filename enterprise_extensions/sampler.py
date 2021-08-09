@@ -182,26 +182,35 @@ class JumpProposal(object):
     #         pnames = [ed.param_name if ed.ndim==1 else ed.param_names
     #                   for ed in self.empirical_distr ]
     #
+    #         # Retrieve indices of emp dists with pulsar pars.
+    #         idxs = []
+    #         for par in pnames:
+    #             if isinstance(par,str):
+    #                 if psr in par:
+    #                     idxs.append(pnames.index(par))
+    #             elif isinstance(par,list):
+    #                 if any([psr in p for p in par]):
+    #                     idxs.append(pnames.index(par))
     #
-    #         if self.empirical_distr[distr_idx].ndim == 1:
+    #         for idx in idxs:
+    #             if self.empirical_distr[idx].ndim == 1:
+    #                 pidx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
+    #                 q[pidx] = self.empirical_distr[pidx].draw()
     #
-    #             idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
-    #             q[idx] = self.empirical_distr[distr_idx].draw()
+    #                 lqxy = (self.empirical_distr[idx].logprob(x[pidx]) -
+    #                         self.empirical_distr[idx].logprob(q[pidx]))
     #
-    #             lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
-    #                     self.empirical_distr[distr_idx].logprob(q[idx]))
+    #             else:
     #
-    #         else:
+    #                 oldsample = [x[self.pnames.index(p)]
+    #                              for p in self.empirical_distr[idx].param_names]
+    #                 newsample = self.empirical_distr[idx].draw()
     #
-    #             oldsample = [x[self.pnames.index(p)]
-    #                          for p in self.empirical_distr[distr_idx].param_names]
-    #             newsample = self.empirical_distr[distr_idx].draw()
+    #                 for p,n in zip(self.empirical_distr[idx].param_names, newsample):
+    #                     q[self.pnames.index(p)] = n
     #
-    #             for p,n in zip(self.empirical_distr[distr_idx].param_names, newsample):
-    #                 q[self.pnames.index(p)] = n
-    #
-    #             lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
-    #                     self.empirical_distr[distr_idx].logprob(newsample))
+    #                 lqxy = (self.empirical_distr[idx].logprob(oldsample) -
+    #                         self.empirical_distr[idx].logprob(newsample))
     #
     #     return q, float(lqxy)
 
