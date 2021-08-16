@@ -132,18 +132,18 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         if logmin is not None and logmax is not None:
             if prior == 'uniform':
                 log10_A = parameter.LinearExp(logmin, logmax)
-            else:
+            elif prior == 'log-uniform':
                 log10_A = parameter.Uniform(logmin, logmax)
-
-        if prior == 'uniform':
-            log10_A = parameter.LinearExp(-20, -11)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A = parameter.Uniform(-20, -11)
+        else:
+            if prior == 'uniform':
+                log10_A = parameter.LinearExp(-20, -11)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_A = parameter.Uniform(-20, -11)
+                else:
+                    log10_A = parameter.Uniform(-20, -11)
             else:
                 log10_A = parameter.Uniform(-20, -11)
-        else:
-            log10_A = parameter.Uniform(-20, -11)
 
         if gamma_val is not None:
             gamma = parameter.Constant(gamma_val)
@@ -665,7 +665,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                     log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
             else:
                 log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
-                
+
         else:
             if prior == 'uniform':
                 log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
