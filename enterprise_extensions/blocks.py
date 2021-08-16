@@ -581,6 +581,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30,
                            log10_A_val = None, gamma_val=None, delta_val=None,
+                           logmin = None, logmax = None,
                            orf=None, orf_ifreq=0, leg_lmax=5,
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
@@ -607,7 +608,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         models. By default spectral index is varied of range [0,7]
     :param delta_val:
         Value of spectral index for high frequencies in broken power-law
-        and turnover models. By default spectral index is varied in range [0,7].
+        and turnover models. By default spectral index is varied in range [0,7].\
+    :param logmin:
+        Specify the lower bound of the prior on the amplitude.
+    :param logmax:
+        Specify the upper bound of the prior on the amplitude
     :param orf:
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
@@ -649,6 +654,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         amp_name = '{}_log10_A'.format(name)
         if log10_A_val is not None:
             log10_Agw = parameter.Constant(log10_A_val)(amp_name)
+
+        if logmin is not None and logmax is not None:
+            if prior == 'uniform':
+                log10_Agw = parameter.LinearExp(logmin, logmax)(amp_name)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+                else:
+                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+            else:
+                log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+                
         else:
             if prior == 'uniform':
                 log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
