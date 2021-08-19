@@ -194,7 +194,7 @@ class JumpProposal(object):
 
             for idx in idxs:
                 if self.empirical_distr[idx].ndim == 1:
-                    pidx = self.pimap(self.empirical_distr[idx].param_name)
+                    pidx = self.pimap[self.empirical_distr[idx].param_name]
                     q[pidx] = self.empirical_distr[idx].draw()
 
                     lqxy += (self.empirical_distr[idx].logprob(x[pidx]) -
