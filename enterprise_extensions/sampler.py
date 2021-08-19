@@ -607,8 +607,8 @@ class JumpProposal(object):
             q[idx] = self.params[idx].sample()
 
         # forward-backward jump probability
-        first = np.sum([self.params[idx].get_logpdf(x[idx]]) for idx in idxs])
-        last = np.sum([self.params[idx].get_logpdf(q[idx]]) for idx in idxs])
+        first = np.sum([self.params[idx].get_logpdf(x[idx]) for idx in idxs])
+        last = np.sum([self.params[idx].get_logpdf(q[idx]) for idx in idxs])
 
         lqxy = first - last
 
