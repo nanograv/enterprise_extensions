@@ -16,6 +16,7 @@ class JumpProposal(object):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
+        self.psrnames = pta.pulsars
         self.ndim = sum(p.size or 1 for p in pta.params)
         self.plist = [p.name for p in pta.params]
 
@@ -81,7 +82,6 @@ class JumpProposal(object):
             else:
                 self.empirical_distr = None
 
-            self.pulsars = pta.pulsars
         #F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
             npzfile = np.load(f_stat_file)
@@ -178,7 +178,7 @@ class JumpProposal(object):
         if self.empirical_distr is not None:
 
             # make list of empirical distributions with psr name
-            psr = np.random.choice(self.pulsars)
+            psr = np.random.choice(self.psrnames)
             pnames = [ed.param_name if ed.ndim==1 else ed.param_names
                       for ed in self.empirical_distr ]
 
@@ -194,11 +194,11 @@ class JumpProposal(object):
 
             for idx in idxs:
                 if self.empirical_distr[idx].ndim == 1:
-                    pidx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
+                    pidx = self.pnames.index(self.empirical_distr[idx].param_name)
                     q[pidx] = self.empirical_distr[pidx].draw()
 
-                    lqxy = (self.empirical_distr[idx].logprob(x[pidx]) -
-                            self.empirical_distr[idx].logprob(q[pidx]))
+                    lqxy += (self.empirical_distr[idx].logprob(x[pidx]) -
+                             self.empirical_distr[idx].logprob(q[pidx]))
 
                 else:
 
@@ -209,8 +209,8 @@ class JumpProposal(object):
                     for p,n in zip(self.empirical_distr[idx].param_names, newsample):
                         q[self.pnames.index(p)] = n
 
-                    lqxy = (self.empirical_distr[idx].logprob(oldsample) -
-                            self.empirical_distr[idx].logprob(newsample))
+                    lqxy += (self.empirical_distr[idx].logprob(oldsample) -
+                             self.empirical_distr[idx].logprob(newsample))
 
         return q, float(lqxy)
 
@@ -594,6 +594,26 @@ class JumpProposal(object):
         draw.__name__ = 'draw_from_{}_log_uniform'.format(name_string)
         return draw
 
+    def draw_from_psr_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from pulsar names
+        psr = np.random.choice(self.psrnames)
+        idxs = [self.pimap[par] for par in self.pnames if psr in par]
+        params = np.array(self.params)[idxs]
+        for idx in idxs:
+            q[idx] = self.params[idx].sample()
+
+        # forward-backward jump probability
+        first = np.sum([self.params[idx].get_logpdf(x[idx]]) for idx in idxs])
+        last = np.sum([self.params[idx].get_logpdf(q[idx]]) for idx in idxs])
+
+        lqxy = first - last
+
+        return q, float(lqxy)
+
     def draw_from_signal(self, signal_names):
         # Preparing and comparing signal_names with PTA signals
         signal_names = np.atleast_1d(signal_names)
@@ -742,6 +762,13 @@ def get_parameter_groups(pta):
 
     return groups
 
+def get_psr_groups(pta):
+    groups = []
+    for psr in pta.pulsars:
+        grp = [pta.param_names.index(par)
+               for par in pta.param_names if psr in par]
+        groups.append(grp)
+    return groups
 
 def get_cw_groups(pta):
     """Utility function to get parameter groups for CW sampling.
@@ -768,7 +795,7 @@ def group_from_params(pta, params):
     return gr
 
 
-def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
+def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, groups=None):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -799,7 +826,8 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
         cov = np.diag(np.ones(ndim) * 0.1**2)
 
     # parameter groupings
-    groups = get_parameter_groups(pta)
+    if groups is None:
+        groups = get_parameter_groups(pta)
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume)
@@ -810,6 +838,7 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
 
     # additional jump proposals
     jp = JumpProposal(pta, empirical_distr=empirical_distr)
+    sampler.jp = jp
 
     # always add draw from prior
     sampler.addProposalToCycle(jp.draw_from_prior, 5)
