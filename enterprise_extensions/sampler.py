@@ -194,14 +194,13 @@ class JumpProposal(object):
 
             for idx in idxs:
                 if self.empirical_distr[idx].ndim == 1:
-                    pidx = self.pnames.index(self.empirical_distr[idx].param_name)
-                    q[pidx] = self.empirical_distr[pidx].draw()
+                    pidx = self.pimap(self.empirical_distr[idx].param_name)
+                    q[pidx] = self.empirical_distr[idx].draw()
 
                     lqxy += (self.empirical_distr[idx].logprob(x[pidx]) -
                              self.empirical_distr[idx].logprob(q[pidx]))
 
                 else:
-
                     oldsample = [x[self.pnames.index(p)]
                                  for p in self.empirical_distr[idx].param_names]
                     newsample = self.empirical_distr[idx].draw()
