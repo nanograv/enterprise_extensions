@@ -194,6 +194,7 @@ class HyperModel(object):
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
+        sampler.jp = jp
 
         # always add draw from prior
         sampler.addProposalToCycle(jp.draw_from_prior, 5)
@@ -232,6 +233,11 @@ class HyperModel(object):
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+
+        # Chromatic GP noise prior draw
+        if 'chrom_gp' in self.snames:
+            print('Adding Chromatic GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
         if 'gp_sw' in jp.snames:
@@ -272,10 +278,10 @@ class HyperModel(object):
         if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
             print('Adding gw param prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_par_prior(
-                par_names=[str(p).split(':')[0] for 
-                           p in list(self.params) 
+                par_names=[str(p).split(':')[0] for
+                           p in list(self.params)
                            if 'gw' in str(p)]), 10)
-        
+
         # Model index distribution draw
         if sample_nmodel:
             if 'nmodel' in self.param_names:
