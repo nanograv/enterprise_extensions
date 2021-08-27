@@ -491,9 +491,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30, 
+                           Tspan=None, components=30,
                            log10_A_val = None, gamma_val=None, delta_val=None,
-                           orf=None, orf_ifreq=0, leg_lmax=5, 
+                           orf=None, orf_ifreq=0, leg_lmax=5,
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
     """
@@ -525,10 +525,10 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         By default we do not use any spatial correlations. Permitted
         values are ['hd', 'dipole', 'monopole'].
     :param orf_ifreq:
-        Frequency bin at which to start the Hellings & Downs function with 
+        Frequency bin at which to start the Hellings & Downs function with
         numbering beginning at 0. Currently only works with freq_hd orf.
     :param leg_lmax:
-        Maximum multipole of a Legendre polynomial series representation 
+        Maximum multipole of a Legendre polynomial series representation
         of the overlap reduction function [default=5]
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
@@ -539,9 +539,13 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     """
 
-    orfs = {'crn': None, 'hd': utils.hd_orf(), 
-            'dipole': utils.dipole_orf(),
-            'monopole': utils.monopole_orf(),
+    orfs = {'crn': None, 'hd': model_orfs.hd_orf(),
+            'gw_monopole': model_orfs.gw_monopole_orf(),
+            'gw_dipole': model_orfs.gw_dipole_orf(),
+            'st': model_orfs.st_orf(),
+            'gt': model_orfs.gt_orf(tau = parameter.Uniform(-1.5,1.5)('tau')),
+            'dipole': model_orfs.dipole_orf(),
+            'monopole': model_orfs.monopole_orf(),
             'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5,3.0)('gw_orf_param0'),
                                      b=parameter.Uniform(-1.0,0.5)('gw_orf_param1'),
                                      c=parameter.Uniform(-1.0,1.0)('gw_orf_param2')),
