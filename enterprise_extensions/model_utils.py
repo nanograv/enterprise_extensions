@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import (absolute_import, division,
                         print_function)
+import time
 import numpy as np
 import scipy.stats as scistats
 
@@ -16,6 +17,7 @@ try:
 except ImportError:
     from emcee.autocorr import integrated_time as acor
 
+from enterprise_extensions import models
 from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
                                                    EmpiricalDistribution2D,
                                                    make_empirical_distributions)
@@ -289,3 +291,69 @@ def mask_filter(psr, mask):
         psr._planetssb = psr.planetssb[mask, :, :]
 
     psr.sort_data()
+
+
+class CompareTimingModels():
+    """
+    Compare difference between the usual and marginalized timing models.
+
+    :param psrs: Pulsar object containing pulsars from model
+    :param model_name: String name of model to test. Model must be defined in enterprise_extensions.models.
+    :param abs_tol: absolute tolerance for error between timing models (default 1e-3)
+    :param rel_tol: relative tolerance for error between timing models (default 1e-6)
+    """
+    def __init__(self, psrs, model_name=None, abs_tol=1e-3, rel_tol=1e-6, **kwargs):
+        model = getattr(models, model_name)
+        self.abs_tol = abs_tol
+        self.rel_tol = rel_tol
+        self.pta_marg = model(psrs, tm_marg=True, **kwargs)  # marginalized model
+        self.pta_norm = model(psrs, **kwargs)  # normal model
+        self.like_correction = 0
+        for psr in psrs:
+            self.like_correction -= 0.5 * np.log(1e40) * psr.Mmat.shape[1]
+        self.abs_err = []
+        self.rel_err = []
+        self.count = 0
+
+    def check_timing(self, number=10000):
+        x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+        start = time.time()
+        for __ in range(number):
+            self.pta_marg.get_lnlikelihood(x0)
+        end = time.time()
+        time_marg = end - start
+
+        start = time.time()
+        for __ in range(number):
+            self.pta_norm.get_lnlikelihood(x0)
+        end = time.time()
+        time_norm = end - start
+        res = time_norm / time_marg
+        print('MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.'.format(res, number))
+        return res
+
+    def get_sample_point(self):
+        x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+        return x0
+
+    def __call__(self, x0):
+        res_norm = self.pta_norm.get_lnlikelihood(x0)
+        res_marg = self.pta_marg.get_lnlikelihood(x0)
+        abs_err = np.abs(res_marg + self.like_correction - res_norm)
+        rel_err = abs_err / res_norm
+        self.abs_err.append(abs_err)
+        self.rel_err.append(rel_err)
+        self.count += 1
+        if abs_err > self.abs_tol:
+            abs_raise = 'Absolute error is {0} at {1} which is larger than abs_tol of {2}.'.format(abs_err, x0, self.abs_tol)
+            raise ValueError(abs_raise)
+        elif rel_err > self.rel_tol:
+            rel_raise = 'Relative error is {0} at {1} which is larger than rel_tol of {2}.'.format(rel_err, x0, self.rel_tol)
+            raise ValueError(rel_raise)
+        return res_norm
+
+    def results(self):
+        print('Number of points evaluated:', self.count)
+        print('Maximum absolute error:', np.max(self.abs_err))
+        print('Maximum relative error:', np.max(self.rel_err))
+        return np.max(self.abs_err), np.max(self.rel_err)
