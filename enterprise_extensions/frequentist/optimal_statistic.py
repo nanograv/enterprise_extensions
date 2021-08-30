@@ -9,7 +9,7 @@ from enterprise_extensions import models
 from enterprise.signals import utils
 from enterprise.signals import signal_base
 from enterprise.signals import gp_priors
-
+from enterprise_extensions import model_orfs
 import warnings
 
 
@@ -67,11 +67,17 @@ class OptimalStatistic(object):
 
         # overlap reduction function
         if orf == 'hd':
-            self.orf = utils.hd_orf
+            self.orf = model_orfs.hd_orf
         elif orf == 'dipole':
-            self.orf = utils.dipole_orf
+            self.orf = model_orfs.dipole_orf
         elif orf == 'monopole':
-            self.orf = utils.monopole_orf
+            self.orf = model_orfs.monopole_orf
+        elif orf == 'gw_monopole':
+            self.orf = model_orfs.gw_monopole_orf
+        elif orf == 'gw_dipole':
+            self.orf = model_orfs.gw_dipole_orf
+        elif orf == 'st':
+            self.orf = model_orfs.st_orf
         else:
             raise ValueError('Unknown ORF!')
 
@@ -139,7 +145,7 @@ class OptimalStatistic(object):
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
             for jj in range(ii+1, npsr):
-                
+
                 if psd == 'powerlaw':
                     if self.gamma_common is None and 'gw_gamma' in params.keys():
                         print('{0:1.2}'.format(params['gw_gamma']))

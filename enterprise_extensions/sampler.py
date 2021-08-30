@@ -6,6 +6,7 @@ import os
 from enterprise import constants as const
 import pickle
 import healpy as hp
+import glob
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
@@ -46,23 +47,52 @@ class JumpProposal(object):
         else:
             self.snames = snames
 
-        # empirical distributions
-        if empirical_distr is not None and os.path.isfile(empirical_distr):
+        # empirical distributions 
+        if isinstance(empirical_distr, list):
+            # check if a list of emp dists is provided
+            self.empirical_distr = empirical_distr
+        
+        # check if a directory of empirical dist pkl files are provided
+        elif empirical_distr is not None and os.path.isdir(empirical_distr):
+        
+            dir_files = glob.glob(empirical_distr+'*.pkl') # search for pkls
+        
+            pickled_distr = np.array([])
+            for idx, emp_file in enumerate(dir_files):
+                try:
+                    with open(emp_file, 'rb') as f:
+                        pickled_distr = np.append(pickled_distr, pickle.load(f))
+                except:
+                    try:
+                        with open(emp_file, 'rb') as f:
+                           pickled_distr = np.append(pickled_distr, pickle.load(f))
+                    except:
+                        print(f'\nI can\'t open the empirical distribution pickle file at location {idx} in list!')
+                        print("Empirical distributions set to 'None'")
+                        pickled_distr = None
+                        break
+            
+            self.empirical_distr = pickled_distr
+        
+        # check if single pkl file provided
+        elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
             try:
+                # try opening the file
                 with open(empirical_distr, 'rb') as f:
                     pickled_distr = pickle.load(f)
             except:
+                # second attempt at opening the file
                 try:
                     with open(empirical_distr, 'rb') as f:
                         pickled_distr = pickle.load(f)
+                # if the second attempt fails...
                 except:
-                    print('I can\'t open the empirical distribution pickle file!')
+                    print('\nI can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
 
             self.empirical_distr = pickled_distr
-
-        elif isinstance(empirical_distr,list):
-            pass
+        
+        # all other cases - emp dists set to None
         else:
             self.empirical_distr = None
 
@@ -80,6 +110,10 @@ class JumpProposal(object):
                 self.empirical_distr = [self.empirical_distr[m] for m in mask]
             else:
                 self.empirical_distr = None
+                
+        if empirical_distr is not None and self.empirical_distr is None:
+            # if an emp dist path is provided, but fails the code, this helpful msg is provided
+            print("Adding empirical distributions failed!! Empirical distributions set to 'None'\n")
 
         #F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
@@ -369,6 +403,31 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+
+    def draw_from_fdm_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = 'fdm'
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
+
     def draw_from_cw_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -436,6 +495,7 @@ class JumpProposal(object):
                'gw',
                'cw',
                'bwm',
+               'fdm',
                'gp_sw',
                'ecorr_sherman-morrison',
                'ecorr',
@@ -764,7 +824,7 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
 
     # try adding empirical proposals
     if empirical_distr is not None:
-        print('Adding empirical proposals...\n')
+        print('Attempting to add empirical proposals...\n')
         sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
 
     # Red noise prior draw
@@ -826,6 +886,11 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None):
     if 'bwm_log10_A' in pta.param_names:
         print('Adding BWM prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
+
+    # FDM prior draw
+    if 'fdm_log10_A' in pta.param_names:
+        print('Adding FDM prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
 
     # CW prior draw
     if 'cw_log10_h' in pta.param_names:

@@ -632,9 +632,14 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     """
 
-    orfs = {'crn': None, 'hd': utils.hd_orf(),
-            'dipole': utils.dipole_orf(),
-            'monopole': utils.monopole_orf(),
+
+    orfs = {'crn': None, 'hd': model_orfs.hd_orf(),
+            'gw_monopole': model_orfs.gw_monopole_orf(),
+            'gw_dipole': model_orfs.gw_dipole_orf(),
+            'st': model_orfs.st_orf(),
+            'gt': model_orfs.gt_orf(tau = parameter.Uniform(-1.5,1.5)('tau')),
+            'dipole': model_orfs.dipole_orf(),
+            'monopole': model_orfs.monopole_orf(),
             'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5,3.0)('gw_orf_param0'),
                                      b=parameter.Uniform(-1.0,0.5)('gw_orf_param1'),
                                      c=parameter.Uniform(-1.0,1.0)('gw_orf_param2')),
