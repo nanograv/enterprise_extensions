@@ -253,7 +253,7 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
         # GWB uniform distribution draw
-        if 'gw_log10_A' in self.param_names:
+        if np.any([('gw' in par and 'log10_A' in par) for par in self.param_names]):
             print('Adding GWB uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 

@@ -372,10 +372,10 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        try:
-            idx = self.pnames.index('gw_log10_A')
-        except ValueError:
-            idx = self.pnames.index('gw_crn_log10_A')
+        gw_pars = [par for par in self.pnames
+                   if ('gw' in par and 'log10_A' in par)]
+        gw_par = np.random.choice(gw_pars)
+        idx = self.pnames.index(gw_par)
 
         q[idx] = np.random.uniform(-18, -14)
 
