@@ -297,20 +297,23 @@ class CompareTimingModels():
     """
     Compare difference between the usual and marginalized timing models.
 
+    After instantiating, the __call__() method can be used for sampling for any number of points.
+    To see the results, use the results() method.
+
     :param psrs: Pulsar object containing pulsars from model
     :param model_name: String name of model to test. Model must be defined in enterprise_extensions.models.
     :param abs_tol: absolute tolerance for error between timing models (default 1e-3)
     :param rel_tol: relative tolerance for error between timing models (default 1e-6)
     """
-    def __init__(self, psrs, model_name=None, abs_tol=1e-3, rel_tol=1e-6, **kwargs):
+    def __init__(self, psrs, model_name='model_1', abs_tol=1e-3, rel_tol=1e-6, **kwargs):
         model = getattr(models, model_name)
         self.abs_tol = abs_tol
         self.rel_tol = rel_tol
         self.pta_marg = model(psrs, tm_marg=True, **kwargs)  # marginalized model
         self.pta_norm = model(psrs, **kwargs)  # normal model
-        self.like_correction = 0
-        for psr in psrs:
-            self.like_correction -= 0.5 * np.log(1e40) * psr.Mmat.shape[1]
+        # self.like_correction = 0
+        # for psr in psrs:
+        #     self.like_correction -= 0.5 * np.log(1e40) * psr.Mmat.shape[1]
         self.abs_err = []
         self.rel_err = []
         self.count = 0
@@ -339,7 +342,7 @@ class CompareTimingModels():
     def __call__(self, x0):
         res_norm = self.pta_norm.get_lnlikelihood(x0)
         res_marg = self.pta_marg.get_lnlikelihood(x0)
-        abs_err = np.abs(res_marg + self.like_correction - res_norm)
+        abs_err = np.abs(res_marg - res_norm)
         rel_err = abs_err / res_norm
         self.abs_err.append(abs_err)
         self.rel_err.append(rel_err)

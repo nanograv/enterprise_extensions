@@ -186,7 +186,6 @@ def zero_diag_legendre_orf(pos1, pos2, params):
 @signal_base.function
 def hd_orf(pos1, pos2):
     """Hellings & Downs spatial correlation function."""
-    print(pos1,pos2)
     if np.all(pos1 == pos2):
         return 1
     else:
