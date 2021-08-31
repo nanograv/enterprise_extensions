@@ -10,60 +10,6 @@ from enterprise.signals import utils
 from enterprise import constants as const
 
 
-def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
-              skyloc=None, logmin=-18, logmax=-11,
-              name='bwm'):
-    """
-    Returns deterministic GW burst with memory model:
-        1. Burst event parameterized by time, sky location,
-        polarization angle, and amplitude
-    :param Tmin:
-        Min time to search, probably first TOA (MJD).
-    :param Tmax:
-        Max time to search, probably last TOA (MJD).
-    :param amp_prior:
-        Prior on log10_A. Default if "log-uniform". Use "uniform" for
-        upper limits.
-    :param skyloc:
-        Fixed sky location of BWM signal search as [cos(theta), phi].
-        Search over sky location if ``None`` given.
-    :param logmin:
-        log of minimum BWM amplitude for prior (log10)
-    :param logmax:
-        log of maximum BWM amplitude for prior (log10)
-    :param name:
-        Name of BWM signal.
-    """
-
-    # BWM parameters
-    amp_name = '{}_log10_A'.format(name)
-    if amp_prior == 'uniform':
-        log10_A_bwm = parameter.LinearExp(logmin, logmax)(amp_name)
-    elif amp_prior == 'log-uniform':
-        log10_A_bwm = parameter.Uniform(logmin, logmax)(amp_name)
-
-    pol_name = '{}_pol'.format(name)
-    pol = parameter.Uniform(0, np.pi)(pol_name)
-
-    t0_name = '{}_t0'.format(name)
-    t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
-
-    costh_name = '{}_costheta'.format(name)
-    phi_name = '{}_phi'.format(name)
-    if skyloc is None:
-        costh = parameter.Uniform(-1, 1)(costh_name)
-        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
-    else:
-        costh = parameter.Constant(skyloc[0])(costh_name)
-        phi = parameter.Constant(skyloc[1])(phi_name)
-
-
-    # BWM signal
-    bwm_wf = utils.bwm_delay(log10_h=log10_A_bwm, t0=t0,
-                            cos_gwtheta=costh, gwphi=phi, gwpol=pol)
-    bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
-
-    return bwm
 
 
 def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
@@ -460,6 +406,74 @@ def cw_delay(toas, pos, pdist,
         res = -fplus*rplus - fcross*rcross
 
     return res
+
+@signal_base.function
+def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t0=55000,
+                antenna_pattern_fn=None):
+    """
+    Function that calculates the earth-term gravitational-wave
+    burst-with-memory signal, as described in:
+    Seto et al, van haasteren and Levin, phsirkov et al, Cordes and Jenet.
+    This version uses the F+/Fx polarization modes, as verified with the
+    Continuous Wave and Anisotropy papers.
+
+    :param toas: Time-of-arrival measurements [s]
+    :param pos: Unit vector from Earth to pulsar
+    :param log10_h: log10 of GW strain
+    :param cos_gwtheta: Cosine of GW polar angle
+    :param gwphi: GW azimuthal polar angle [rad]
+    :param gwpol: GW polarization angle
+    :param t0: Burst central time [day]
+    :param antenna_pattern_fn:
+        User defined function that takes `pos`, `gwtheta`, `gwphi` as
+        arguments and returns (fplus, fcross)
+
+    :return: the waveform as induced timing residuals (seconds)
+    """
+
+    # convert
+    h = 10 ** log10_h
+    gwtheta = np.arccos(cos_gwtheta)
+    t0 *= const.day
+
+    # antenna patterns
+    if antenna_pattern_fn is None:
+        apc = create_gw_antenna_pattern(pos, gwtheta, gwphi)
+    else:
+        apc = antenna_pattern_fn(pos, gwtheta, gwphi)
+
+    # grab fplus, fcross
+    fp, fc = apc[0], apc[1]
+
+    # combined polarization
+    pol = np.cos(2 * gwpol) * fp + np.sin(2 * gwpol) * fc
+
+    # Return the time-series for the pulsar
+    return pol * h * np.heaviside(toas - t0, 0.5) * (toas - t0)
+
+@signal_base.function
+def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
+
+    """
+    Function that calculates the earth-term gravitational-wave
+    burst-with-memory signal for an optimally oriented source in a single pulsar
+
+    :param toas: Time-of-arrival measurements [s]
+    :param log10_A: log10 of the amplitude of the ramp (delta_f/f)
+    :param t0: Burst central time [day]
+
+    :return: the waveform as induced timing residuals (seconds)
+    """
+
+
+    A = 10 ** log10_A
+    t0 *= const.day
+    # Return the time-series for the pulsar
+    heaviside = lambda x: 0.5 * (np.sign(x) + 1)
+
+    #return 0 #Fix the return to 0 in order to test what the heck is wrong with red noise detection in bwm
+    return A * np.sign(sign) * heaviside(toas - t0) * (toas - t0)
+
 
 
 @signal_base.function
