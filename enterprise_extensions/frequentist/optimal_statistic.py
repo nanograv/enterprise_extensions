@@ -259,8 +259,8 @@ class OptimalStatistic(object):
 
         return (xi, rho, sig, Opt, Opt/Sig)
     
-    def fit_multiple_corrs(self, params=None, psd='powerlaw', fgw=None,
-                            correlations=['monopole', 'dipole', 'hd']):
+    def compute_multiple_corr_os(self, params=None, psd='powerlaw', fgw=None,
+                                 correlations=['monopole', 'dipole', 'hd']):
         """
         Fits the correlations to multiple spatial correlation functions
         
@@ -318,6 +318,56 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, A, A_err
         
+    def compute_noise_marginalized_multiple_corr_os(self, chain, param_names=None, N=10000,
+                                                    correlations=['monopole', 'dipole', 'hd']):
+        """
+        Noise-marginalized fitting of the correlations to multiple spatial
+        correlation functions
+        
+        :param correlations: list of correlation functions
+        :param chain: MCMC chain from Bayesian run.
+        :param param_names: list of parameter names for the chain file
+        :param N: number of iterations to run.
+        
+        :returns:
+            xi: angular separation [rad] for each pulsar pair
+            rho: correlation coefficient for each pulsar pair and for each noise realization
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair
+                 and for each noise realization
+            A: An array of correlation amplitudes for each noise realization
+            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
+                    for each noise realization
+        """
+        
+        # check that the chain file has the same number of parameters as the model
+        if chain.shape[1] - 4 != len(self.pta.param_names):
+            msg = 'MCMC chain does not have the same number of parameters '
+            msg += 'as the model.'
+
+            warnings.warn(msg)
+
+        rho, sig, A, A_err = [], [], [], []
+        setpars = {}
+        for ii in range(N):
+            idx = np.random.randint(0, chain.shape[0])
+
+            # if param_names is not specified, the parameter dictionary
+            # is made by mapping the values from the chain to the
+            # parameters in the pta object
+            if param_names is None:
+                setpars.update(self.pta.map_params(chain[idx, :-4]))
+            else:
+                setpars = dict(zip(param_names,chain[idx,:-4]))
+                
+            xi, rho_tmp, sig_tmp, A_tmp, A_err_tmp = self.compute_multiple_corr_os(params=setpars,
+                                                                                      correlations=['monopole', 'dipole', 'hd'])
+                                                                                      
+            rho.append(rho_tmp)
+            sig.append(sig_tmp)
+            A.append(A_tmp)
+            A_err.append(A_tmp)
+            
+        return np.array(xi), np.array(rho), np.array(sig), np.array(A), np.array(A_err)
 
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
