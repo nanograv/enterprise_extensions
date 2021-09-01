@@ -11,13 +11,18 @@ from enterprise.signals import gp_signals
 from enterprise.signals import utils
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
+from enterprise.signals import deterministic_signals
 from enterprise import constants as const
 from . import gp_kernels as gpk
 from . import chromatic as chrom
 from . import model_orfs
 
+from enterprise_extensions import deterministic as ee_deterministic
+
 __all__ = ['white_noise_block',
            'red_noise_block',
+           'bwm_block',
+           'bwm_sglpsr_block'
            'dm_noise_block',
            'scattering_noise_block',
            'chromatic_noise_block',
@@ -101,7 +106,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
                     select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None):
+                    break_flat=False, break_flat_fq=None, logmin=None, logmax=None):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies
@@ -124,15 +129,21 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
                'tprocess', 'tprocess_adapt', 'infinitepower']:
         # parameters shared by PSD functions
-        if prior == 'uniform':
-            log10_A = parameter.LinearExp(-20, -11)
-        elif prior == 'log-uniform' and gamma_val is not None:
-            if np.abs(gamma_val - 4.33) < 0.1:
-                log10_A = parameter.Uniform(-20, -11)
+        if logmin is not None and logmax is not None:
+            if prior == 'uniform':
+                log10_A = parameter.LinearExp(logmin, logmax)
+            elif prior == 'log-uniform':
+                log10_A = parameter.Uniform(logmin, logmax)
+        else:
+            if prior == 'uniform':
+                log10_A = parameter.LinearExp(-20, -11)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_A = parameter.Uniform(-20, -11)
+                else:
+                    log10_A = parameter.Uniform(-20, -11)
             else:
                 log10_A = parameter.Uniform(-20, -11)
-        else:
-            log10_A = parameter.Uniform(-20, -11)
 
         if gamma_val is not None:
             gamma = parameter.Constant(gamma_val)
@@ -214,6 +225,83 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     return rn
 
+def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
+              skyloc=None, logmin=-18, logmax=-11,
+              name='bwm'):
+    """
+    Returns deterministic GW burst with memory model:
+        1. Burst event parameterized by time, sky location,
+        polarization angle, and amplitude
+    :param Tmin:
+        Min time to search, probably first TOA (MJD).
+    :param Tmax:
+        Max time to search, probably last TOA (MJD).
+    :param amp_prior:
+        Prior on log10_A. Default if "log-uniform". Use "uniform" for
+        upper limits.
+    :param skyloc:
+        Fixed sky location of BWM signal search as [cos(theta), phi].
+        Search over sky location if ``None`` given.
+    :param logmin:
+        log of minimum BWM amplitude for prior (log10)
+    :param logmax:
+        log of maximum BWM amplitude for prior (log10)
+    :param name:
+        Name of BWM signal.
+    """
+
+    # BWM parameters
+    amp_name = '{}_log10_A'.format(name)
+    if amp_prior == 'uniform':
+        log10_A_bwm = parameter.LinearExp(logmin, logmax)(amp_name)
+    elif amp_prior == 'log-uniform':
+        log10_A_bwm = parameter.Uniform(logmin, logmax)(amp_name)
+
+    pol_name = '{}_pol'.format(name)
+    pol = parameter.Uniform(0, np.pi)(pol_name)
+
+    t0_name = '{}_t0'.format(name)
+    t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
+
+    costh_name = '{}_costheta'.format(name)
+    phi_name = '{}_phi'.format(name)
+    if skyloc is None:
+        costh = parameter.Uniform(-1, 1)(costh_name)
+        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+    else:
+        costh = parameter.Constant(skyloc[0])(costh_name)
+        phi = parameter.Constant(skyloc[1])(phi_name)
+
+
+    # BWM signal
+    bwm_wf = ee_deterministic.bwm_delay(log10_h=log10_A_bwm, t0=t0,
+                            cos_gwtheta=costh, gwphi=phi, gwpol=pol)
+    bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
+
+    return bwm
+
+def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
+               logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
+
+    if fixed_sign is None:
+        sign = parameter.Uniform(-1, 1)("sign")
+    else:
+        sign = np.sign(fixed_sign)
+
+    amp_name = '{}_log10_A'.format(name)
+    if amp_prior == 'uniform':
+        log10_A_ramp = parameter.LinearExp(logmin, logmax)(amp_name)
+    elif amp_prior == 'log-uniform':
+        log10_A_ramp = parameter.Uniform(logmin, logmax)(amp_name)
+
+    t0_name = '{}_t0'.format(name)
+    t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
+
+
+    ramp_wf = ee_deterministic.bwm_sglpsr_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
+    ramp = deterministic_signals.Deterministic(ramp_wf, name=name)
+
+    return ramp
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', dt=15, df=200,
@@ -493,6 +581,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30,
                            log10_A_val = None, gamma_val=None, delta_val=None,
+                           logmin = None, logmax = None,
                            orf=None, orf_ifreq=0, leg_lmax=5,
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
@@ -519,7 +608,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         models. By default spectral index is varied of range [0,7]
     :param delta_val:
         Value of spectral index for high frequencies in broken power-law
-        and turnover models. By default spectral index is varied in range [0,7].
+        and turnover models. By default spectral index is varied in range [0,7].\
+    :param logmin:
+        Specify the lower bound of the prior on the amplitude.
+    :param logmax:
+        Specify the upper bound of the prior on the amplitude
     :param orf:
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
@@ -538,6 +631,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     :param name: Name of common red process
 
     """
+
 
     orfs = {'crn': None, 'hd': model_orfs.hd_orf(),
             'gw_monopole': model_orfs.gw_monopole_orf(),
@@ -565,6 +659,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         amp_name = '{}_log10_A'.format(name)
         if log10_A_val is not None:
             log10_Agw = parameter.Constant(log10_A_val)(amp_name)
+
+        if logmin is not None and logmax is not None:
+            if prior == 'uniform':
+                log10_Agw = parameter.LinearExp(logmin, logmax)(amp_name)
+            elif prior == 'log-uniform' and gamma_val is not None:
+                if np.abs(gamma_val - 4.33) < 0.1:
+                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+                else:
+                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+            else:
+                log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
+
         else:
             if prior == 'uniform':
                 log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
