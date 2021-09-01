@@ -258,6 +258,66 @@ class OptimalStatistic(object):
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
         return (xi, rho, sig, Opt, Opt/Sig)
+    
+    def fit_multiple_corrs(self, params=None, psd='powerlaw', fgw=None,
+                            correlations=['monopole', 'dipole', 'hd']):
+        """
+        Fits the correlations to multiple spatial correlation functions
+        
+        :param params: `enterprise` parameter dictionary.
+        :param psd: choice of cross-power psd [powerlaw,spectrum]
+        :fgw: frequency of GW spectrum to probe, in Hz [default=None]
+        :param correlations: list of correlation functions
+        
+        :returns:
+            xi: angular separation [rad] for each pulsar pair
+            rho: correlation coefficient for each pulsar pair
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair.
+            A: An array of correlation amplitudes
+            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
+        """
+        
+        xi, rho, sig, _, _ = self.compute_os(params=params, psd='powerlaw', fgw=None)
+        
+        # construct a list of all the ORFs to be fit simultaneously
+        ORFs = []
+        for corr in correlations:
+            if corr == 'hd':
+                orf_func = model_orfs.hd_orf
+            elif corr == 'dipole':
+                orf_func = model_orfs.dipole_orf
+            elif corr == 'monopole':
+                orf_func = model_orfs.monopole_orf
+            elif corr == 'gw_monopole':
+                orf_func = model_orfs.gw_monopole_orf
+            elif corr == 'gw_dipole':
+                orf_func = model_orfs.gw_dipole_orf
+            elif corr == 'st':
+                orf_func = model_orfs.st_orf
+            else:
+                raise ValueError('Unknown ORF!')
+                
+            ORF = []
+            
+            npsr = len(self.pta._signalcollections)
+            for ii in range(npsr):
+                for jj in range(ii+1, npsr):
+                    ORF.append(orf_func(self.psrlocs[ii], self.psrlocs[jj]))
+                    
+            ORFs.append(np.array(ORF))
+            
+        Bmat = np.array([[np.sum(ORFs[i]*ORFs[j]/sig**2) for i in range(len(ORFs))]
+                 for j in range(len(ORFs))])
+                 
+        Bmatinv = np.linalg.inv(Bmat)
+
+        Cmat = np.array([np.sum(rho*ORFs[i]/sig**2) for i in range(len(ORFs))])
+
+        A = np.dot(Bmatinv, Cmat)
+        A_err = np.array([np.sqrt(Bmatinv[i,i]) for i in range(len(ORFs))])
+
+        return xi, rho, sig, A, A_err
+        
 
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
