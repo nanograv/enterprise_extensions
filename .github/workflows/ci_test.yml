@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ master, dev ]
   release:
+    workflow_dispatch:
     types:
       - published
 
@@ -106,28 +107,28 @@ jobs:
         path: dist/*
 
 
-  #deploy:
-   # needs: [tests, build]
-   # runs-on: ubuntu-latest
-   # if: github.event_name == 'release'
-   # steps:
-   # - uses: actions/checkout@v2
-   # - name: Set up Python
-   #   uses: actions/setup-python@v2
-   #   with:
-   #     python-version: '3.7'
-   # - name: Install dependencies
-   #   run: |
-   #     python -m pip install --upgrade pip
-   #     pip install setuptools wheel twine
-   # - name: Download wheel/dist from build
-   #   uses: actions/download-artifact@v2
-   #   with:
-   #     name: dist
-   #     path: dist
-   # - name: Build and publish
-   #   env:
-   #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-   #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-   #   run: |
-   #     twine upload dist/*
+  deploy:
+   needs: [tests, build]
+   runs-on: ubuntu-latest
+   if: github.event_name == 'release'
+   steps:
+   - uses: actions/checkout@v2
+   - name: Set up Python
+     uses: actions/setup-python@v2
+     with:
+       python-version: '3.7'
+   - name: Install dependencies
+     run: |
+       python -m pip install --upgrade pip
+       pip install setuptools wheel twine
+   - name: Download wheel/dist from build
+     uses: actions/download-artifact@v2
+     with:
+       name: dist
+       path: dist
+   - name: Build and publish
+     env:
+       TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+       TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+     run: |
+       twine upload dist/*
