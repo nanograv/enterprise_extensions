@@ -41,6 +41,7 @@ setup(
     version=get_version(),
     description="Extensions, model shortcuts, and utilities for the enterprise PTA analysis framework.",
     long_description=readme + "\n\n" + history,
+    long_description_content_type='text/x-rst',
     classifiers=[
         "Topic :: Scientific/Engineering :: Astronomy",
         "Topic :: Scientific/Engineering :: Physics",
