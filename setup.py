@@ -26,16 +26,7 @@ requirements = [
     "ptmcmcsampler",
 ]
 
-test_requirements = [
-    "pytest",
-]
-
-if platform.system() == "Darwin":
-    extra_compile_args = ["-O2", "-Xpreprocessor", "-fopenmp", "-fno-wrapv"]
-    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
-else:
-    extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
-    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else []
+test_requirements = []
 
 # Extract version
 def get_version():
