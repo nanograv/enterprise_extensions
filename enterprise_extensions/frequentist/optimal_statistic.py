@@ -256,17 +256,17 @@ class OptimalStatistic(object):
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
         return (xi, rho, sig, Opt, Opt/Sig)
-    
+
     def compute_multiple_corr_os(self, params=None, psd='powerlaw', fgw=None,
                                  correlations=['monopole', 'dipole', 'hd']):
         """
         Fits the correlations to multiple spatial correlation functions
-        
+
         :param params: `enterprise` parameter dictionary.
         :param psd: choice of cross-power psd [powerlaw,spectrum]
         :fgw: frequency of GW spectrum to probe, in Hz [default=None]
         :param correlations: list of correlation functions
-        
+
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair
@@ -274,9 +274,9 @@ class OptimalStatistic(object):
             A: An array of correlation amplitudes
             OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
         """
-        
+
         xi, rho, sig, _, _ = self.compute_os(params=params, psd='powerlaw', fgw=None)
-        
+
         # construct a list of all the ORFs to be fit simultaneously
         ORFs = []
         for corr in correlations:
@@ -294,19 +294,19 @@ class OptimalStatistic(object):
                 orf_func = model_orfs.st_orf
             else:
                 raise ValueError('Unknown ORF!')
-                
+
             ORF = []
-            
+
             npsr = len(self.pta._signalcollections)
             for ii in range(npsr):
                 for jj in range(ii+1, npsr):
                     ORF.append(orf_func(self.psrlocs[ii], self.psrlocs[jj]))
-                    
+
             ORFs.append(np.array(ORF))
-            
+
         Bmat = np.array([[np.sum(ORFs[i]*ORFs[j]/sig**2) for i in range(len(ORFs))]
                  for j in range(len(ORFs))])
-                 
+
         Bmatinv = np.linalg.inv(Bmat)
 
         Cmat = np.array([np.sum(rho*ORFs[i]/sig**2) for i in range(len(ORFs))])
@@ -315,18 +315,18 @@ class OptimalStatistic(object):
         A_err = np.array([np.sqrt(Bmatinv[i,i]) for i in range(len(ORFs))])
 
         return xi, rho, sig, A, A_err
-        
+
     def compute_noise_marginalized_multiple_corr_os(self, chain, param_names=None, N=10000,
                                                     correlations=['monopole', 'dipole', 'hd']):
         """
         Noise-marginalized fitting of the correlations to multiple spatial
         correlation functions
-        
+
         :param correlations: list of correlation functions
         :param chain: MCMC chain from Bayesian run.
         :param param_names: list of parameter names for the chain file
         :param N: number of iterations to run.
-        
+
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair and for each noise realization
@@ -336,7 +336,7 @@ class OptimalStatistic(object):
             OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
                     for each noise realization
         """
-        
+
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
             msg = 'MCMC chain does not have the same number of parameters '
@@ -356,15 +356,15 @@ class OptimalStatistic(object):
                 setpars.update(self.pta.map_params(chain[idx, :-4]))
             else:
                 setpars = dict(zip(param_names,chain[idx,:-4]))
-                
+
             xi, rho_tmp, sig_tmp, A_tmp, A_err_tmp = self.compute_multiple_corr_os(params=setpars,
-                                                correlations=['monopole', 'dipole', 'hd'])
-                                                                                      
+                                                correlations=correlations)
+
             rho.append(rho_tmp)
             sig.append(sig_tmp)
             A.append(A_tmp)
-            A_err.append(A_tmp)
-            
+            A_err.append(A_err_tmp)
+
         return np.array(xi), np.array(rho), np.array(sig), np.array(A), np.array(A_err)
 
     def get_Fmats(self, params={}):
