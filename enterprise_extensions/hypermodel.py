@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division,
 import numpy as np
 import scipy.stats as scistats
 import scipy.linalg as sl
+import os
 
 from enterprise import constants as const
 from enterprise.signals import signal_base
