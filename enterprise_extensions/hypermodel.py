@@ -38,6 +38,10 @@ class HyperModel(object):
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
         #########
 
+        self.pulsars = np.unique(np.concatenate([p.pulsars
+                                                 for p in self.models.values()]))
+        self.pulsars = np.sort(self.pulsars)
+
         #########
         self.params = [p for p in self.models[0].params] # start of param list
         uniq_params = [str(p) for p in self.models[0].params] # which params are unique
