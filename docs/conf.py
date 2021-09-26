@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
-import enterprise_extensions  # isort: ignore
+import enterprise_extensions  # isort: ignore noqa: F402
 
 # -- General configuration ---------------------------------------------
 
