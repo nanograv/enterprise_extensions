@@ -1,3 +1,28 @@
+[tool.black]
+line-length = 120
+target_version = ['py36']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | _build
+    | buck-out
+    | build
+    | dist
+    | docs
+    | .enterprise_extensions
+    | enterprise_extensions/src
+  )/
+)
+'''
+
+
 [build-system]
 requires = [
     "setuptools>=40.8.0",
