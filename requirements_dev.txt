@@ -2,6 +2,7 @@ pip>=19.1.1
 black~=19.10b0
 flake8~=3.7.7
 pre-commit~=1.15.2
+isort==5.6.1
 bumpversion>=0.5.3
 wheel>=0.29.0
 watchdog>=0.9.0
