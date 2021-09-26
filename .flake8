@@ -14,6 +14,5 @@ exclude =
     __pycache__
     build
     dist
-    docs
-    .enterprise_extensions
-    enterprise_extensions/src
+    docs/*
+    .enterprise_extensions/*

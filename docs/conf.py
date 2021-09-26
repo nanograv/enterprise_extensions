@@ -21,10 +21,9 @@
 import os
 import sys
 
-import enterprise_extensions
-
 sys.path.insert(0, os.path.abspath(".."))
 
+import enterprise_extensions  # isort: ignore
 
 # -- General configuration ---------------------------------------------
 
