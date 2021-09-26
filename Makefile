@@ -38,10 +38,12 @@ init:
 
 format:
 	black .
+	isort .
 
 lint:
 	black --check .
 	flake8 .
+	isort --check .
 
 clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
 
