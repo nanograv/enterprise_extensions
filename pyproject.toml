@@ -1,30 +1,12 @@
 [tool.black]
 line-length = 120
-target_version = ['py36']
+target_version = ['py38']
 include = '\.pyi?$'
-exclude = '''
-
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | _build
-    | buck-out
-    | build
-    | dist
-    | docs
-    | .enterprise_extensions
-    | enterprise_extensions/src
-  )/
-)
-'''
 
 [tool.isort]
 profile = "black"
 skip_gitignore = true
+skip_glob = ".enterprise_extensions/*"
 
 
 [build-system]
