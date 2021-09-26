@@ -5,7 +5,14 @@ from collections import OrderedDict
 
 import numpy as np
 from enterprise import constants as const
-from enterprise.signals import deterministic_signals, gp_signals, parameter, selections, signal_base, white_signals
+from enterprise.signals import (
+    deterministic_signals,
+    gp_signals,
+    parameter,
+    selections,
+    signal_base,
+    white_signals,
+)
 from enterprise.signals.signal_base import LogLikelihood
 
 from enterprise_extensions import chromatic as chrom

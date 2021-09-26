@@ -3,7 +3,13 @@ import os
 import numpy as np
 import scipy.stats as sps
 from enterprise import constants as const
-from enterprise.signals import deterministic_signals, gp_signals, parameter, signal_base, utils
+from enterprise.signals import (
+    deterministic_signals,
+    gp_signals,
+    parameter,
+    signal_base,
+    utils,
+)
 
 from .. import gp_kernels as gpk
 
