@@ -162,7 +162,6 @@ class OptimalStatistic(object):
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
             for jj in range(ii + 1, npsr):
-
                 if psd == "powerlaw":
                     if self.gamma_common is None and "gw_gamma" in params.keys():
                         print("{0:1.2}".format(params["gw_gamma"]))

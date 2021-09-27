@@ -212,19 +212,19 @@ class FeStat(object):
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
     """
-        Compute inner product using rank-reduced
-        approximations for red noise/jitter
-        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
-        
-        :param x: vector timeseries 1
-        :param y: vector timeseries 2
-        :param Nmat: white noise matrix
-        :param Tmat: Modified design matrix including red noise/jitter
-        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
-        :return: inner product (x|y)
-        """
+    Compute inner product using rank-reduced
+    approximations for red noise/jitter
+    Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
+
+    :param x: vector timeseries 1
+    :param y: vector timeseries 2
+    :param Nmat: white noise matrix
+    :param Tmat: Modified design matrix including red noise/jitter
+    :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
+    :param TNx: T^T N^{-1} x precomputed
+    :param TNy: T^T N^{-1} y precomputed
+    :return: inner product (x|y)
+    """
 
     # white noise term
     Ni = Nmat

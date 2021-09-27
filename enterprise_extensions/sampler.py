@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 import numpy as np
-import os
+import os, json
 from enterprise import constants as const
 import pickle
 import healpy as hp
+<<<<<<< HEAD
 import glob
+=======
+from scipy.stats import multivariate_normal as mv_norm
+>>>>>>> ark-nltm
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 
 class JumpProposal(object):
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
+    def __init__(
+        self, pta, snames=None, empirical_distr=None, f_stat_file=None, timing=False
+    ):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -135,6 +141,29 @@ class JumpProposal(object):
             npzfile = np.load(f_stat_file)
             self.fe_freqs = npzfile["freqs"]
             self.fe = npzfile["fe"]
+
+        if timing:
+            tm_groups = get_timing_groups(pta)
+            tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
+            tm_groups.extend(tm_idx)
+            self.tm_groups = np.array(tm_groups, dtype=object)
+            # special_pars = ["PX", "SINI", "COSI", "ECC"]
+            # Any parameter not centered around zero is considered a "special parameter" that does not draw from a zero-centered Gaussian
+            special_pars = []
+            for x in [
+                str(y)
+                for y in pta.params
+                if "Uniform" in str(y) and "timing_model" in str(y)
+            ]:
+                pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
+                pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
+                if pmin + pmax != 0.0:
+                    special_pars.append(x.split(":")[0])
+            self.special_idxs = [
+                ii
+                for par, ii in self.pimap.items()
+                if np.any([sp in par for sp in special_pars])
+            ]
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
@@ -857,6 +886,69 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_timing_model(self, x, iter, beta):
+        """
+        Pull from standard normal distributions (based on the fit timing
+        parameters) as jump proposals. Pull from various timing parameters,
+        based on the groups of parameters in tm_groups, which includes
+        individual parameter proposals.
+        """
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = "timing_model"
+
+        # draw parameter from signal model
+        idxs = np.random.choice(self.tm_groups)
+
+        try:
+            L = len(idxs)
+            pidxs = [idx for idx in idxs if idx in self.special_idxs]
+        except TypeError:
+            L = 1
+            pidxs = []
+            if idxs in self.special_idxs:
+                pidxs = [idxs]
+
+        q[idxs] = np.random.randn(L)
+
+        if len(pidxs) == 0:
+            pass
+        else:
+            for pidx in pidxs:
+                q[pidx] = self.params[pidx].sample()
+
+        # forward-backward jump probability
+        lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
+            q[idxs], mean=np.zeros(L)
+        )
+
+        return q, float(lqxy)
+
+    def draw_from_timing_model_prior(self, x, iter, beta):
+
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = "timing_model"
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
+
+        return q, float(lqxy)
+
 
 def get_global_parameters(pta):
     """Utility function for finding global parameters."""
@@ -923,6 +1015,84 @@ def get_cw_groups(pta):
     return groups
 
 
+def get_timing_groups(pta):
+    """Utility function to get parameter groups for timing sampling.
+    These groups should be appended to the usual get_parameter_groups()
+    output.
+    """
+    pos_pars = ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]
+    spin_pars = ["F", "F0", "F1", "F2", "P", "P1", "Offset"]
+    kep_pars = [
+        "PB",
+        "T0",
+        "A1",
+        "OM",
+        "E",
+        "ECC",
+        "EPS1",
+        "EPS2",
+        "EPS1DOT",
+        "EPS2DOT",
+        "FB",
+        "SINI",
+        "COSI",
+        "MTOT",
+        "M2",
+        "XDOT",
+        "X2DOT",
+        "EDOT",
+        "KOM",
+        "KIN",
+        "TASC",
+    ]
+    gr_pars = [
+        "H3",
+        "H4",
+        "OMDOT",
+        "OM2DOT",
+        "XOMDOT",
+        "PBDOT",
+        "XPBDOT",
+        "GAMMA",
+        "PPNGAMMA",
+        "DR",
+        "DTHETA",
+    ]
+    pm_pars = [
+        "PMDEC",
+        "PMRA",
+        "PMELONG",
+        "PMELAT",
+        "PMRV",
+        "PMBETA",
+        "PMLAMBDA",
+    ]
+
+    groups = []
+    for pars in [pos_pars, spin_pars, kep_pars, gr_pars, pm_pars]:
+        group = []
+        for p in pars:
+            for q in pta.param_names:
+                if p == q.split("_")[-1]:
+                    group.append(pta.param_names.index(q))
+        if len(group):
+            groups.append(group)
+
+    dmx_group = group_from_partial_par_name(pta, part="DMX")
+    if len(dmx_group):
+        groups.append(dmx_group)
+    jump_fd_group = group_from_partial_par_name(pta, part="FD")
+    jump_fd_group.extend(group_from_partial_par_name(pta, part="JUMP"))
+    if len(jump_fd_group):
+        groups.append(jump_fd_group)
+
+    return groups
+
+
+def group_from_partial_par_name(pta, part="DMX"):
+    return [pta.param_names.index(q) for q in pta.param_names if part in q]
+
+
 def group_from_params(pta, params):
     gr = []
     for p in params:
@@ -933,7 +1103,7 @@ def group_from_params(pta, params):
 
 
 def setup_sampler(
-    pta, outdir="chains", resume=False, empirical_distr=None, groups=None
+    pta, outdir="chains", resume=False, empirical_distr=None, groups=None, timing=False
 ):
     """
     Sets up an instance of PTMCMC sampler.
@@ -968,6 +1138,19 @@ def setup_sampler(
     if groups is None:
         groups = get_parameter_groups(pta)
 
+    if timing:
+        groups.extend(get_timing_groups(pta))
+        groups.append(
+            group_from_params(
+                pta,
+                [
+                    x
+                    for x in pta.param_names
+                    if any(y in x for y in ["timing_model", "ecorr"])
+                ],
+            )
+        )
+
     sampler = ptmcmc(
         ndim,
         pta.get_lnlikelihood,
@@ -985,16 +1168,16 @@ def setup_sampler(
     )
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, timing=timing)
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(jp.draw_from_prior, 5)
+    sampler.addProposalToCycle(jp.draw_from_prior, 15)
 
     # try adding empirical proposals
     if empirical_distr is not None:
         print("Attempting to add empirical proposals...\n")
-        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 30)
 
     # Red noise prior draw
     if "red noise" in jp.snames:
@@ -1068,5 +1251,13 @@ def setup_sampler(
     if "cw_log10_Mc" in pta.param_names:
         print("Adding CW prior draws...\n")
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
+
+    # Non Linear Timing Draws
+    if "timing_model" in jp.snames:
+        print("Adding timing model jump proposal...\n")
+        sampler.addProposalToCycle(jp.draw_from_timing_model, 25)
+    if "timing_model" in jp.snames:
+        print("Adding timing model prior draw...\n")
+        sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
 
     return sampler

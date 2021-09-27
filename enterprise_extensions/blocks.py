@@ -14,13 +14,17 @@ from enterprise.signals import deterministic_signals
 from enterprise import constants as const
 from . import gp_kernels as gpk
 from . import chromatic as chrom
+<<<<<<< HEAD
 from . import model_orfs
 
 from enterprise_extensions import deterministic as ee_deterministic
+=======
+>>>>>>> ark-nltm
 
 __all__ = [
     "white_noise_block",
     "red_noise_block",
+<<<<<<< HEAD
     "bwm_block",
     "bwm_sglpsr_block" "dm_noise_block",
     "scattering_noise_block",
@@ -29,6 +33,24 @@ __all__ = [
 ]
 
 
+=======
+    "dm_noise_block",
+    "scattering_noise_block",
+    "chromatic_noise_block",
+    "common_red_noise_block",
+    "channelized_backends",
+]
+
+
+def channelized_backends(backend_flags):
+    """Selection function to split by channelized backend flags only. For ECORR"""
+    flagvals = np.unique(backend_flags)
+    ch_b = ["ASP", "GASP", "GUPPI", "PUPPI", "CHIME"]
+    flagvals = filter(lambda x: any(map(lambda y: y in x, ch_b)), flagvals)
+    return {flagval: backend_flags == flagval for flagval in flagvals}
+
+
+>>>>>>> ark-nltm
 def white_noise_block(
     vary=False,
     inc_ecorr=False,
@@ -61,6 +83,7 @@ def white_noise_block(
         backend = selections.Selection(selections.by_backend)
         # define selection by nanograv backends
         backend_ng = selections.Selection(selections.nanograv_backends)
+        backend_ch = selections.Selection(channelized_backends)
     else:
         # define no selection
         backend = selections.Selection(selections.no_selection)
@@ -86,6 +109,7 @@ def white_noise_block(
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
+<<<<<<< HEAD
                 ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ng)
             else:
                 ec = gp_signals.EcorrBasisModel(
@@ -96,6 +120,14 @@ def white_noise_block(
             ec = white_signals.EcorrKernelNoise(
                 log10_ecorr=ecorr, selection=backend_ng, name=name
             )
+=======
+                name = ""
+
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ch)
+
+        else:
+            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ch)
+>>>>>>> ark-nltm
 
     # combine signals
     if inc_ecorr:
@@ -118,8 +150,11 @@ def red_noise_block(
     wgts=None,
     break_flat=False,
     break_flat_fq=None,
+<<<<<<< HEAD
     logmin=None,
     logmax=None,
+=======
+>>>>>>> ark-nltm
 ):
     """
     Returns red noise model:
@@ -149,6 +184,7 @@ def red_noise_block(
         "infinitepower",
     ]:
         # parameters shared by PSD functions
+<<<<<<< HEAD
         if logmin is not None and logmax is not None:
             if prior == "uniform":
                 log10_A = parameter.LinearExp(logmin, logmax)
@@ -162,6 +198,13 @@ def red_noise_block(
                     log10_A = parameter.Uniform(-20, -11)
                 else:
                     log10_A = parameter.Uniform(-20, -11)
+=======
+        if prior == "uniform":
+            log10_A = parameter.LinearExp(-20, -11)
+        elif prior == "log-uniform" and gamma_val is not None:
+            if np.abs(gamma_val - 4.33) < 0.1:
+                log10_A = parameter.Uniform(-20, -11)
+>>>>>>> ark-nltm
             else:
                 log10_A = parameter.Uniform(-20, -11)
 
@@ -255,6 +298,7 @@ def red_noise_block(
     return rn
 
 
+<<<<<<< HEAD
 def bwm_block(
     Tmin, Tmax, amp_prior="log-uniform", skyloc=None, logmin=-18, logmax=-11, name="bwm"
 ):
@@ -341,16 +385,25 @@ def bwm_sglpsr_block(
     return ramp
 
 
+=======
+>>>>>>> ark-nltm
 def dm_noise_block(
     gp_kernel="diag",
     psd="powerlaw",
     nondiag_kernel="periodic",
     prior="log-uniform",
+<<<<<<< HEAD
     dt=15,
     df=200,
     Tspan=None,
     components=30,
     gamma_val=None,
+=======
+    Tspan=None,
+    components=30,
+    gamma_val=None,
+    dm_dt=15,
+>>>>>>> ark-nltm
     coefficients=False,
 ):
     """
@@ -375,6 +428,8 @@ def dm_noise_block(
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess DM-variations
+    :param dm_dt:
+        Step size for linear_interpolation_basis in units of days.
     """
     # dm noise parameters that are common
     if gp_kernel == "diag":
@@ -439,7 +494,11 @@ def dm_noise_block(
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
+<<<<<<< HEAD
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
+=======
+            dm_basis = gpk.linear_interp_basis_dm(dt=dm_dt * 86400)
+>>>>>>> ark-nltm
             dm_prior = gpk.periodic_kernel(
                 log10_sigma=log10_sigma,
                 log10_ell=log10_ell,
@@ -543,6 +602,8 @@ def chromatic_noise_block(
         Tspan from which to calculate frequencies for PSD-based GPs.
     :param components:
         Number of frequencies to use in 'diag' GPs.
+    :param chrom_dt:
+        Step size for linear_interpolation_basis in units of days.
     :param coefficients:
         Whether to keep coefficients of the GP.
 

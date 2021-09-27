@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
+<<<<<<< HEAD
 import time
+=======
+>>>>>>> ark-nltm
 import numpy as np
 import scipy.stats as scistats
 
@@ -103,7 +106,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
 
 
 def get_tspan(psrs):
-    """ Returns maximum time span for all pulsars.
+    """Returns maximum time span for all pulsars.
 
     :param psrs: List of pulsar objects
 

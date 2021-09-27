@@ -36,7 +36,12 @@ def model_singlepsr_noise(
     psr,
     tm_var=False,
     tm_linear=False,
-    tmparam_list=None,
+    tm_param_list=[],
+    ltm_list=[],
+    tm_param_dict={},
+    tm_prior="uniform",
+    normalize_prior_bound=5.0,
+    fit_remaining_pars=True,
     red_var=True,
     psd="powerlaw",
     red_select=None,
@@ -112,8 +117,13 @@ def model_singlepsr_noise(
     :param psr: enterprise pulsar object
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
-    :param tmparam_list: an explicit list of timing model parameters to vary
-    :param red_var: include red noise in the model
+    :param tm_param_list: an explicit list of timing model parameters to vary
+    :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
+    :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
+    :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
+    :param normalize_prior_bound: scaling value for parameter errors that sets the upper and lower bounds on the nonlinear timing model priors (e.g. Uniform(-5.,5.) as default)
+    :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
+    :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
     :param tm_svd: boolean for svd-stabilised timing model design matrix
@@ -197,6 +207,29 @@ def model_singlepsr_noise(
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # timing model
+    wideband_kwargs = {}
+    if is_wideband and use_dmdata:
+        if dmjump_var:
+            wideband_kwargs["dmjump"] = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmjump"] = parameter.Constant()
+        if white_vary:
+            wideband_kwargs["dmefac"] = parameter.Uniform(pmin=0.1, pmax=10.0)
+            wideband_kwargs["log10_dmequad"] = parameter.Uniform(pmin=-7.0, pmax=0.0)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+        else:
+            wideband_kwargs["dmefac"] = parameter.Constant()
+            wideband_kwargs["log10_dmequad"] = parameter.Constant()
+            # dmjump = parameter.Constant()
+        wideband_kwargs["dmefac_selection"] = selections.Selection(
+            selections.by_backend
+        )
+        wideband_kwargs["log10_dmequad_selection"] = selections.Selection(
+            selections.by_backend
+        )
+        wideband_kwargs["dmjump_selection"] = selections.Selection(
+            selections.by_frontend
+        )
     if not tm_var:
         if is_wideband and use_dmdata:
             if dmjump_var:
@@ -226,15 +259,28 @@ def model_singlepsr_noise(
                 s = gp_signals.TimingModel(
                     use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
                 )
-    else:
-        # create new attribute for enterprise pulsar object
-        psr.tmparams_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
-        for key in psr.tmparams_orig:
-            psr.tmparams_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
-        if not tm_linear:
-            s = timing_block(tmparam_list=tmparam_list)
+        if tm_linear:
+            # create new attribute for enterprise pulsar object
+            # UNSURE IF NECESSARY
+            psr.tm_params_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
+            for key in psr.tm_params_orig:
+                psr.tm_params_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
+            s = gp_signals.TimingModel(
+                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
+            )
         else:
-            pass
+            s = timing_block(
+                psr,
+                tm_param_list=tm_param_list,
+                ltm_list=ltm_list,
+                prior_type=tm_prior,
+                prior_sigma=2.0,
+                prior_lower_bound=-normalize_prior_bound,
+                prior_upper_bound=normalize_prior_bound,
+                tm_param_dict=tm_param_dict,
+                fit_remaining_pars=fit_remaining_pars,
+                wideband_kwargs=wideband_kwargs,
+            )
 
     # red noise and common process
     if factorized_like:
@@ -367,7 +413,7 @@ def model_singlepsr_noise(
                 s += chrom.dm_exponential_cusp(
                     tmin=tmin[dd - 1],
                     tmax=tmax[dd - 1],
-                    idx=dm_cusp_idx,
+                    idx=dm_cusp_idx[dd - 1],
                     sign=dm_cusp_sign[dd - 1],
                     symmetric=dm_cusp_sym,
                     name=cusp_name_base + str(dd),
@@ -406,7 +452,9 @@ def model_singlepsr_noise(
     if extra_sigs is not None:
         s += extra_sigs
     # adding white-noise, and acting on psr objects
-    if "NANOGrav" in psr.flags["pta"] and not is_wideband:
+    if (
+        "NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]
+    ) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, select=select)
         model = s2(psr)
         if psr_model:
@@ -970,9 +1018,33 @@ def model_general(
             for key in p.tmparams_orig:
                 p.tmparams_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
         if not tm_linear:
-            s = timing_block(tmparam_list=tmparam_list)
+            s = timing_block(tm_param_list=tm_param_list)
         else:
-            pass
+            for i, p in enumerate(psrs):
+                if i == 0:
+                    s = timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
+                else:
+                    s += timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
 
     # find the maximum time span to set GW frequency sampling
     if Tspan is not None:
@@ -3214,7 +3286,7 @@ def model_fdm(
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             if dm_var and "J1713+0747" == p.name:
                 s3 += dmexp
             models.append(s3(p))
@@ -3228,11 +3300,12 @@ def model_fdm(
         pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if noisedict is None:
-        print("No noise dictionary provided!...")
-    else:
-        noisedict = noisedict
-        pta.set_default_params(noisedict)
+    if not white_vary or (is_wideband and use_dmdata):
+        if noisedict is None:
+            print("No noise dictionary provided!...")
+        else:
+            noisedict = noisedict
+            pta.set_default_params(noisedict)
 
     return pta
 
