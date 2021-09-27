@@ -49,8 +49,10 @@ def test_setup_sampler(dmx_psrs, caplog):
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
     samp = sampler.setup_sampler(m2a, outdir=outdir, human='tester')
     assert hasattr(samp, "sample")
-    assert os.path.isfile("tmp/pars.txt")
-    with open("tmp/pars.txt", "r") as f:
+    paramfile = os.path.join(outdir, "pars.txt")
+    assert os.path.isfile(paramfile)
+    with open(paramfile, "r") as f:
         params = [line.rstrip('\n') for line in f]
-    assert m2a.param_names == params
+    for ptapar, filepar in zip(m2a.param_names, params):
+        assert ptapar == filepar
 
