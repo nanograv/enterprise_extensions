@@ -12,6 +12,8 @@ import glob
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
+from enterprise_extensions import __version__
+
 class JumpProposal(object):
 
     def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
@@ -889,7 +891,7 @@ def save_runtime_info(pta, outdir='chains', human=None):
         for field, data in sysinfo.items():
             fout.write(field + " : " + data + "\n")
         fout.write("\n")
-
+        fout.write("enterprise_extensions v" + __version__ +"\n")
         fout.write(pta.summary())
 
     # save paramter list
