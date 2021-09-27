@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division,
 import numpy as np
 import scipy.stats as scistats
 import scipy.linalg as sl
+import os
 
 from enterprise import constants as const
 from enterprise.signals import signal_base
@@ -36,6 +37,10 @@ class HyperModel(object):
         self.param_names = self.param_names[np.argsort(ind)]
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
         #########
+
+        self.pulsars = np.unique(np.concatenate([p.pulsars
+                                                 for p in self.models.values()]))
+        self.pulsars = np.sort(self.pulsars)
 
         #########
         self.params = [p for p in self.models[0].params] # start of param list
@@ -181,7 +186,10 @@ class HyperModel(object):
         ndim = len(self.param_names)
 
         # initial jump covariance matrix
-        cov = np.diag(np.ones(ndim) * 1**2) ## used to be 0.1
+        if os.path.exists(outdir+'/cov.npy'):
+            cov = np.load(outdir+'/cov.npy')
+        else:
+            cov = np.diag(np.ones(ndim) * 1.0**2)## used to be 0.1
 
         # parameter groupings
         if groups is None:
@@ -194,6 +202,7 @@ class HyperModel(object):
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
+        sampler.jp = jp
 
         # always add draw from prior
         sampler.addProposalToCycle(jp.draw_from_prior, 5)
@@ -238,13 +247,18 @@ class HyperModel(object):
             print('Adding Solar Wind DM GP prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
 
+        # Chromatic GP noise prior draw
+        if 'chrom_gp' in self.snames:
+            print('Adding Chromatic GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
+
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
             print('Adding ephemeris model prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
         # GWB uniform distribution draw
-        if 'gw_log10_A' in self.param_names:
+        if np.any([('gw' in par and 'log10_A' in par) for par in self.param_names]):
             print('Adding GWB uniform distribution draws...\n')
             sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
@@ -263,6 +277,11 @@ class HyperModel(object):
             print('Adding BWM prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
+        # FDM prior draw
+        if 'fdm_log10_A' in self.param_names:
+            print('Adding FDM prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
+
         # CW prior draw
         if 'cw_log10_h' in self.param_names:
             print('Adding CW prior draws...\n')
@@ -272,10 +291,10 @@ class HyperModel(object):
         if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
             print('Adding gw param prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_par_prior(
-                par_names=[str(p).split(':')[0] for 
-                           p in list(self.params) 
+                par_names=[str(p).split(':')[0] for
+                           p in list(self.params)
                            if 'gw' in str(p)]), 10)
-        
+
         # Model index distribution draw
         if sample_nmodel:
             if 'nmodel' in self.param_names:
