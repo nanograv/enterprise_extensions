@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import os
+import platform
 from enterprise import constants as const
 import pickle
 import healpy as hp
@@ -875,6 +876,21 @@ def group_from_params(pta, params):
                 gr.append(pta.param_names.index(q))
     return gr
 
+def save_runtime_info(pta, outdir='chains', human=None):
+    """save system info, enterprise PTA.summary, and other metadata to file
+    """
+    # save system info and enterprise PTA.summary to single file
+    sysinfo = {}
+    if human is not None:
+        sysinfo.update({"human":human})
+    sysinfo.update(platform.uname()._asdict())
+
+    with open(os.path.join(outdir, "runtime_info.txt"), "w") as fout:
+        for field, data in sysinfo.items():
+            fout.write(field + " : " + data + "\n")
+        fout.write("\n")
+
+        fout.write(pta.summary())
 
 def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, groups=None):
     """
