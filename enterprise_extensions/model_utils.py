@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-<<<<<<< HEAD
 import time
-=======
->>>>>>> ark-nltm
 import numpy as np
 import scipy.stats as scistats
 

@@ -5,11 +5,8 @@ import os, json
 from enterprise import constants as const
 import pickle
 import healpy as hp
-<<<<<<< HEAD
 import glob
-=======
 from scipy.stats import multivariate_normal as mv_norm
->>>>>>> ark-nltm
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
