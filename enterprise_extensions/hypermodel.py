@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division,
 import numpy as np
 import scipy.stats as scistats
 import scipy.linalg as sl
+import os
 
 from enterprise import constants as const
 from enterprise.signals import signal_base
@@ -36,6 +37,10 @@ class HyperModel(object):
         self.param_names = self.param_names[np.argsort(ind)]
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
         #########
+
+        self.pulsars = np.unique(np.concatenate([p.pulsars
+                                                 for p in self.models.values()]))
+        self.pulsars = np.sort(self.pulsars)
 
         #########
         self.params = [p for p in self.models[0].params] # start of param list
