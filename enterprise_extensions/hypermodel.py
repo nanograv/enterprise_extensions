@@ -17,7 +17,7 @@ from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-from .sampler import JumpProposal, get_parameter_groups
+from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
 
 class HyperModel(object):
     """
@@ -157,7 +157,7 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None):
+                      empirical_distr=None, groups=None, human=None):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -192,8 +192,7 @@ class HyperModel(object):
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
-        np.savetxt(outdir+'/pars.txt', self.param_names, fmt='%s')
-        np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
+        save_runtime_info(pta, sampler.outDir, human)
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
