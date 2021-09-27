@@ -892,6 +892,16 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
         fout.write(pta.summary())
 
+    # save paramter list
+    with open(os.path.join(outdir, "pars.txt"), "w") as fout:
+        for pname in pta.param_names:
+            fout.write(pname + "\n")
+    
+    # save list of priors
+    with open(os.path.join(outdir, "priors.txt"), "w") as fout:
+        for pp in pta.params:
+            fout.write(pp.__repr__() + "\n")
+
 def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, groups=None):
     """
     Sets up an instance of PTMCMC sampler.
