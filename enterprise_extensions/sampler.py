@@ -902,7 +902,8 @@ def save_runtime_info(pta, outdir='chains', human=None):
         for pp in pta.params:
             fout.write(pp.__repr__() + "\n")
 
-def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, groups=None):
+def setup_sampler(pta, outdir='chains', resume=False,
+                  empirical_distr=None, groups=None, human=None):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -938,10 +939,8 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, grou
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume)
-    np.savetxt(outdir+'/pars.txt',
-               list(map(str, pta.param_names)), fmt='%s')
-    np.savetxt(outdir+'/priors.txt',
-               list(map(lambda x: str(x.__repr__()), pta.params)), fmt='%s')
+
+    save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
     jp = JumpProposal(pta, empirical_distr=empirical_distr)
