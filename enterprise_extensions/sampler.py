@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division,
                         print_function)
 import numpy as np
 import os
+import platform
 from enterprise import constants as const
 import pickle
 import healpy as hp
@@ -10,6 +11,8 @@ import glob
 
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
+
+from enterprise_extensions import __version__
 
 class JumpProposal(object):
 
@@ -875,8 +878,34 @@ def group_from_params(pta, params):
                 gr.append(pta.param_names.index(q))
     return gr
 
+def save_runtime_info(pta, outdir='chains', human=None):
+    """save system info, enterprise PTA.summary, and other metadata to file
+    """
+    # save system info and enterprise PTA.summary to single file
+    sysinfo = {}
+    if human is not None:
+        sysinfo.update({"human":human})
+    sysinfo.update(platform.uname()._asdict())
 
-def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, groups=None):
+    with open(os.path.join(outdir, "runtime_info.txt"), "w") as fout:
+        for field, data in sysinfo.items():
+            fout.write(field + " : " + data + "\n")
+        fout.write("\n")
+        fout.write("enterprise_extensions v" + __version__ +"\n")
+        fout.write(pta.summary())
+
+    # save paramter list
+    with open(os.path.join(outdir, "pars.txt"), "w") as fout:
+        for pname in pta.param_names:
+            fout.write(pname + "\n")
+    
+    # save list of priors
+    with open(os.path.join(outdir, "priors.txt"), "w") as fout:
+        for pp in pta.params:
+            fout.write(pp.__repr__() + "\n")
+
+def setup_sampler(pta, outdir='chains', resume=False,
+                  empirical_distr=None, groups=None, human=None):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -912,10 +941,8 @@ def setup_sampler(pta, outdir='chains', resume=False, empirical_distr=None, grou
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume)
-    np.savetxt(outdir+'/pars.txt',
-               list(map(str, pta.param_names)), fmt='%s')
-    np.savetxt(outdir+'/priors.txt',
-               list(map(lambda x: str(x.__repr__()), pta.params)), fmt='%s')
+
+    save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
     jp = JumpProposal(pta, empirical_distr=empirical_distr)
