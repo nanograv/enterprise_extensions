@@ -259,6 +259,7 @@ def model_singlepsr_noise(
                 s = gp_signals.TimingModel(
                     use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
                 )
+    else:
         if tm_linear:
             # create new attribute for enterprise pulsar object
             # UNSURE IF NECESSARY
