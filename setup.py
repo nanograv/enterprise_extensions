@@ -3,9 +3,10 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
 import os
 import platform
+
+from setuptools import Extension, find_packages, setup
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()

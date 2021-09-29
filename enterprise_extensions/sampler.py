@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
-import numpy as np
-import os
-import platform
-from enterprise import constants as const
-import pickle
-import healpy as hp
-import glob
+from __future__ import absolute_import, division, print_function
 
+import glob
+import os
+import pickle
+import platform
+
+import healpy as hp
+import numpy as np
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 

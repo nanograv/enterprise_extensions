@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
-from enterprise.signals import signal_base
-from enterprise.signals import utils
+from enterprise.signals import signal_base, utils
 
 __all__ = ['linear_interp_basis_dm',
            'linear_interp_basis_scattering',

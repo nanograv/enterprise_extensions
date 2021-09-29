@@ -1,16 +1,13 @@
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import warnings
 
 import numpy as np
 import scipy.linalg as sl
+from enterprise.signals import gp_priors, signal_base, utils
 
-from enterprise_extensions import models
-
-from enterprise.signals import utils
-from enterprise.signals import signal_base
-from enterprise.signals import gp_priors
-from enterprise_extensions import model_orfs
-import warnings
+from enterprise_extensions import model_orfs, models
 
 
 # Define the output to be on a single line.

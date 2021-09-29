@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
-import numpy as np
-import os
-import scipy.stats as scistats
-import scipy.linalg as sl
+from __future__ import absolute_import, division, print_function
+
 import os
 
+import numpy as np
+import scipy.linalg as sl
+import scipy.stats as scistats
 from enterprise import constants as const
 from enterprise.signals import signal_base
 
@@ -15,8 +14,8 @@ try:
 except BaseException:
     import pickle
 
-from enterprise.pulsar import Pulsar
 from enterprise import constants as const
+from enterprise.pulsar import Pulsar
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from .sampler import JumpProposal, get_parameter_groups, save_runtime_info

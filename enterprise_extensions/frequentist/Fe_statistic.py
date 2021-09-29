@@ -1,20 +1,16 @@
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-import numpy as np
-import scipy.linalg as sl
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import json
 
 import enterprise
-from enterprise.pulsar import Pulsar
-from enterprise.signals import parameter
-from enterprise.signals import utils
-from enterprise.signals import signal_base
-from enterprise.signals import selections
-from enterprise.signals.selections import Selection
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
+import numpy as np
+import scipy.linalg as sl
 from enterprise import constants as const
+from enterprise.pulsar import Pulsar
+from enterprise.signals import (deterministic_signals, gp_signals, parameter,
+                                selections, signal_base, utils, white_signals)
+from enterprise.signals.selections import Selection
 
 
 class FeStat(object):

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
 import scipy.interpolate as interp
-from enterprise.signals import signal_base
 from enterprise import constants as const
+from enterprise.signals import signal_base
 
 
 @signal_base.function

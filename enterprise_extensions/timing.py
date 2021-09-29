@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-import numpy as np
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 from collections import OrderedDict
 
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
+import numpy as np
+from enterprise.signals import deterministic_signals, parameter, signal_base
 
 # timing model delay
 

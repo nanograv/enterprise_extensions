@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-import numpy as np
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import enterprise
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
+import numpy as np
 from enterprise import constants as const
+from enterprise.signals import (deterministic_signals, parameter, signal_base,
+                                utils)
 
 
 @signal_base.function

@@ -1,7 +1,8 @@
-import numpy as np
+import pickle
 import sys
 import time
-import pickle
+
+import numpy as np
 from enterprise.signals import utils
 
 

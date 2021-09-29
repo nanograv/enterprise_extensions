@@ -1,16 +1,11 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
+from __future__ import absolute_import, division, print_function
+
 import time
-import numpy as np
-import scipy.stats as scistats
 
 import matplotlib.pyplot as plt
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import numpy as np
+import scipy.stats as scistats
 
 try:
     import acor
@@ -18,9 +13,9 @@ except ImportError:
     from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions import models
-from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
-                                                   EmpiricalDistribution2D,
-                                                   make_empirical_distributions)
+from enterprise_extensions.empirical_distr import (
+    EmpiricalDistribution1D, EmpiricalDistribution2D,
+    make_empirical_distributions)
 
 # Log-spaced frequncies
 

@@ -1,15 +1,15 @@
-from __future__ import (absolute_import, division,
-                        print_function)
+from __future__ import absolute_import, division, print_function
+
+import os
+
 import numpy as np
 import scipy.stats as sps
-import os
 from enterprise import constants as const
-from enterprise.signals import signal_base
-from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
-from enterprise.signals import parameter
+from enterprise.signals import (deterministic_signals, gp_signals, parameter,
+                                signal_base, utils)
+
 from .. import gp_kernels as gpk
+
 defpath = os.path.dirname(__file__)
 
 yr_in_sec = 365.25 * 24 * 3600

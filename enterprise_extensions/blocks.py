@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-import numpy as np
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import types
 
-from enterprise.signals import parameter
-from enterprise.signals import selections
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
-from enterprise.signals import utils
+import numpy as np
+from enterprise import constants as const
+from enterprise.signals import deterministic_signals
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
-from enterprise.signals import deterministic_signals
-from enterprise import constants as const
-from . import gp_kernels as gpk
-from . import chromatic as chrom
-from . import model_orfs
+from enterprise.signals import (gp_signals, parameter, selections, utils,
+                                white_signals)
 
 from enterprise_extensions import deterministic as ee_deterministic
+
+from . import chromatic as chrom
+from . import gp_kernels as gpk
+from . import model_orfs
 
 __all__ = ['white_noise_block',
            'red_noise_block',

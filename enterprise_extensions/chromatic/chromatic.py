@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-import numpy as np
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
+import numpy as np
 from enterprise import constants as const
+from enterprise.signals import deterministic_signals, parameter, signal_base
 
 __all__ = ['chrom_exp_decay',
            'chrom_exp_cusp',

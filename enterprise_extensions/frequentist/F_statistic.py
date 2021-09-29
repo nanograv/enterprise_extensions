@@ -1,14 +1,12 @@
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
 import scipy.linalg as sl
 import scipy.special
+from enterprise.signals import deterministic_signals, gp_signals, signal_base
 
-from enterprise.signals import signal_base
-from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
-from enterprise_extensions import blocks
-from enterprise_extensions import deterministic
+from enterprise_extensions import blocks, deterministic
 
 
 class FpStat(object):
