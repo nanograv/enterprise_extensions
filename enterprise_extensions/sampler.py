@@ -14,9 +14,11 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
 
+
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
+    def __init__(self, pta, snames=None,
+                 empirical_distr=None, f_stat_file=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -29,7 +31,7 @@ class JumpProposal(object):
         ct = 0
         for p in pta.params:
             size = p.size or 1
-            self.pmap[str(p)] = slice(ct, ct+size)
+            self.pmap[str(p)] = slice(ct, ct + size)
             ct += size
 
         # parameter indices map
@@ -40,14 +42,16 @@ class JumpProposal(object):
         # collecting signal parameters across pta
         if snames is None:
             allsigs = np.hstack([[qq.signal_name for qq in pp._signals]
-                                                 for pp in pta._signalcollections])
+                                 for pp in pta._signalcollections])
             self.snames = dict.fromkeys(np.unique(allsigs))
-            for key in self.snames: self.snames[key] = []
+            for key in self.snames:
+                self.snames[key] = []
 
             for sc in pta._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-            for key in self.snames: self.snames[key] = list(set(self.snames[key]))
+            for key in self.snames:
+                self.snames[key] = list(set(self.snames[key]))
         else:
             self.snames = snames
 
@@ -59,19 +63,22 @@ class JumpProposal(object):
         # check if a directory of empirical dist pkl files are provided
         elif empirical_distr is not None and os.path.isdir(empirical_distr):
 
-            dir_files = glob.glob(empirical_distr+'*.pkl') # search for pkls
+            dir_files = glob.glob(empirical_distr + '*.pkl')  # search for pkls
 
             pickled_distr = np.array([])
             for idx, emp_file in enumerate(dir_files):
                 try:
                     with open(emp_file, 'rb') as f:
-                        pickled_distr = np.append(pickled_distr, pickle.load(f))
-                except:
+                        pickled_distr = np.append(
+                            pickled_distr, pickle.load(f))
+                except BaseException:
                     try:
                         with open(emp_file, 'rb') as f:
-                           pickled_distr = np.append(pickled_distr, pickle.load(f))
-                    except:
-                        print(f'\nI can\'t open the empirical distribution pickle file at location {idx} in list!')
+                            pickled_distr = np.append(
+                                pickled_distr, pickle.load(f))
+                    except BaseException:
+                        print(
+                            f'\nI can\'t open the empirical distribution pickle file at location {idx} in list!')
                         print("Empirical distributions set to 'None'")
                         pickled_distr = None
                         break
@@ -79,18 +86,19 @@ class JumpProposal(object):
             self.empirical_distr = pickled_distr
 
         # check if single pkl file provided
-        elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
+        # checking for single file
+        elif empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 # try opening the file
                 with open(empirical_distr, 'rb') as f:
                     pickled_distr = pickle.load(f)
-            except:
+            except BaseException:
                 # second attempt at opening the file
                 try:
                     with open(empirical_distr, 'rb') as f:
                         pickled_distr = pickle.load(f)
                 # if the second attempt fails...
-                except:
+                except BaseException:
                     print('\nI can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
 
@@ -101,9 +109,10 @@ class JumpProposal(object):
             self.empirical_distr = None
 
         if self.empirical_distr is not None:
-            # only save the empirical distributions for parameters that are in the model
+            # only save the empirical distributions for parameters that are in
+            # the model
             mask = []
-            for idx,d in enumerate(self.empirical_distr):
+            for idx, d in enumerate(self.empirical_distr):
                 if d.ndim == 1:
                     if d.param_name in pta.param_names:
                         mask.append(idx)
@@ -116,10 +125,12 @@ class JumpProposal(object):
                 self.empirical_distr = None
 
         if empirical_distr is not None and self.empirical_distr is None:
-            # if an emp dist path is provided, but fails the code, this helpful msg is provided
-            print("Adding empirical distributions failed!! Empirical distributions set to 'None'\n")
+            # if an emp dist path is provided, but fails the code, this helpful
+            # msg is provided
+            print(
+                "Adding empirical distributions failed!! Empirical distributions set to 'None'\n")
 
-        #F-statistic map
+        # F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
             npzfile = np.load(f_stat_file)
             self.fe_freqs = npzfile['freqs']
@@ -187,7 +198,8 @@ class JumpProposal(object):
 
             if self.empirical_distr[distr_idx].ndim == 1:
 
-                idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
+                idx = self.pnames.index(
+                    self.empirical_distr[distr_idx].param_name)
                 q[idx] = self.empirical_distr[distr_idx].draw()
 
                 lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
@@ -199,7 +211,8 @@ class JumpProposal(object):
                              for p in self.empirical_distr[distr_idx].param_names]
                 newsample = self.empirical_distr[distr_idx].draw()
 
-                for p,n in zip(self.empirical_distr[distr_idx].param_names, newsample):
+                for p, n in zip(
+                        self.empirical_distr[distr_idx].param_names, newsample):
                     q[self.pnames.index(p)] = n
 
                 lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
@@ -215,16 +228,16 @@ class JumpProposal(object):
 
             # make list of empirical distributions with psr name
             psr = np.random.choice(self.psrnames)
-            pnames = [ed.param_name if ed.ndim==1 else ed.param_names
-                      for ed in self.empirical_distr ]
+            pnames = [ed.param_name if ed.ndim == 1 else ed.param_names
+                      for ed in self.empirical_distr]
 
             # Retrieve indices of emp dists with pulsar pars.
             idxs = []
             for par in pnames:
-                if isinstance(par,str):
+                if isinstance(par, str):
                     if psr in par:
                         idxs.append(pnames.index(par))
-                elif isinstance(par,list):
+                elif isinstance(par, list):
                     if any([psr in p for p in par]):
                         idxs.append(pnames.index(par))
 
@@ -241,7 +254,8 @@ class JumpProposal(object):
                                  for p in self.empirical_distr[idx].param_names]
                     newsample = self.empirical_distr[idx].draw()
 
-                    for p,n in zip(self.empirical_distr[idx].param_names, newsample):
+                    for p, n in zip(
+                            self.empirical_distr[idx].param_names, newsample):
                         q[self.pnames.index(p)] = n
 
                     lqxy += (self.empirical_distr[idx].logprob(oldsample) -
@@ -283,7 +297,7 @@ class JumpProposal(object):
         if 'log10_Amp' in dmname:
             q[idx] = np.random.uniform(-10, -2)
         elif 'phase' in dmname:
-            q[idx] = np.random.uniform(0, 2*np.pi)
+            q[idx] = np.random.uniform(0, 2 * np.pi)
 
         return q, 0
 
@@ -316,7 +330,7 @@ class JumpProposal(object):
             q[idx] = np.random.uniform(-10, -2)
         elif 'log10_tau' in dmname:
             q[idx] = np.random.uniform(0, 2.5)
-        #elif 't0' in dmname:
+        # elif 't0' in dmname:
         #    q[idx] = np.random.uniform(53393.0, 57388.0)
         elif 'sign_param' in dmname:
             q[idx] = np.random.uniform(-1.0, 1.0)
@@ -476,7 +490,6 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-
     def draw_from_fdm_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -499,7 +512,6 @@ class JumpProposal(object):
                 param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
-
 
     def draw_from_cw_prior(self, x, iter, beta):
 
@@ -606,7 +618,7 @@ class JumpProposal(object):
         if not par_list:
             raise UserWarning("No parameter prior match found between {} and PTA.object."
                               .format(par_names))
-        par_list = np.concatenate(par_list,axis=None)
+        par_list = np.concatenate(par_list, axis=None)
 
         def draw(x, iter, beta):
             """Prior draw function generator for custom par_names.
@@ -654,7 +666,7 @@ class JumpProposal(object):
         if not par_list:
             raise UserWarning("No parameter dictionary match found between {} and PTA.object."
                               .format(par_dict.keys()))
-        par_list = np.concatenate(par_list,axis=None)
+        par_list = np.concatenate(par_list, axis=None)
 
         def draw(x, iter, beta):
             """log uniform prior draw function generator for custom par_names.
@@ -670,7 +682,8 @@ class JumpProposal(object):
             # draw parameter from signal model
             idx_name = np.random.choice(par_list)
             idx = self.plist.index(idx_name)
-            q[idx] = np.random.uniform(par_dict[par_name][0],par_dict[par_name][1])
+            q[idx] = np.random.uniform(
+                par_dict[par_name][0], par_dict[par_name][1])
 
             return q, 0
 
@@ -708,12 +721,12 @@ class JumpProposal(object):
                 param_list = self.snames[signal_name]
                 signal_list.append(param_list)
                 name_list.append(signal_name)
-            except:
+            except BaseException:
                 pass
         if not signal_list:
             raise UserWarning("No signal match found between {} and PTA.object!"
                               .format(signal_names))
-        signal_list = np.concatenate(signal_list,axis=None)
+        signal_list = np.concatenate(signal_list, axis=None)
 
         def draw(x, iter, beta):
             """Signal draw function generator for custom signal_names.
@@ -752,43 +765,47 @@ class JumpProposal(object):
 
         fe_limit = np.max(self.fe)
 
-        #draw skylocation and frequency from f-stat map
+        # draw skylocation and frequency from f-stat map
         accepted = False
-        while accepted==False:
+        while accepted == False:
             log_f_new = self.params[self.pimap['log10_fgw']].sample()
             f_idx = (np.abs(np.log10(self.fe_freqs) - log_f_new)).argmin()
 
-            gw_theta = np.arccos(self.params[self.pimap['cos_gwtheta']].sample())
+            gw_theta = np.arccos(
+                self.params[self.pimap['cos_gwtheta']].sample())
             gw_phi = self.params[self.pimap['gwphi']].sample()
             hp_idx = hp.ang2pix(hp.get_nside(self.fe), gw_theta, gw_phi)
 
             fe_new_point = self.fe[f_idx, hp_idx]
-            if np.random.uniform()<(fe_new_point/fe_limit):
+            if np.random.uniform() < (fe_new_point / fe_limit):
                 accepted = True
 
-        #draw other parameters from prior
+        # draw other parameters from prior
         cos_inc = self.params[self.pimap['cos_inc']].sample()
         psi = self.params[self.pimap['psi']].sample()
         phase0 = self.params[self.pimap['phase0']].sample()
         log10_h = self.params[self.pimap['log10_h']].sample()
 
-
-        #put new parameters into q
+        # put new parameters into q
         signal_name = 'cw'
-        for param_name, new_param in zip(['log10_fgw','gwphi','cos_gwtheta','cos_inc','psi','phase0','log10_h'],
-                                           [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
+        for param_name, new_param in zip(['log10_fgw', 'gwphi', 'cos_gwtheta', 'cos_inc', 'psi', 'phase0', 'log10_h'],
+                                         [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
             q[self.pimap[param_name]] = new_param
 
-        #calculate Hastings ratio
+        # calculate Hastings ratio
         log_f_old = x[self.pimap['log10_fgw']]
         f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
 
         gw_theta_old = np.arccos(x[self.pimap['cos_gwtheta']])
         gw_phi_old = x[self.pimap['gwphi']]
-        hp_idx_old = hp.ang2pix(hp.get_nside(self.fe), gw_theta_old, gw_phi_old)
+        hp_idx_old = hp.ang2pix(
+            hp.get_nside(
+                self.fe),
+            gw_theta_old,
+            gw_phi_old)
 
         fe_old_point = self.fe[f_idx_old, hp_idx_old]
-        if fe_old_point>fe_limit:
+        if fe_old_point > fe_limit:
             fe_old_point = fe_limit
 
         log10_h_old = x[self.pimap['log10_h']]
@@ -796,16 +813,23 @@ class JumpProposal(object):
         psi_old = x[self.pimap['psi']]
         cos_inc_old = x[self.pimap['cos_inc']]
 
-        hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(log10_h_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['log10_h']].get_pdf(log10_h)
-        hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(phase0_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['phase0']].get_pdf(phase0)
+        hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(
+            log10_h_old)
+        hastings_extra_factor *= 1 / \
+            self.params[self.pimap['log10_h']].get_pdf(log10_h)
+        hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(
+            phase0_old)
+        hastings_extra_factor *= 1 / \
+            self.params[self.pimap['phase0']].get_pdf(phase0)
         hastings_extra_factor = self.params[self.pimap['psi']].get_pdf(psi_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['psi']].get_pdf(psi)
-        hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(cos_inc_old)
-        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)
+        hastings_extra_factor *= 1 / \
+            self.params[self.pimap['psi']].get_pdf(psi)
+        hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(
+            cos_inc_old)
+        hastings_extra_factor *= 1 / \
+            self.params[self.pimap['cos_inc']].get_pdf(cos_inc)
 
-        lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
+        lqxy = np.log(fe_old_point / fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
 
@@ -840,11 +864,13 @@ def get_parameter_groups(pta):
     # make a group for each signal, with all non-global parameters
     for sc in pta._signalcollections:
         for signal in sc._signals:
-            ind = [params.index(p) for p in signal.param_names if not gpars.size or p not in gpars]
+            ind = [
+                params.index(p) for p in signal.param_names if not gpars.size or p not in gpars]
             if ind:
                 groups.append(ind)
 
     return groups
+
 
 def get_psr_groups(pta):
     groups = []
@@ -853,6 +879,7 @@ def get_psr_groups(pta):
                for par in pta.param_names if psr in par]
         groups.append(grp)
     return groups
+
 
 def get_cw_groups(pta):
     """Utility function to get parameter groups for CW sampling.
@@ -878,31 +905,33 @@ def group_from_params(pta, params):
                 gr.append(pta.param_names.index(q))
     return gr
 
+
 def save_runtime_info(pta, outdir='chains', human=None):
     """save system info, enterprise PTA.summary, and other metadata to file
     """
     # save system info and enterprise PTA.summary to single file
     sysinfo = {}
     if human is not None:
-        sysinfo.update({"human":human})
+        sysinfo.update({"human": human})
     sysinfo.update(platform.uname()._asdict())
 
     with open(os.path.join(outdir, "runtime_info.txt"), "w") as fout:
         for field, data in sysinfo.items():
             fout.write(field + " : " + data + "\n")
         fout.write("\n")
-        fout.write("enterprise_extensions v" + __version__ +"\n")
+        fout.write("enterprise_extensions v" + __version__ + "\n")
         fout.write(pta.summary())
 
     # save paramter list
     with open(os.path.join(outdir, "pars.txt"), "w") as fout:
         for pname in pta.param_names:
             fout.write(pname + "\n")
-    
+
     # save list of priors
     with open(os.path.join(outdir, "priors.txt"), "w") as fout:
         for pp in pta.params:
             fout.write(pp.__repr__() + "\n")
+
 
 def setup_sampler(pta, outdir='chains', resume=False,
                   empirical_distr=None, groups=None, human=None):
@@ -930,8 +959,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
     ndim = len(params)
 
     # initial jump covariance matrix
-    if os.path.exists(outdir+'/cov.npy'):
-        cov = np.load(outdir+'/cov.npy')
+    if os.path.exists(outdir + '/cov.npy'):
+        cov = np.load(outdir + '/cov.npy')
     else:
         cov = np.diag(np.ones(ndim) * 0.1**2)
 
@@ -994,22 +1023,26 @@ def setup_sampler(pta, outdir='chains', resume=False,
     # GWB uniform distribution draw
     if np.any([('gw' in par and 'log10_A' in par) for par in pta.param_names]):
         print('Adding GWB uniform distribution draws...\n')
-        sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
+        sampler.addProposalToCycle(
+            jp.draw_from_gwb_log_uniform_distribution, 10)
 
     # Dipole uniform distribution draw
     if 'dipole_log10_A' in pta.param_names:
         print('Adding dipole uniform distribution draws...\n')
-        sampler.addProposalToCycle(jp.draw_from_dipole_log_uniform_distribution, 10)
+        sampler.addProposalToCycle(
+            jp.draw_from_dipole_log_uniform_distribution, 10)
 
     # Monopole uniform distribution draw
     if 'monopole_log10_A' in pta.param_names:
         print('Adding monopole uniform distribution draws...\n')
-        sampler.addProposalToCycle(jp.draw_from_monopole_log_uniform_distribution, 10)
+        sampler.addProposalToCycle(
+            jp.draw_from_monopole_log_uniform_distribution, 10)
 
     # Altpol uniform distribution draw
     if 'log10Apol_tt' in pta.param_names:
         print('Adding alternative GW-polarization uniform distribution draws...\n')
-        sampler.addProposalToCycle(jp.draw_from_altpol_log_uniform_distribution, 10)
+        sampler.addProposalToCycle(
+            jp.draw_from_altpol_log_uniform_distribution, 10)
 
     # BWM prior draw
     if 'bwm_log10_A' in pta.param_names:
@@ -1024,7 +1057,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
     # CW prior draw
     if 'cw_log10_h' in pta.param_names:
         print('Adding CW strain prior draws...\n')
-        sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+        sampler.addProposalToCycle(
+            jp.draw_from_cw_log_uniform_distribution, 10)
     if 'cw_log10_Mc' in pta.param_names:
         print('Adding CW prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)

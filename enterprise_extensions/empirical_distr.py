@@ -24,7 +24,7 @@ class EmpiricalDistribution1D(object):
             """
         self.ndim = 1
         self.param_name = param_name
-        self._Nbins = len(bins)-1
+        self._Nbins = len(bins) - 1
         hist, x_bins = np.histogram(samples, bins=bins)
 
         self._edges = x_bins[:-1]
@@ -33,7 +33,7 @@ class EmpiricalDistribution1D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / float(counts) / self._wids
-        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
+        self._cdf = np.cumsum((self._pdf * self._wids).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -42,18 +42,18 @@ class EmpiricalDistribution1D(object):
         draw_bin = np.searchsorted(self._cdf, draw)
 
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
+        samp = self._edges[idx] + self._wids[idx] * np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
         ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+                 self._Nbins - 1)
 
         return self._pdf[ix]
 
     def logprob(self, params):
         ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+                 self._Nbins - 1)
 
         return self._logpdf[ix]
 
@@ -69,7 +69,7 @@ class EmpiricalDistribution2D(object):
             """
         self.ndim = 2
         self.param_names = param_names
-        self._Nbins = [len(b)-1 for b in bins]
+        self._Nbins = [len(b) - 1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
         self._edges = np.array([x_bins[:-1], y_bins[:-1]])
@@ -79,7 +79,7 @@ class EmpiricalDistribution2D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / counts / area
-        self._cdf = np.cumsum((self._pdf*area).ravel())
+        self._cdf = np.cumsum((self._pdf * area).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -88,19 +88,19 @@ class EmpiricalDistribution2D(object):
         draw_bin = np.searchsorted(self._cdf, draw)
 
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]] * np.random.rand()
                 for ii in range(2)]
         return np.array(samp)
 
     def prob(self, params):
         ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+                      self._Nbins[ii] - 1) for ii in range(2)]
 
         return self._pdf[ix, iy]
 
     def logprob(self, params):
         ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+                      self._Nbins[ii] - 1) for ii in range(2)]
 
         return self._logpdf[ix, iy]
 
@@ -123,7 +123,7 @@ def make_empirical_distributions(paramlist, params, chain,
 
     for pl in paramlist:
 
-        if type(pl) is not list:
+        if not isinstance(pl, list):
 
             pl = [pl]
 
@@ -133,7 +133,8 @@ def make_empirical_distributions(paramlist, params, chain,
             idx = params.index(pl[0])
 
             # get the bins for the histogram
-            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+            bins = np.linspace(min(chain[burn:, idx]), max(
+                chain[burn:, idx]), nbins)
 
             new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
 
@@ -145,7 +146,8 @@ def make_empirical_distributions(paramlist, params, chain,
             idx = [params.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+            bins = [np.linspace(min(chain[burn:, i]), max(
+                chain[burn:, i]), nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
@@ -160,7 +162,8 @@ def make_empirical_distributions(paramlist, params, chain,
         with open(filename, 'wb') as f:
             pickle.dump(distr, f)
 
-        msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+        msg = 'The empirical distributions have been pickled to {0}.'.format(
+            filename)
         logger.info(msg)
     else:
         msg = 'WARNING: No empirical distributions were made!'
