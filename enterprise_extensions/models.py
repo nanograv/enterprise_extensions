@@ -23,7 +23,7 @@ from enterprise_extensions.blocks import (bwm_block, bwm_sglpsr_block,
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 from enterprise_extensions.timing import timing_block
 
-#from enterprise.signals.signal_base import LookupLikelihood
+# from enterprise.signals.signal_base import LookupLikelihood
 
 
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
@@ -159,11 +159,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             if white_vary:
                 dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
                 log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-                #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+                # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
             else:
                 dmefac = parameter.Constant()
                 log10_dmequad = parameter.Constant()
-                #dmjump = parameter.Constant()
+                # dmjump = parameter.Constant()
             s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                                log10_dmequad=log10_dmequad, dmjump=dmjump,
                                                dmefac_selection=selections.Selection(
@@ -401,11 +401,11 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -538,11 +538,11 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -783,11 +783,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -986,11 +986,11 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1114,11 +1114,11 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1244,11 +1244,11 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1392,11 +1392,11 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1526,11 +1526,11 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1662,11 +1662,11 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1800,11 +1800,11 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -1927,11 +1927,11 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -2047,11 +2047,11 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -2199,11 +2199,11 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(
@@ -2775,11 +2775,11 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
             log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
-            #dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
+            # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
         else:
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
-            #dmjump = parameter.Constant()
+            # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(

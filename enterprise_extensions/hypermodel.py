@@ -6,8 +6,6 @@ import os
 import numpy as np
 import scipy.linalg as sl
 from enterprise import constants as const
-
-from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
@@ -199,7 +197,7 @@ class HyperModel(object):
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
-        save_runtime_info(pta, sampler.outDir, human)
+        save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)

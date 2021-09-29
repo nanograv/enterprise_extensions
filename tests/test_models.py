@@ -107,7 +107,6 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs, caplog):
                   'dmdip_seqname': ['1st_ism', '2nd_ism'],
                   'dm_cusp': False,
                   'dm_cusp_sign': 'negative',
-                  'dm_cusp_idx': [2, 4],
                   'dm_cusp_sym': False,
                   'dm_cusp_tmin': None,
                   'dm_cusp_tmax': None,
@@ -306,12 +305,6 @@ def test_model_singlepsr_fact_like(nodmx_psrs, caplog):
     assert hasattr(m, 'get_lnlikelihood')
     x0 = {pname: p.sample() for pname, p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
-
-
-def test_model1(dmx_psrs, caplog):
-    # caplog.set_level(logging.CRITICAL)
-    m1 = models.model_1(dmx_psrs, noisedict=noise_dict)
-    assert hasattr(m1, 'get_lnlikelihood')
 
 
 def test_modelbwmsglpsr(nodmx_psrs, caplog):

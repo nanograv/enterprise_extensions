@@ -756,7 +756,7 @@ class JumpProposal(object):
 
         # draw skylocation and frequency from f-stat map
         accepted = False
-        while accepted == False:
+        while accepted is False:
             log_f_new = self.params[self.pimap['log10_fgw']].sample()
             f_idx = (np.abs(np.log10(self.fe_freqs) - log_f_new)).argmin()
 

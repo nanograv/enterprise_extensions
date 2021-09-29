@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import numpy as np
 from enterprise import constants as const
@@ -442,7 +440,7 @@ def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t
 
     # antenna patterns
     if antenna_pattern_fn is None:
-        apc = create_gw_antenna_pattern(pos, gwtheta, gwphi)
+        apc = utils.create_gw_antenna_pattern(pos, gwtheta, gwphi)
     else:
         apc = antenna_pattern_fn(pos, gwtheta, gwphi)
 
@@ -471,8 +469,10 @@ def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
 
     A = 10 ** log10_A
     t0 *= const.day
+
     # Return the time-series for the pulsar
-    def heaviside(x): return 0.5 * (np.sign(x) + 1)
+    def heaviside(x):
+        return 0.5 * (np.sign(x) + 1)
 
     # return 0 #Fix the return to 0 in order to test what the heck is wrong
     # with red noise detection in bwm

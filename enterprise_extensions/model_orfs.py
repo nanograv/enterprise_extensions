@@ -344,9 +344,9 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15, alpha_tt=-2 / 3, al
                               orf_aa_vl * gwpol_amps[2],
                               orf_aa_sl * gwpol_amps[3]])
 
-    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(2 * alpha_tt) +
-                         np.sum(gwpol_factors[1:, :], axis=0) *
-                         (f / const.fyr)**(2 * alpha_alt)) / \
+    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(2 * alpha_tt)
+                         + np.sum(gwpol_factors[1:, :], axis=0)
+                         * (f / const.fyr)**(2 * alpha_alt)) / \
         (8 * np.pi**2 * f**3)
 
     return S_psd * np.repeat(df, 2)

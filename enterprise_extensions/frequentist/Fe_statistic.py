@@ -172,9 +172,9 @@ class FeStat(object):
                 A_c = (np.sqrt((a_hat[0] + a_hat[3])**2 + (a_hat[1] - a_hat[2])**2) -
                        np.sqrt((a_hat[0] - a_hat[3])**2 + (a_hat[1] + a_hat[2])**2))
                 AA = A_p + np.sqrt(A_p**2 - A_c**2)
-                #AA = A_p + np.sqrt(A_p**2 + A_c**2)
+                # AA = A_p + np.sqrt(A_p**2 + A_c**2)
 
-                #inc_max[j] = np.arccos(-A_c/AA)
+                # inc_max[j] = np.arccos(-A_c/AA)
                 inc_max[j] = np.arccos(A_c / AA)
 
                 two_psi_max = np.arctan2((A_p * a_hat[3] - A_c * a_hat[0]),

@@ -6,7 +6,6 @@ import numpy as np
 from enterprise.signals import signal_base, utils
 
 __all__ = ['linear_interp_basis_dm',
-           'linear_interp_basis_scattering',
            'linear_interp_basis_freq',
            'dmx_ridge_prior',
            'periodic_kernel',

@@ -162,8 +162,7 @@ def ul(chain, q=95.0):
     A_ul = 10**np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
-    Aul_error = np.sqrt((q / 100.) * (1.0 - (q / 100.0)) /
-                        (chain.shape[0] / acor.acor(chain)[0])) / p_ul
+    Aul_error = np.sqrt((q / 100.) * (1.0 - (q / 100.0)) / (chain.shape[0] / acor.acor(chain)[0])) / p_ul
 
     return A_ul, Aul_error
 
@@ -240,8 +239,8 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
                         ct_bt += 1
 
             try:
-                sigma = bf * np.sqrt((float(top) - float(ct_tb)) / (float(top) * float(ct_tb)) +
-                                     (float(bot) - float(ct_bt)) / (float(bot) * float(ct_bt)))
+                sigma = bf * np.sqrt((float(top) - float(ct_tb)) / (float(top) * float(ct_tb))
+                                     + (float(bot) - float(ct_bt)) / (float(bot) * float(ct_bt)))
             except ZeroDivisionError:
                 sigma = 0.0
 

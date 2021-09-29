@@ -27,6 +27,7 @@ requirements = [
 
 test_requirements = []
 
+
 # Extract version
 def get_version():
     with open("enterprise_extensions/__init__.py") as f:
