@@ -206,7 +206,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
 
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
     cf = sl.cho_factor(Sigma)
-    Nshape = np.shape(T)[0]
+    # Nshape = np.shape(T)[0] Not used in code
 
     TtN = np.multiply((1 / Nvec)[:, None], T).T
 
@@ -214,7 +214,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Ndiag = np.diag(1 / Nvec)
 
     expval2 = sl.cho_solve(cf, TtN)
-    #TtNt = np.transpose(TtN)
+    # TtNt = np.transpose(TtN)
 
     # An Ntoa by Ntoa noise matrix to be used in expand dense matrix
     # calculations earlier

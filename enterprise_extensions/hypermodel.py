@@ -5,17 +5,9 @@ import os
 
 import numpy as np
 import scipy.linalg as sl
-import scipy.stats as scistats
 from enterprise import constants as const
-from enterprise.signals import signal_base
-
-try:
-    import cPickle as pickle
-except BaseException:
-    import pickle
 
 from enterprise import constants as const
-from enterprise.pulsar import Pulsar
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
@@ -349,7 +341,7 @@ class HyperModel(object):
         wave += pta.get_delay(params=params)[0]
 
         # get linear parameters
-        Nvec = pta.get_ndiag(params)[0]
+        pta.get_ndiag(params)[0]
         phiinv = pta.get_phiinv(params, logdet=False)[0]
         T = pta.get_basis(params)[0]
 

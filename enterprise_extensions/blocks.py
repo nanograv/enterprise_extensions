@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+import numpy as np
 import types
 
-import numpy as np
-from enterprise import constants as const
-from enterprise.signals import deterministic_signals
+from enterprise.signals import parameter
+from enterprise.signals import selections
+from enterprise.signals import white_signals
+from enterprise.signals import gp_signals
+from enterprise.signals import utils
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
-from enterprise.signals import (gp_signals, parameter, selections, utils,
-                                white_signals)
+from enterprise.signals import deterministic_signals
+from enterprise import constants as const
+from . import gp_kernels as gpk
+from . import chromatic as chrom
+from . import model_orfs
 
 from enterprise_extensions import deterministic as ee_deterministic
-
-from . import chromatic as chrom
-from . import gp_kernels as gpk
-from . import model_orfs
 
 __all__ = ['white_noise_block',
            'red_noise_block',
@@ -105,7 +106,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     components=30, gamma_val=None, coefficients=False,
                     select=None, modes=None, wgts=None,
-                    break_flat=False, break_flat_fq=None, logmin=None, logmax=None):
+                    break_flat=False, break_flat_fq=None, logmin=None,
+                    logmax=None):
     """
     Returns red noise model:
         1. Red noise modeled as a power-law with 30 sampling frequencies

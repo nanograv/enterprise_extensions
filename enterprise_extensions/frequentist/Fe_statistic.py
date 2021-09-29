@@ -1,16 +1,11 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import json
 
-import enterprise
 import numpy as np
 import scipy.linalg as sl
-from enterprise import constants as const
-from enterprise.pulsar import Pulsar
-from enterprise.signals import (deterministic_signals, gp_signals, parameter,
-                                selections, signal_base, utils, white_signals)
-from enterprise.signals.selections import Selection
+from enterprise.signals import (gp_signals, parameter, signal_base,
+                                utils, white_signals)
 
 
 class FeStat(object):
@@ -258,7 +253,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
 
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
     cf = sl.cho_factor(Sigma)
-    Nshape = np.shape(T)[0]
+    # Nshape = np.shape(T)[0] Not used in code...
 
     TtN = np.multiply((1 / Nvec)[:, None], T).T
 
@@ -266,7 +261,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Ndiag = np.diag(1 / Nvec)
 
     expval2 = sl.cho_solve(cf, TtN)
-    #TtNt = np.transpose(TtN)
+    # TtNt = np.transpose(TtN)
 
     # An Ntoa by Ntoa noise matrix to be used in expand dense matrix
     # calculations earlier
