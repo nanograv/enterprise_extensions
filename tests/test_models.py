@@ -315,10 +315,6 @@ def test_model1(dmx_psrs, caplog):
 
 
 def test_modelbwmsglpsr(nodmx_psrs, caplog):
-    tmax = max([p.toas.max() for p in nodmx_psrs])
-    tmin = min([p.toas.min() for p in nodmx_psrs])
-    Tspan = tmax - tmin
-
     nodmx_psr = nodmx_psrs[0]
 
     # should I be testing the Log and Lookup Likelihoods?
@@ -331,10 +327,6 @@ def test_modelbwmsglpsr(nodmx_psrs, caplog):
 
 
 def test_modelbwm(nodmx_psrs, caplog):
-    tmax = max([p.toas.max() for p in nodmx_psrs])
-    tmin = min([p.toas.min() for p in nodmx_psrs])
-    Tspan = tmax - tmin
-
     # should I be testing the Log and Lookup Likelihoods?
     m = models.model_bwm(nodmx_psrs)
     # If this test belongs in enterprise/tests instead, do

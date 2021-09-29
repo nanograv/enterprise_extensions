@@ -13,11 +13,9 @@ import pickle
 import enterprise.signals.parameter as parameter
 import numpy as np
 import pytest
-from enterprise import constants as const
 from enterprise.signals import gp_signals, signal_base
-from enterprise.signals import utils as ent_utils
 
-from enterprise_extensions import model_orfs, model_utils, models, sampler
+from enterprise_extensions import model_orfs, models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))

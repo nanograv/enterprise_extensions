@@ -11,7 +11,7 @@ import pickle
 import numpy as np
 import pytest
 
-from enterprise_extensions import model_utils, models, sampler
+from enterprise_extensions import models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))
