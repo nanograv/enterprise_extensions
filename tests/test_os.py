@@ -3,12 +3,14 @@
 
 """Tests for `enterprise_extensions` package."""
 
-import pytest
-import pickle
 import json
-import os
 import logging
+import os
+import pickle
+
 import numpy as np
+import pytest
+
 from enterprise_extensions import models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 

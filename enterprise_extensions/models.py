@@ -1,30 +1,26 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
 import functools
 from collections import OrderedDict
 
-from enterprise.signals import parameter
-from enterprise.signals import selections
-from enterprise.signals import signal_base
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
+import numpy as np
 from enterprise import constants as const
+from enterprise.signals import (deterministic_signals, gp_signals, parameter,
+                                selections, signal_base, white_signals)
+from enterprise.signals.signal_base import LogLikelihood
 
-from enterprise_extensions import model_utils
+from enterprise_extensions import chromatic as chrom
 from enterprise_extensions import deterministic
-from enterprise_extensions.timing import timing_block
-from enterprise_extensions.blocks import (white_noise_block, red_noise_block,
-                                          dm_noise_block,
+from enterprise_extensions import dropout as do
+from enterprise_extensions import model_utils
+from enterprise_extensions.blocks import (bwm_block, bwm_sglpsr_block,
                                           chromatic_noise_block,
                                           common_red_noise_block,
-                                          bwm_block,
-                                          bwm_sglpsr_block)
+                                          dm_noise_block, red_noise_block,
+                                          white_noise_block)
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
-from enterprise_extensions import chromatic as chrom
-from enterprise_extensions import dropout as do
-from enterprise.signals.signal_base import LogLikelihood
+from enterprise_extensions.timing import timing_block
+
 #from enterprise.signals.signal_base import LookupLikelihood
 
 

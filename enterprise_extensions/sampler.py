@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import os
-import platform
-import pickle
-import healpy as hp
 import glob
+import os
+import pickle
+import platform
 
+import healpy as hp
+import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__

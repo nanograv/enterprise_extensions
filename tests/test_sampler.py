@@ -3,11 +3,13 @@
 
 """Tests for `enterprise_extensions` package."""
 
-import pytest
-import pickle
 import json
-import os
 import logging
+import os
+import pickle
+
+import pytest
+
 from enterprise_extensions import models, sampler
 
 testdir = os.path.dirname(os.path.abspath(__file__))

@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
-
 import enterprise
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
+import numpy as np
 from enterprise import constants as const
+from enterprise.signals import (deterministic_signals, parameter, signal_base,
+                                utils)
 
 
 @signal_base.function

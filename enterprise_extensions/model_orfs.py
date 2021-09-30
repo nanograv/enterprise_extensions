@@ -2,8 +2,8 @@
 
 import numpy as np
 import scipy.interpolate as interp
-from enterprise.signals import signal_base
 from enterprise import constants as const
+from enterprise.signals import signal_base
 
 
 @signal_base.function

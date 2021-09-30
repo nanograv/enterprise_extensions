@@ -5,17 +5,18 @@
 Tests for altpol functions in e_e Code.
 """
 
-import pytest
-import pickle
 import json
-import os
 import logging
-from enterprise_extensions import model_orfs, models
-import numpy as np
-from enterprise_extensions.frequentist import optimal_statistic as optstat
+import os
+import pickle
+
 import enterprise.signals.parameter as parameter
-from enterprise.signals import gp_signals
-from enterprise.signals import signal_base
+import numpy as np
+import pytest
+from enterprise.signals import gp_signals, signal_base
+
+from enterprise_extensions import model_orfs, models
+from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')

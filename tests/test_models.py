@@ -3,13 +3,15 @@
 
 """Tests for `enterprise_extensions` package."""
 
-import pytest
-import pickle
 import json
-import os
 import logging
+import os
+import pickle
+
+import pytest
 from enterprise import constants as const
-from enterprise_extensions import models, model_utils
+
+from enterprise_extensions import model_utils, models
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')

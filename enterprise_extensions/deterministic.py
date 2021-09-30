@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
 from enterprise import constants as const
+from enterprise.signals import (deterministic_signals, parameter, signal_base,
+                                utils)
 
 
 def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',

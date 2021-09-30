@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
 from enterprise import constants as const
+from enterprise.signals import deterministic_signals, parameter, signal_base
 
 __all__ = ['chrom_exp_decay',
            'chrom_exp_cusp',

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import time
-import numpy as np
-import scipy.stats as scistats
 
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as scistats
 
 try:
     pass

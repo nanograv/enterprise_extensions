@@ -2,12 +2,8 @@
 
 import numpy as np
 import scipy.linalg as sl
-
-from enterprise.signals import parameter
-from enterprise.signals import utils
-from enterprise.signals import signal_base
-from enterprise.signals import white_signals
-from enterprise.signals import gp_signals
+from enterprise.signals import (gp_signals, parameter, signal_base, utils,
+                                white_signals)
 
 
 class FeStat(object):

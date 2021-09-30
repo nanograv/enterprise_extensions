@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import os
-import scipy.linalg as sl
 import os
 
+import numpy as np
+import scipy.linalg as sl
 from enterprise import constants as const
 
 try:
