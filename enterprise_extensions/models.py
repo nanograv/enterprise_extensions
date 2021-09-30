@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+
 import numpy as np
 import functools
 from collections import OrderedDict
@@ -654,7 +653,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = 'powerlaw']
     :param common_components: number of frequencies starting at 1/T for common process.
         [default = 30]
-    :param log10_A_common: value of fixed log10_A_common parameter for 
+    :param log10_A_common: value of fixed log10_A_common parameter for
         fixed amplitude analyses.
         [default = None]
     :param gamma_common: fixed common red process spectral index value. By default we
@@ -662,18 +661,18 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = None]
     :param orf: comma de-limited string of multiple common processes with different orfs.
         [default = crn]
-    :param orf_names: comma de-limited string of process names for different orfs. Manual 
+    :param orf_names: comma de-limited string of process names for different orfs. Manual
         control of these names is useful for embedding model_general within a hypermodel
-        analysis for a process with and without hd correlations where we want to avoid 
+        analysis for a process with and without hd correlations where we want to avoid
         parameter duplication.
         [default = None]
     :param orf_ifreq:
-        Frequency bin at which to start the Hellings & Downs function with 
+        Frequency bin at which to start the Hellings & Downs function with
         numbering beginning at 0. Currently only works with freq_hd orf.
         [default = 0]
     :param leg_lmax:
-        Maximum multipole of a Legendre polynomial series representation 
-        of the overlap reduction function. 
+        Maximum multipole of a Legendre polynomial series representation
+        of the overlap reduction function.
         [default = 5]
     :param upper_limit_common: perform upper limit on common red noise amplitude. Note
         that when perfoming upper limits it is recommended that the spectral index also
@@ -2541,7 +2540,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     :param Tmax_fdm:
         Max time to search for FDM (MJD). If omitted, uses last TOA.
     :param gw_psd:
-        PSD to use for the per pulsar GWB. 
+        PSD to use for the per pulsar GWB.
     :param red_psd:
         PSD to use for per pulsar red noise. Available options
         are ['powerlaw', 'turnover', tprocess, 'spectrum'].
@@ -2576,7 +2575,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         Option to provide a seed for the random phase shift.
     :param model_CRN:
         Option to model the common red process in addition to the
-        FDM signal. 
+        FDM signal.
     :param amp_upper, amp_lower, freq_upper, freq_lower:
         The log-space bounds on the amplitude and frequency priors.
     :param use_fixed_freq:

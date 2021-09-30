@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+
 import numpy as np
 from enterprise.signals import signal_base
 from enterprise.signals import utils

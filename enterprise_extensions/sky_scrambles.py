@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import sys
 import time
@@ -67,7 +69,7 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
     :param N: Number of desired sky scrambles
     :param Nmax: Maximum number of tries to get independent scrambles
     :param thresh: Threshold value for match statistic.
-    :param filename: Name of the file where the sky scrambles should be saved. 
+    :param filename: Name of the file where the sky scrambles should be saved.
                      Sky scrambles should be saved in *.npz file.
     :param resume: Whether to resume from an earlier run.
     """

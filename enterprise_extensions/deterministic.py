@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
+
 import numpy as np
 
 from enterprise.signals import parameter
@@ -16,14 +15,14 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
               use_fixed_freq=False, fixed_freq=-8):
     """
     Returns deterministic fuzzy dark matter model:
-        1. FDM parameterized by frequency, phase, 
+        1. FDM parameterized by frequency, phase,
             and amplitude (mass and DM energy density).
     :param Tmin:
         Min time to search, probably first TOA (MJD).
     :param Tmax:
         Max time to search, probably last TOA (MJD).
     :param amp_prior:
-        Prior on log10_A. 
+        Prior on log10_A.
     :param logmin:
         log of minimum FDM amplitude for prior (log10)
     :param logmax:
@@ -713,8 +712,8 @@ def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
     :param toas: Time-of-arrival measurements [s]
     :param log10_A: log10 of GW strain
     :param log10_f: log10 of GW frequency
-    :param phase_e: The Earth-term phase of the GW 
-    :param phase_p: The Pulsar-term phase of the GW 
+    :param phase_e: The Earth-term phase of the GW
+    :param phase_p: The Pulsar-term phase of the GW
 
     :return: the waveform as induced timing residuals (seconds)
     """
