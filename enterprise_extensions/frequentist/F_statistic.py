@@ -172,7 +172,7 @@ def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
     xNy = np.dot(np.dot(x, Ni), y)
     Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
 
-    if TNx == None and TNy == None:
+    if TNx is None and TNy is None:
         TNx = np.dot(Tmat.T, Nx)
         TNy = np.dot(Tmat.T, Ny)
 
@@ -196,7 +196,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Ndiag = np.diag(1/Nvec)
 
     expval2 = sl.cho_solve(cf, TtN)
-    #TtNt = np.transpose(TtN)
+    # TtNt = np.transpose(TtN) # Not currently used in code
 
     # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
     return Ndiag - np.dot(TtN.T, expval2)

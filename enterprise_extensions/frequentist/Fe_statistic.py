@@ -79,7 +79,7 @@ class FeStat(object):
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
 
-        if self.Nmats == None:
+        if self.Nmats is None:
 
             self.Nmats = self.get_Nmats()
 
@@ -146,9 +146,9 @@ class FeStat(object):
                 A_c = (np.sqrt((a_hat[0]+a_hat[3])**2 + (a_hat[1]-a_hat[2])**2) -
                        np.sqrt((a_hat[0]-a_hat[3])**2 + (a_hat[1]+a_hat[2])**2))
                 AA = A_p + np.sqrt(A_p**2 - A_c**2)
-                #AA = A_p + np.sqrt(A_p**2 + A_c**2)
+                # AA = A_p + np.sqrt(A_p**2 + A_c**2)
 
-                #inc_max[j] = np.arccos(-A_c/AA)
+                # inc_max[j] = np.arccos(-A_c/AA)
                 inc_max[j] = np.arccos(A_c/AA)
 
                 two_psi_max = np.arctan2((A_p*a_hat[3] - A_c*a_hat[0]),
@@ -205,7 +205,7 @@ def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
     xNy = np.dot(np.dot(x, Ni), y)
     Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
 
-    if TNx == None and TNy == None:
+    if TNx is None and TNy is None:
         TNx = np.dot(Tmat.T, Nx)
         TNy = np.dot(Tmat.T, Ny)
 
@@ -233,7 +233,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
     Ndiag = np.diag(1/Nvec)
 
     expval2 = sl.cho_solve(cf, TtN)
-    #TtNt = np.transpose(TtN)
+    # TtNt = np.transpose(TtN) # Not currently used in code
 
     # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
     return Ndiag - np.dot(TtN.T, expval2)

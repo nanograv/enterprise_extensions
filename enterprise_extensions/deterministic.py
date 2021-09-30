@@ -309,8 +309,7 @@ def cw_delay(toas, pos, pdist,
         if np.abs(df) > fbin:
             print('WARNING: Frequency is evolving over more than one '
                   'frequency bin.')
-            print('f0 = {0}, f1 = {1}, df = {2}, fbin = {3}'
-                  .format(fstart, fend, df,  fbin))
+            print('f0 = {0}, f1 = {1}, df = {2}, fbin = {3}'.format(fstart, fend, df, fbin))
             return np.ones(len(toas)) * np.nan
 
     # get antenna pattern funcs and cosMu
@@ -462,8 +461,10 @@ def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
 
     A = 10 ** log10_A
     t0 *= const.day
+
     # Return the time-series for the pulsar
-    def heaviside(x): return 0.5 * (np.sign(x) + 1)
+    def heaviside(x):
+        return 0.5 * (np.sign(x) + 1)
 
     # return 0 #Fix the return to 0 in order to test what the heck is wrong with red noise detection in bwm
     return A * np.sign(sign) * heaviside(toas - t0) * (toas - t0)
