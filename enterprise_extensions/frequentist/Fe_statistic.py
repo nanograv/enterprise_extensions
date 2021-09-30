@@ -225,7 +225,7 @@ def make_Nmat(phiinv, TNT, Nvec, T):
 
     Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
     cf = sl.cho_factor(Sigma)
-    Nshape = np.shape(T)[0]
+    # Nshape = np.shape(T)[0] # Not currently used in code
 
     TtN = np.multiply((1/Nvec)[:, None], T).T
 

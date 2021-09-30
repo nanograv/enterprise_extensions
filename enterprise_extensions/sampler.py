@@ -275,7 +275,6 @@ class JumpProposal(object):
     def draw_from_dm1yr_prior(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         dm1yr_names = [dmname for dmname in self.pnames if 'dm_s1yr' in dmname]
         dmname = np.random.choice(dm1yr_names)
@@ -290,7 +289,6 @@ class JumpProposal(object):
     def draw_from_dmexpdip_prior(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         dmexp_names = [dmname for dmname in self.pnames if 'dmexp' in dmname]
         dmname = np.random.choice(dmexp_names)
@@ -307,7 +305,6 @@ class JumpProposal(object):
     def draw_from_dmexpcusp_prior(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         dmexp_names = [dmname for dmname in self.pnames if 'dm_cusp' in dmname]
         dmname = np.random.choice(dmexp_names)
@@ -372,7 +369,6 @@ class JumpProposal(object):
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         # draw parameter from signal model
         gw_pars = [par for par in self.pnames
@@ -387,7 +383,6 @@ class JumpProposal(object):
     def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         # draw parameter from signal model
         idx = self.pnames.index('dipole_log10_A')
@@ -398,7 +393,6 @@ class JumpProposal(object):
     def draw_from_monopole_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         # draw parameter from signal model
         idx = self.pnames.index('monopole_log10_A')
@@ -409,7 +403,6 @@ class JumpProposal(object):
     def draw_from_altpol_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         # draw parameter from signal model
         polnames = [pol for pol in self.pnames if 'log10Apol' in pol]
@@ -525,7 +518,6 @@ class JumpProposal(object):
     def draw_from_cw_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
-        lqxy = 0
 
         # draw parameter from signal model
         idx = self.pnames.index('log10_h')
@@ -663,7 +655,6 @@ class JumpProposal(object):
             """
 
             q = x.copy()
-            lqxy = 0
 
             # draw parameter from signal model
             idx_name = np.random.choice(par_list)
@@ -684,7 +675,6 @@ class JumpProposal(object):
         # draw parameter from pulsar names
         psr = np.random.choice(self.psrnames)
         idxs = [self.pimap[par] for par in self.pnames if psr in par]
-        params = np.array(self.params)[idxs]
         for idx in idxs:
             q[idx] = self.params[idx].sample()
 
@@ -771,7 +761,6 @@ class JumpProposal(object):
         log10_h = self.params[self.pimap['log10_h']].sample()
 
         # put new parameters into q
-        signal_name = 'cw'
         for param_name, new_param in zip(['log10_fgw', 'gwphi', 'cos_gwtheta', 'cos_inc', 'psi', 'phase0', 'log10_h'],
                                          [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
             q[self.pimap[param_name]] = new_param

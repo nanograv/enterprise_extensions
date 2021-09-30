@@ -2469,12 +2469,12 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None, noisedict=No
 
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
         s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-        if dm_var and 'J1713+0747' == p.name:
+        if dm_var and 'J1713+0747' == psr.name:
             s2 += dmexp
         models.append(s2(psr))
     else:
         s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-        if dm_var and 'J1713+0747' == p.name:
+        if dm_var and 'J1713+0747' == psr.name:
             s3 += dmexp
         models.append(s3(psr))
 

@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 import scipy.linalg as sl
-from enterprise import constants as const
 
 try:
     pass
@@ -196,7 +195,7 @@ class HyperModel(object):
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
-        save_runtime_info(pta, sampler.outDir, human)
+        save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
@@ -332,7 +331,7 @@ class HyperModel(object):
         wave += pta.get_delay(params=params)[0]
 
         # get linear parameters
-        Nvec = pta.get_ndiag(params)[0]
+        # Nvec = pta.get_ndiag(params)[0] # Not currently used in code
         phiinv = pta.get_phiinv(params, logdet=False)[0]
         T = pta.get_basis(params)[0]
 

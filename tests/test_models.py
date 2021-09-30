@@ -101,7 +101,6 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs, caplog):
     dip_kwargs = {'dm_expdip': True,
                   'dmexp_sign': 'negative',
                   'num_dmdips': 2,
-                  'dm_cusp_idx': [2, 4],
                   'dm_expdip_tmin': [54700, 57450],
                   'dm_expdip_tmax': [54850, 57560],
                   'dmdip_seqname': ['1st_ism', '2nd_ism'],
@@ -308,17 +307,7 @@ def test_model_singlepsr_fact_like(nodmx_psrs, caplog):
     m.get_lnlikelihood(x0)
 
 
-def test_model1(dmx_psrs, caplog):
-    # caplog.set_level(logging.CRITICAL)
-    m1=models.model_1(dmx_psrs, noisedict=noise_dict)
-    assert hasattr(m1, 'get_lnlikelihood')
-
-
 def test_modelbwmsglpsr(nodmx_psrs, caplog):
-    tmax = max([p.toas.max() for p in nodmx_psrs])
-    tmin = min([p.toas.min() for p in nodmx_psrs])
-    Tspan = tmax - tmin
-
     nodmx_psr=nodmx_psrs[0]
 
     m=models.model_bwm_sglpsr(nodmx_psr)  # should I be testing the Log and Lookup Likelihoods?
@@ -330,10 +319,6 @@ def test_modelbwmsglpsr(nodmx_psrs, caplog):
 
 
 def test_modelbwm(nodmx_psrs, caplog):
-    tmax = max([p.toas.max() for p in nodmx_psrs])
-    tmin = min([p.toas.min() for p in nodmx_psrs])
-    Tspan = tmax - tmin
-
     m=models.model_bwm(nodmx_psrs)  # should I be testing the Log and Lookup Likelihoods?
     # If this test belongs in enterprise/tests instead, do
     # I need to include the lookup table in tests/data?

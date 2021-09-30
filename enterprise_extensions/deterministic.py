@@ -327,7 +327,7 @@ def cw_delay(toas, pos, pdist,
     # orbital frequency
     w0 = np.pi * fgw
     phase0 /= 2  # orbital phase
-    omegadot = 96/5 * mc**(5/3) * w0**(11/3)
+    # omegadot = 96/5 * mc**(5/3) * w0**(11/3) # Not currently used in code
 
     # evolution
     if evolve:
@@ -433,7 +433,7 @@ def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t
 
     # antenna patterns
     if antenna_pattern_fn is None:
-        apc = create_gw_antenna_pattern(pos, gwtheta, gwphi)
+        apc = utils.create_gw_antenna_pattern(pos, gwtheta, gwphi)
     else:
         apc = antenna_pattern_fn(pos, gwtheta, gwphi)
 

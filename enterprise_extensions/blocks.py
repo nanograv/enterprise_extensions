@@ -19,9 +19,8 @@ from . import model_orfs
 __all__ = ['white_noise_block',
            'red_noise_block',
            'bwm_block',
-           'bwm_sglpsr_block'
+           'bwm_sglpsr_block',
            'dm_noise_block',
-           'scattering_noise_block',
            'chromatic_noise_block',
            'common_red_noise_block',
            ]
