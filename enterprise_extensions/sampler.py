@@ -3,12 +3,10 @@
 import numpy as np
 import os
 import platform
-from enterprise import constants as const
 import pickle
 import healpy as hp
 import glob
 
-from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__

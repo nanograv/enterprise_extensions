@@ -2,19 +2,12 @@
 
 import numpy as np
 import scipy.linalg as sl
-import json
 
-import enterprise
-from enterprise.pulsar import Pulsar
 from enterprise.signals import parameter
 from enterprise.signals import utils
 from enterprise.signals import signal_base
-from enterprise.signals import selections
-from enterprise.signals.selections import Selection
 from enterprise.signals import white_signals
 from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
-from enterprise import constants as const
 
 
 class FeStat(object):

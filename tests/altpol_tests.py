@@ -10,12 +10,10 @@ import pickle
 import json
 import os
 import logging
-from enterprise import constants as const
-from enterprise_extensions import models, model_utils, sampler, model_orfs
+from enterprise_extensions import model_orfs, models
 import numpy as np
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 import enterprise.signals.parameter as parameter
-from enterprise.signals import utils as ent_utils
 from enterprise.signals import gp_signals
 from enterprise.signals import signal_base
 

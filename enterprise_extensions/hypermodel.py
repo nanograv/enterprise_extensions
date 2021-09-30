@@ -2,19 +2,16 @@
 
 import numpy as np
 import os
-import scipy.stats as scistats
 import scipy.linalg as sl
 import os
 
 from enterprise import constants as const
-from enterprise.signals import signal_base
 
 try:
-    import cPickle as pickle
+    pass
 except:
-    import pickle
+    pass
 
-from enterprise.pulsar import Pulsar
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 

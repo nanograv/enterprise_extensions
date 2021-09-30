@@ -9,7 +9,7 @@ import json
 import os
 import logging
 import numpy as np
-from enterprise_extensions import models, model_utils, sampler
+from enterprise_extensions import models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))

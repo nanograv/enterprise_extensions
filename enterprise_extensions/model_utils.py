@@ -7,9 +7,9 @@ import scipy.stats as scistats
 import matplotlib.pyplot as plt
 
 try:
-    import cPickle as pickle
+    pass
 except ImportError:
-    import pickle
+    pass
 
 try:
     import acor
@@ -17,9 +17,6 @@ except ImportError:
     from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions import models
-from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
-                                                   EmpiricalDistribution2D,
-                                                   make_empirical_distributions)
 
 # Log-spaced frequncies
 
