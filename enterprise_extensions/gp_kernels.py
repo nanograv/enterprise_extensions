@@ -31,6 +31,8 @@ def linear_interp_basis_dm(toas, freqs, dt=30*86400):
     return U * Dm[:, None], avetoas
 
 # linear interpolation basis in time with nu^-4 scaling
+
+
 @signal_base.function
 def linear_interp_basis_chromatic(toas, freqs, dt=30*86400, idx=4):
 
@@ -43,18 +45,24 @@ def linear_interp_basis_chromatic(toas, freqs, dt=30*86400, idx=4):
     return U * Dm[:, None], avetoas
 
 # linear interpolation in radio frequcny
+
+
 @signal_base.function
 def linear_interp_basis_freq(freqs, df=64):
 
     return utils.linear_interp_basis(freqs, dt=df)
 
 # DMX-like signal with Gaussian prior
+
+
 @signal_base.function
 def dmx_ridge_prior(avetoas, log10_sigma=-7):
     sigma = 10**log10_sigma
     return sigma**2 * np.ones_like(avetoas)
 
 # quasi-periodic kernel for DM
+
+
 @signal_base.function
 def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2,
                     log10_gam_p=0, log10_p=0):
@@ -71,6 +79,8 @@ def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2,
     return K
 
 # squared-exponential kernel for FD
+
+
 @signal_base.function
 def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
 
@@ -82,6 +92,8 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
     return sigma**2 * np.exp(-tm**2/2/lam) + d
 
 # squared-exponential kernel for DM
+
+
 @signal_base.function
 def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
 
@@ -95,6 +107,8 @@ def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     return K
 
 # quantization matrix in time and radio frequency to cut down on the kernel size.
+
+
 @signal_base.function
 def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_idx=2):
     if df is None:
@@ -142,6 +156,8 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_i
 
 # kernel is the product of a quasi-periodic time kernel and
 # a rational-quadratic frequency kernel.
+
+
 @signal_base.function
 def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
               log10_p=0, log10_ell2=4, log10_alpha_wgt=0):
@@ -168,6 +184,8 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
 
 # kernel is the product of a squared-exponential time kernel and
 # a rational-quadratic frequency kernel
+
+
 @signal_base.function
 def sf_kernel(labels, log10_sigma=-7, log10_ell=2,
               log10_ell2=4, log10_alpha_wgt=0):

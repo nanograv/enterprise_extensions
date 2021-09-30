@@ -4,7 +4,9 @@
 """Tests for `enterprise_extensions` package."""
 
 import pytest
-import pickle, json, os
+import pickle
+import json
+import os
 import logging
 from enterprise_extensions import models, sampler
 
@@ -12,10 +14,11 @@ testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
 outdir = os.path.join(testdir, 'test_out')
 
-psr_names = ['J0613-0200','J1713+0747','J1909-3744']
+psr_names = ['J0613-0200', 'J1713+0747', 'J1909-3744']
 
-with open(datadir+'/ng11yr_noise.json','r') as fin:
+with open(datadir+'/ng11yr_noise.json', 'r') as fin:
     noise_dict = json.load(fin)
+
 
 @pytest.fixture
 def dmx_psrs(caplog):
@@ -26,10 +29,11 @@ def dmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng9yr_dmx_DE436_epsr.pkl'.format(p),'rb') as fin:
+        with open(datadir+'/{0}_ng9yr_dmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
             psrs.append(pickle.load(fin))
 
     return psrs
+
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_jumpproposal(dmx_psrs, caplog):
@@ -39,10 +43,11 @@ def test_jumpproposal(dmx_psrs, caplog):
     assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
     assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
             'draw_from_J1713+0747_prior')
-    assert (jp.draw_from_par_log_uniform({'gw':(-20,-10)}).__name__ ==
+    assert (jp.draw_from_par_log_uniform({'gw': (-20, -10)}).__name__ ==
             'draw_from_gw_log_uniform')
     assert (jp.draw_from_signal('red noise').__name__ ==
             'draw_from_red noise_signal')
+
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_setup_sampler(dmx_psrs, caplog):
@@ -55,4 +60,3 @@ def test_setup_sampler(dmx_psrs, caplog):
         params = [line.rstrip('\n') for line in f]
     for ptapar, filepar in zip(m2a.param_names, params):
         assert ptapar == filepar
-

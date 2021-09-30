@@ -13,12 +13,14 @@ from enterprise_extensions import model_orfs
 import warnings
 
 
-## Define the output to be on a single line.
+# Define the output to be on a single line.
 def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
     return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
 
-## Override default format.
+
+# Override default format.
 warnings.formatwarning = warning_on_one_line
+
 
 class OptimalStatistic(object):
     """
@@ -52,7 +54,6 @@ class OptimalStatistic(object):
                                        select='backend', noisedict=noisedict)
         else:
             self.pta = pta
-
 
         self.gamma_common = gamma_common
         # get frequencies here
@@ -114,7 +115,7 @@ class OptimalStatistic(object):
                     msg += 'in the parameter dictionary. '
                     msg += 'Drawing a random value.'
 
-                    warnings.warn(msg);
+                    warnings.warn(msg)
 
         # get matrix products
         TNrs = self.get_TNr(params=params)
@@ -150,10 +151,10 @@ class OptimalStatistic(object):
                     if self.gamma_common is None and 'gw_gamma' in params.keys():
                         print('{0:1.2}'.format(params['gw_gamma']))
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
-                                            gamma=params['gw_gamma'])
+                                               gamma=params['gw_gamma'])
                     else:
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
-                                            gamma=self.gamma_common)
+                                               gamma=self.gamma_common)
                 elif psd == 'spectrum':
                     Sf = -np.inf * np.ones(int(len(self.freqs)/2))
                     idx = (np.abs(np.unique(self.freqs) - fgw)).argmin()
@@ -162,7 +163,7 @@ class OptimalStatistic(object):
                                                     log10_rho=Sf)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
-                bot = np.trace(np.dot(Z[ii]*phiIJ[None,:], Z[jj]*phiIJ[None,:]))
+                bot = np.trace(np.dot(Z[ii]*phiIJ[None, :], Z[jj]*phiIJ[None, :]))
 
                 # cross correlation and uncertainty
                 rho.append(top / bot)
@@ -214,7 +215,7 @@ class OptimalStatistic(object):
             if param_names is None:
                 setpars.update(self.pta.map_params(chain[idx, :-4]))
             else:
-                setpars = dict(zip(param_names,chain[idx,:-4]))
+                setpars = dict(zip(param_names, chain[idx, :-4]))
             xi, rho_tmp, rho_sig_tmp, opt[ii], sig[ii] = self.compute_os(params=setpars)
             rho.append(rho_tmp)
             rho_sig.append(rho_sig_tmp)
@@ -251,7 +252,7 @@ class OptimalStatistic(object):
         if param_names is None:
             setpars = (self.pta.map_params(chain[idx, :-4]))
         else:
-            setpars = dict(zip(param_names,chain[idx,:-4]))
+            setpars = dict(zip(param_names, chain[idx, :-4]))
 
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
@@ -305,14 +306,14 @@ class OptimalStatistic(object):
             ORFs.append(np.array(ORF))
 
         Bmat = np.array([[np.sum(ORFs[i]*ORFs[j]/sig**2) for i in range(len(ORFs))]
-                 for j in range(len(ORFs))])
+                         for j in range(len(ORFs))])
 
         Bmatinv = np.linalg.inv(Bmat)
 
         Cmat = np.array([np.sum(rho*ORFs[i]/sig**2) for i in range(len(ORFs))])
 
         A = np.dot(Bmatinv, Cmat)
-        A_err = np.array([np.sqrt(Bmatinv[i,i]) for i in range(len(ORFs))])
+        A_err = np.array([np.sqrt(Bmatinv[i, i]) for i in range(len(ORFs))])
 
         return xi, rho, sig, A, A_err
 
@@ -355,10 +356,10 @@ class OptimalStatistic(object):
             if param_names is None:
                 setpars.update(self.pta.map_params(chain[idx, :-4]))
             else:
-                setpars = dict(zip(param_names,chain[idx,:-4]))
+                setpars = dict(zip(param_names, chain[idx, :-4]))
 
             xi, rho_tmp, sig_tmp, A_tmp, A_err_tmp = self.compute_multiple_corr_os(params=setpars,
-                                                correlations=correlations)
+                                                                                   correlations=correlations)
 
             rho.append(rho_tmp)
             sig.append(sig_tmp)
@@ -373,17 +374,17 @@ class OptimalStatistic(object):
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise' and signal.signal_id in ['gw','gw_crn']:
+                if signal.signal_name == 'red noise' and signal.signal_id in ['gw', 'gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
 
         return Fmats
 
-    def _get_freqs(self,psrs):
+    def _get_freqs(self, psrs):
         """ Hackish way to get frequency vector."""
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise' and sig.signal_id in ['gw','gw_crn']:
+            if sig.signal_name == 'red noise' and sig.signal_id in ['gw', 'gw_crn']:
                 sig._construct_basis()
                 freqs = np.array(sig._labels[''])
                 break

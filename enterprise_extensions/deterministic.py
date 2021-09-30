@@ -10,8 +10,6 @@ from enterprise.signals import utils
 from enterprise import constants as const
 
 
-
-
 def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
               amp_lower=-18, amp_upper=-11,
               freq_lower=-9, freq_upper=-7,
@@ -43,7 +41,7 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
     # BWM parameters
     amp_name = '{}_log10_A'.format(name)
     log10_A_fdm = parameter.Uniform(amp_lower, amp_upper)(amp_name)
-    
+
     if use_fixed_freq is True:
         log10_f_fdm = fixed_freq
 
@@ -53,12 +51,12 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
 
     phase_e_name = '{}_phase_e'.format(name)
     phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
-    
+
     phase_p = parameter.Uniform(0, 2*np.pi)
-    
-    fdm_wf = fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm, 
-                        phase_e=phase_e_fdm, phase_p=phase_p)
-    
+
+    fdm_wf = fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm,
+                       phase_e=phase_e_fdm, phase_p=phase_p)
+
     fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
 
     return fdm
@@ -295,7 +293,7 @@ def cw_delay(toas, pos, pdist,
 
     if log10_h is None and log10_dist is None:
         raise ValueError("one of log10_dist or log10_h must be non-None")
-    elif log10_h is not  None and log10_dist is not None:
+    elif log10_h is not None and log10_dist is not None:
         raise ValueError("only one of log10_dist or log10_h can be non-None")
     elif log10_h is None:
         dist = 10**log10_dist * const.Mpc / const.c
@@ -332,7 +330,7 @@ def cw_delay(toas, pos, pdist,
 
     # orbital frequency
     w0 = np.pi * fgw
-    phase0 /= 2 # orbital phase
+    phase0 /= 2  # orbital phase
     omegadot = 96/5 * mc**(5/3) * w0**(11/3)
 
     # evolution
@@ -407,9 +405,10 @@ def cw_delay(toas, pos, pdist,
 
     return res
 
+
 @signal_base.function
 def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t0=55000,
-                antenna_pattern_fn=None):
+              antenna_pattern_fn=None):
     """
     Function that calculates the earth-term gravitational-wave
     burst-with-memory signal, as described in:
@@ -451,9 +450,9 @@ def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t
     # Return the time-series for the pulsar
     return pol * h * np.heaviside(toas - t0, 0.5) * (toas - t0)
 
+
 @signal_base.function
 def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
-
     """
     Function that calculates the earth-term gravitational-wave
     burst-with-memory signal for an optimally oriented source in a single pulsar
@@ -465,15 +464,13 @@ def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
     :return: the waveform as induced timing residuals (seconds)
     """
 
-
     A = 10 ** log10_A
     t0 *= const.day
     # Return the time-series for the pulsar
-    heaviside = lambda x: 0.5 * (np.sign(x) + 1)
+    def heaviside(x): return 0.5 * (np.sign(x) + 1)
 
-    #return 0 #Fix the return to 0 in order to test what the heck is wrong with red noise detection in bwm
+    # return 0 #Fix the return to 0 in order to test what the heck is wrong with red noise detection in bwm
     return A * np.sign(sign) * heaviside(toas - t0) * (toas - t0)
-
 
 
 @signal_base.function
@@ -534,8 +531,8 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     omhat = np.array([-singwtheta*cosgwphi, -singwtheta*singwphi, -cosgwtheta])
 
     # pulsar position vector
-    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),\
-            np.cos(theta)])
+    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
+                     np.cos(theta)])
 
     fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
     fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
@@ -547,11 +544,11 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     if check:
         # check that frequency is not evolving significantly over obs. time
         y = utils.solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
-                                          np.array([0.0,toas.max()]))
+                                             np.array([0.0, toas.max()]))
 
         # initial and final values over observation time
-        Fc0, ec0, gc0, phic0 = y[0,:]
-        Fc1, ec1, gc1, phic1 = y[-1,:]
+        Fc0, ec0, gc0, phic0 = y[0, :]
+        Fc1, ec1, gc1, phic1 = y[-1, :]
 
         # observation time
         Tobs = 1/(toas.max()-toas.min())
@@ -597,11 +594,11 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
 
         # solve coupled system of equations to get pulsar term values
         y = utils.solve_coupled_ecc_solution(F, e0, gamma0, l0, mc,
-                                       q, np.array([0.0, tp.min()]))
+                                             q, np.array([0.0, tp.min()]))
 
         # get pulsar term values
         if np.any(y):
-            Fp, ep, gp, phip = y[-1,:]
+            Fp, ep, gp, phip = y[-1, :]
 
             # get gammadot at pulsar term
             gammadotp = utils.get_gammadot(Fp, mc, q, ep)
@@ -651,6 +648,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
 
     return rr
 
+
 def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
 
     BaseClass = deterministic_signals.Deterministic(cw_wf, name=name)
@@ -697,12 +695,13 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
                               orf_aa_vl*gwpol_amps[2],
                               orf_aa_sl*gwpol_amps[3]])
 
-    S_psd = prefactor * (gwpol_factors[0,:] * (f / const.fyr)**(-4/3) +
-                         np.sum(gwpol_factors[1:,:],axis=0) * \
+    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(-4/3) +
+                         np.sum(gwpol_factors[1:, :], axis=0) *
                          (f / const.fyr)**(-2)) / \
-    (8*np.pi**2*f**3)
+        (8*np.pi**2*f**3)
 
     return S_psd * np.repeat(df, 2)
+
 
 @signal_base.function
 def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
@@ -722,7 +721,7 @@ def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
 
     # convert
     A = 10 ** log10_A
-    
+
     f = 10 ** log10_f
 
     # Return the time-series for the pulsar

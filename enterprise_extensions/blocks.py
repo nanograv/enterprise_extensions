@@ -169,7 +169,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             alpha_adapt = gpp.InvGamma(df/2, df/2, size=1)
             nfreq = parameter.Uniform(-0.5, 10-0.5)
             pl = gpp.t_process_adapt(log10_A=log10_A, gamma=gamma,
-                                    alphas_adapt=alpha_adapt, nfreq=nfreq)
+                                     alphas_adapt=alpha_adapt, nfreq=nfreq)
         elif psd == 'infinitepower':
             pl = gpp.infinitepower()
 
@@ -225,6 +225,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
     return rn
 
+
 def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
               skyloc=None, logmin=-18, logmax=-11,
               name='bwm'):
@@ -272,16 +273,16 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
 
-
     # BWM signal
     bwm_wf = ee_deterministic.bwm_delay(log10_h=log10_A_bwm, t0=t0,
-                            cos_gwtheta=costh, gwphi=phi, gwpol=pol)
+                                        cos_gwtheta=costh, gwphi=phi, gwpol=pol)
     bwm = deterministic_signals.Deterministic(bwm_wf, name=name)
 
     return bwm
 
+
 def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
-               logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
+                     logmin=-17, logmax=-12, name='ramp', fixed_sign=None):
 
     if fixed_sign is None:
         sign = parameter.Uniform(-1, 1)("sign")
@@ -297,11 +298,11 @@ def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
     t0_name = '{}_t0'.format(name)
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
-
-    ramp_wf = ee_deterministic.bwm_sglpsr_delay(log10_A=log10_A_ramp, t0=t0, sign = sign)
+    ramp_wf = ee_deterministic.bwm_sglpsr_delay(log10_A=log10_A_ramp, t0=t0, sign=sign)
     ramp = deterministic_signals.Deterministic(ramp_wf, name=name)
 
     return ramp
+
 
 def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                    prior='log-uniform', dt=15, df=200,
@@ -361,15 +362,15 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                 df = 2
                 alphas_dm = gpp.InvGamma(df/2, df/2, size=components)
                 dm_prior = gpp.t_process(log10_A=log10_A_dm, gamma=gamma_dm,
-                                        alphas=alphas_dm)
+                                         alphas=alphas_dm)
             elif psd == 'tprocess_adapt':
                 df = 2
                 alpha_adapt_dm = gpp.InvGamma(df/2, df/2, size=1)
                 nfreq_dm = parameter.Uniform(-0.5, 10-0.5)
                 dm_prior = gpp.t_process_adapt(log10_A=log10_A_dm,
-                                              gamma=gamma_dm,
-                                              alphas_adapt=alpha_adapt_dm,
-                                              nfreq=nfreq_dm)
+                                               gamma=gamma_dm,
+                                               alphas_adapt=alpha_adapt_dm,
+                                               nfreq=nfreq_dm)
 
         if psd == 'spectrum':
             if prior == 'uniform':
@@ -559,14 +560,14 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
             chm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
-                                                      dm=True, dm_idx=idx)
+                                                       dm=True, dm_idx=idx)
             chm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
-                                     log10_ell=log10_ell,
-                                     log10_alpha_wgt=log10_alpha_wgt,
-                                     log10_ell2=log10_ell2)
+                                      log10_ell=log10_ell,
+                                      log10_alpha_wgt=log10_alpha_wgt,
+                                      log10_ell2=log10_ell2)
 
     cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
-                              coefficients=coefficients)
+                             coefficients=coefficients)
 
     if include_quadratic:
         # quadratic piece
@@ -580,8 +581,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                            Tspan=None, components=30,
-                           log10_A_val = None, gamma_val=None, delta_val=None,
-                           logmin = None, logmax = None,
+                           log10_A_val=None, gamma_val=None, delta_val=None,
+                           logmin=None, logmax=None,
                            orf=None, orf_ifreq=0, leg_lmax=5,
                            name='gw', coefficients=False,
                            pshift=False, pseed=None):
@@ -632,30 +633,29 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     """
 
-
     orfs = {'crn': None, 'hd': model_orfs.hd_orf(),
             'gw_monopole': model_orfs.gw_monopole_orf(),
             'gw_dipole': model_orfs.gw_dipole_orf(),
             'st': model_orfs.st_orf(),
-            'gt': model_orfs.gt_orf(tau = parameter.Uniform(-1.5,1.5)('tau')),
+            'gt': model_orfs.gt_orf(tau=parameter.Uniform(-1.5, 1.5)('tau')),
             'dipole': model_orfs.dipole_orf(),
             'monopole': model_orfs.monopole_orf(),
-            'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5,3.0)('gw_orf_param0'),
-                                     b=parameter.Uniform(-1.0,0.5)('gw_orf_param1'),
-                                     c=parameter.Uniform(-1.0,1.0)('gw_orf_param2')),
-            'spline_orf': model_orfs.spline_orf(params=parameter.Uniform(-0.9,0.9,size=7)('gw_orf_spline')),
-            'bin_orf': model_orfs.bin_orf(params=parameter.Uniform(-1.0,1.0,size=7)('gw_orf_bin')),
+            'param_hd': model_orfs.param_hd_orf(a=parameter.Uniform(-1.5, 3.0)('gw_orf_param0'),
+                                                b=parameter.Uniform(-1.0, 0.5)('gw_orf_param1'),
+                                                c=parameter.Uniform(-1.0, 1.0)('gw_orf_param2')),
+            'spline_orf': model_orfs.spline_orf(params=parameter.Uniform(-0.9, 0.9, size=7)('gw_orf_spline')),
+            'bin_orf': model_orfs.bin_orf(params=parameter.Uniform(-1.0, 1.0, size=7)('gw_orf_bin')),
             'zero_diag_hd': model_orfs.zero_diag_hd(),
             'zero_diag_bin_orf': model_orfs.zero_diag_bin_orf(params=parameter.Uniform(
-                                -1.0,1.0,size=7)('gw_orf_bin_zero_diag')),
-            'freq_hd': model_orfs.freq_hd(params=[components,orf_ifreq]),
+                -1.0, 1.0, size=7)('gw_orf_bin_zero_diag')),
+            'freq_hd': model_orfs.freq_hd(params=[components, orf_ifreq]),
             'legendre_orf': model_orfs.legendre_orf(params=parameter.Uniform(
-                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre')),
+                -1.0, 1.0, size=leg_lmax+1)('gw_orf_legendre')),
             'zero_diag_legendre_orf': model_orfs.zero_diag_legendre_orf(params=parameter.Uniform(
-                                            -1.0,1.0,size=leg_lmax+1)('gw_orf_legendre_zero_diag'))}
+                -1.0, 1.0, size=leg_lmax+1)('gw_orf_legendre_zero_diag'))}
 
     # common red noise parameters
-    if psd in ['powerlaw', 'turnover', 'turnover_knee','broken_powerlaw']:
+    if psd in ['powerlaw', 'turnover', 'turnover_knee', 'broken_powerlaw']:
         amp_name = '{}_log10_A'.format(name)
         if log10_A_val is not None:
             log10_Agw = parameter.Constant(log10_A_val)(amp_name)
@@ -724,8 +724,8 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             delta_gw = parameter.Uniform(-2, 0)(delta_name)
             lfk_gw = parameter.Uniform(-8, -7)(lfk_name)
             cpl = gpp.turnover_knee(log10_A=log10_Agw, gamma=gamma_gw,
-                                   lfb=lfb_gw, lfk=lfk_gw,
-                                   kappa=kappa_gw, delta=delta_gw)
+                                    lfb=lfb_gw, lfk=lfk_gw,
+                                    kappa=kappa_gw, delta=delta_gw)
 
     if psd == 'spectrum':
         rho_name = '{}_log10_rho'.format(name)
@@ -744,14 +744,14 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
     elif orf in orfs.keys():
         if orf == 'crn':
             crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
-                                        components=components, Tspan=Tspan,
-                                        name=name, pshift=pshift, pseed=pseed)
+                                            components=components, Tspan=Tspan,
+                                            name=name, pshift=pshift, pseed=pseed)
         else:
             crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                                components=components,
-                                                Tspan=Tspan,
-                                                name=name, pshift=pshift,
-                                                pseed=pseed)
+                                                  components=components,
+                                                  Tspan=Tspan,
+                                                  name=name, pshift=pshift,
+                                                  pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
                                               components=components,
