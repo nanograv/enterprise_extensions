@@ -152,7 +152,7 @@ class FpStat(object):
 
 
 def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
-    """
+    r"""
         Compute inner product using rank-reduced
         approximations for red noise/jitter
         Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
