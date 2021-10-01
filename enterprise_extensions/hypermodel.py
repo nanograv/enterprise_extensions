@@ -1,23 +1,15 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
+
+import os
+
 import numpy as np
-import scipy.stats as scistats
 import scipy.linalg as sl
 
 from enterprise import constants as const
-from enterprise.signals import signal_base
-
-try:
-    import cPickle as pickle
-except:
-    import pickle
-
-from enterprise.pulsar import Pulsar
-from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-from .sampler import JumpProposal, get_parameter_groups
+from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
+
 
 class HyperModel(object):
     """
@@ -31,15 +23,19 @@ class HyperModel(object):
 
         #########
         self.param_names, ind = np.unique(np.concatenate([p.param_names
-                                                     for p in self.models.values()]),
-                                     return_index=True)
+                                                          for p in self.models.values()]),
+                                          return_index=True)
         self.param_names = self.param_names[np.argsort(ind)]
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
         #########
 
+        self.pulsars = np.unique(np.concatenate([p.pulsars
+                                                 for p in self.models.values()]))
+        self.pulsars = np.sort(self.pulsars)
+
         #########
-        self.params = [p for p in self.models[0].params] # start of param list
-        uniq_params = [str(p) for p in self.models[0].params] # which params are unique
+        self.params = [p for p in self.models[0].params]  # start of param list
+        uniq_params = [str(p) for p in self.models[0].params]  # which params are unique
         for model in self.models.values():
             # find differences between next model and concatenation of previous
             param_diffs = np.setdiff1d([str(p) for p in model.params], uniq_params)
@@ -55,13 +51,15 @@ class HyperModel(object):
         self.snames = dict.fromkeys(np.unique(sum(sum([[[qq.signal_name for qq in pp._signals]
                                                         for pp in self.models[mm]._signalcollections]
                                                        for mm in self.models], []), [])))
-        for key in self.snames: self.snames[key] = []
+        for key in self.snames:
+            self.snames[key] = []
 
         for mm in self.models:
             for sc in self.models[mm]._signalcollections:
                 for signal in sc._signals:
                     self.snames[signal.signal_name].extend(signal.params)
-        for key in self.snames: self.snames[key] = list(set(self.snames[key]))
+        for key in self.snames:
+            self.snames[key] = list(set(self.snames[key]))
 
         for key in self.snames:
             uniq_params, ind = np.unique([p.name for p in self.snames[key]],
@@ -119,7 +117,7 @@ class HyperModel(object):
             groups.extend(get_parameter_groups(p))
         list(np.unique(groups))
 
-        groups.extend([[len(self.param_names)-1]]) # nmodel
+        groups.extend([[len(self.param_names)-1]])  # nmodel
 
         return groups
 
@@ -132,7 +130,7 @@ class HyperModel(object):
         uniq_params = [str(p) for p in self.models[0].params]
 
         for model in self.models.values():
-            param_diffs = np.setdiff1d([str(p) for p  in model.params], uniq_params)
+            param_diffs = np.setdiff1d([str(p) for p in model.params], uniq_params)
             mask = np.array([str(p) in param_diffs for p in model.params])
             x0.extend([np.array(pp.sample()).ravel().tolist() for pp in np.array(model.params)[mask]])
 
@@ -150,14 +148,14 @@ class HyperModel(object):
         q = x.copy()
 
         idx = list(self.param_names).index('nmodel')
-        q[idx] = np.random.uniform(-0.5,self.num_models-0.5)
+        q[idx] = np.random.uniform(-0.5, self.num_models-0.5)
 
         lqxy = 0
 
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None):
+                      empirical_distr=None, groups=None, human=None):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -184,7 +182,7 @@ class HyperModel(object):
         if os.path.exists(outdir+'/cov.npy'):
             cov = np.load(outdir+'/cov.npy')
         else:
-            cov = np.diag(np.ones(ndim) * 1.0**2)## used to be 0.1
+            cov = np.diag(np.ones(ndim) * 1.0**2)  # used to be 0.1
 
         # parameter groupings
         if groups is None:
@@ -192,8 +190,7 @@ class HyperModel(object):
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
                          groups=groups, outDir=outdir, resume=resume)
-        np.savetxt(outdir+'/pars.txt', self.param_names, fmt='%s')
-        np.savetxt(outdir+'/priors.txt', self.params, fmt='%s')
+        save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
@@ -298,7 +295,6 @@ class HyperModel(object):
 
         return sampler
 
-
     def get_process_timeseries(self, psr, chain, burn, comp='DM',
                                mle=False, model=0):
         """
@@ -315,7 +311,7 @@ class HyperModel(object):
 
         wave = 0
         pta = self.models[model]
-        model_chain = chain[np.rint(chain[:,-5])==model,:]
+        model_chain = chain[np.rint(chain[:, -5])==model, :]
 
         # get parameter dictionary
         if mle:
@@ -330,7 +326,7 @@ class HyperModel(object):
         wave += pta.get_delay(params=params)[0]
 
         # get linear parameters
-        Nvec = pta.get_ndiag(params)[0]
+        # Nvec = pta.get_ndiag(params)[0] # Not currently used in code
         phiinv = pta.get_phiinv(params, logdet=False)[0]
         T = pta.get_basis(params)[0]
 
@@ -368,19 +364,19 @@ class HyperModel(object):
         # DM quadratic + GP
         if comp == 'DM':
             idx = pardict['dm_gp']
-            wave += np.dot(T[:,idx], b[idx])
+            wave += np.dot(T[:, idx], b[idx])
             ret = wave * (psr.freqs**2 * const.DM_K * 1e12)
         elif comp == 'scattering':
             idx = pardict['scattering_gp']
-            wave += np.dot(T[:,idx], b[idx])
-            ret = wave * (psr.freqs**4) # * const.DM_K * 1e12)
+            wave += np.dot(T[:, idx], b[idx])
+            ret = wave * (psr.freqs**4)  # * const.DM_K * 1e12)
         elif comp == 'red':
             idx = pardict['red noise']
-            wave += np.dot(T[:,idx], b[idx])
+            wave += np.dot(T[:, idx], b[idx])
             ret = wave
         elif comp == 'FD':
             idx = pardict['FD']
-            wave += np.dot(T[:,idx], b[idx])
+            wave += np.dot(T[:, idx], b[idx])
             ret = wave
         elif comp == 'all':
             wave += np.dot(T, b)
