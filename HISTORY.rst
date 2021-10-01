@@ -1,6 +1,10 @@
 =======
 History
 =======
+2.3.1 (2021-09-30)
+Fix bugs associated with recent function additions. Added linting and mild PEP8
+rules. Also removed older Python functionality which is no longer supported.
+
 2.3.0 (2021-09-15)*
 Functionality added for NANOGrav 15yr dataset analyses.
 Outlier analysis software moved into separate package.

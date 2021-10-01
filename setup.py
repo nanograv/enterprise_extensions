@@ -3,9 +3,7 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-import os
-import platform
+from setuptools import setup
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()
@@ -29,6 +27,8 @@ requirements = [
 test_requirements = []
 
 # Extract version
+
+
 def get_version():
     with open("enterprise_extensions/__init__.py") as f:
         for line in f.readlines():
