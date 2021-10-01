@@ -5,11 +5,6 @@ import os
 import numpy as np
 import scipy.linalg as sl
 
-try:
-    pass
-except:
-    pass
-
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 

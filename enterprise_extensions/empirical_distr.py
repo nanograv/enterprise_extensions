@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import pickle
 
 import numpy as np
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 
 logger = logging.getLogger(__name__)
 
 
-# class used to define a 1D empirical distribution
-# based on posterior from another MCMC
 class EmpiricalDistribution1D(object):
-
+    """
+    Class used to define a 1D empirical distribution
+    based on posterior from another MCMC.
+    """
     def __init__(self, param_name, samples, bins):
         """
             :param samples: samples for hist

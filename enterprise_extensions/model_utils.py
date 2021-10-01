@@ -7,11 +7,6 @@ import numpy as np
 import scipy.stats as scistats
 
 try:
-    pass
-except ImportError:
-    pass
-
-try:
     import acor
 except ImportError:
     from emcee.autocorr import integrated_time as acor
