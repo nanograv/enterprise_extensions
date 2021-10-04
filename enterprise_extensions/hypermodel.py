@@ -385,3 +385,22 @@ class HyperModel(object):
             ret = wave
 
         return ret
+
+    def summary(self, to_stdout=False):
+        """generate summary string for HyperModel, including all PTAs
+
+        :param to_stdout: [bool]
+            print summary to `stdout` instead of returning it
+        :return: [string]
+        """
+
+        summary = ""
+        for ii, pta in self.models.items():
+            summary += "model " + str(ii) + "\n"
+            summary += "=" * 9 + "\n\n"
+            summary += pta.summary()
+            summary += "=" * 90 + "\n\n"
+        if to_stdout:
+            print(summary)
+        else:
+            return summary
