@@ -1,6 +1,9 @@
 =======
 History
 =======
+2.3.3 (2021-10-04)
+Fix bug in release build by adding ACE text file to MANIFEST.in.
+
 2.3.2 (2021-10-04)
 Fix bug in HyperModel when using save_runtime_info.
 
