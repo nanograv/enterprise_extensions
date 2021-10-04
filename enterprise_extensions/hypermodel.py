@@ -404,4 +404,3 @@ class HyperModel(object):
             print(summary)
         else:
             return summary
-

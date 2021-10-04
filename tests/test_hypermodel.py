@@ -41,7 +41,7 @@ def dmx_psrs(caplog):
 def test_hypermodel(dmx_psrs, caplog):
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
     m3a = models.model_3a(dmx_psrs, noisedict=noise_dict)
-    ptas = {0:m2a, 1:m3a}
+    ptas = {0: m2a, 1: m3a}
     hm = hypermodel.HyperModel(ptas)
     assert hasattr(hm, 'get_lnlikelihood')
     assert 'gw_log10_A' in hm.param_names
@@ -52,7 +52,7 @@ def test_hypermodel(dmx_psrs, caplog):
 def test_hyper_sampler(dmx_psrs, caplog):
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
     m3a = models.model_3a(dmx_psrs, noisedict=noise_dict)
-    ptas = {0:m2a, 1:m3a}
+    ptas = {0: m2a, 1: m3a}
     hm = hypermodel.HyperModel(ptas)
     samp = hm.setup_sampler(outdir=outdir, human='tester')
     assert hasattr(samp, "sample")
