@@ -395,8 +395,8 @@ class HyperModel(object):
         """
 
         summary = ""
-        for ii, pta in enumerate(self.models):
-            summary += "model " + ii + "\n"
+        for ii, pta in self.models.items():
+            summary += "model " + str(ii) + "\n"
             summary += "=" * 9 + "\n\n"
             summary += pta.summary()
             summary += "=" * 90 + "\n\n"
