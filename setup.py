@@ -53,7 +53,7 @@ setup(
     keywords="gravitational-wave, black-hole binary, pulsar-timing arrays",
     url="https://github.com/stevertaylor/enterprise_extensions",
     author="Stephen R. Taylor, Paul T. Baker, Jeffrey S. Hazboun, Sarah Vigeland",
-    author_email="srtaylor@caltech.edu",
+    author_email="jeffrey.hazboun@gmail.com",
     license="MIT",
     packages=[
         "enterprise_extensions",
@@ -68,6 +68,5 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     install_requires=requirements,
-    include_package_data=True,
     zip_safe=False,
 )
