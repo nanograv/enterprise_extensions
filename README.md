@@ -24,7 +24,7 @@ Remember to cite it as:
   title        = {enterprise_extensions},
   year         = {2021},
   url          = {https://github.com/nanograv/enterprise_extensions},
-  note         = {v2.3.2}
+  note         = {v2.3.3}
 }
 ```
 
