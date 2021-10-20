@@ -14,6 +14,7 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
     Returns deterministic fuzzy dark matter model:
         1. FDM parameterized by frequency, phase,
             and amplitude (mass and DM energy density).
+
     :param Tmin:
         Min time to search, probably first TOA (MJD).
     :param Tmax:
@@ -32,6 +33,7 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
         Whether to do a fixed-frequency run and not search over the frequency.
     :param fixed_freq:
         The frequency value to do a fixed-frequency run with.
+
     """
 
     # BWM parameters
@@ -63,6 +65,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
                   psrTerm=False, tref=0, name='cw'):
     """
     Returns deterministic, cirular orbit continuous GW model:
+
     :param amp_prior:
         Prior on log10_h. Default is "log-uniform."
         Use "uniform" for upper limits, or "None" to search over
@@ -84,6 +87,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
         Boolean for whether to include the pulsar term. Default is False.
     :param name:
         Name of CW signal.
+
     """
 
     if dist_prior is None:
@@ -149,6 +153,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
                  ecc=None, psrTerm=False, tref=0, name='cw'):
     """
     Returns deterministic, eccentric orbit continuous GW model:
+
     :param amp_prior:
         Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
         log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
@@ -166,6 +171,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
         Boolean for whether to include the pulsar term. Default is False.
     :param name:
         Name of CW signal.
+
     """
 
     if amp_prior == 'uniform':
@@ -236,6 +242,7 @@ def cw_delay(toas, pos, pdist,
     """
     Function to create GW incuced residuals from a SMBMB as
     defined in Ellis et. al 2012,2013.
+
     :param toas:
         Pular toas in seconds
     :param pos:
@@ -277,7 +284,9 @@ def cw_delay(toas, pos, pdist,
         Check if frequency evolves significantly over obs. time [boolean]
     :param tref:
         Reference time for phase and frequency [s]
+
     :return: Vector of induced residuals
+
     """
 
     # convert units to time
@@ -482,6 +491,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     WARNING: This residual waveform is only accurate if the
     GW frequency is not significantly evolving over the
     observation time of the pulsar.
+
     :param toa: pulsar observation times
     :param theta: polar coordinate of pulsar
     :param phi: azimuthal coordinate of pulsar
@@ -503,7 +513,9 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     :param psrTerm: Option to include pulsar term [boolean]
     :param tref: Fidicuial time at which initial parameters are referenced [s]
     :param check: Check if frequency evolves significantly over obs. time
+
     :returns: Vector of induced residuals
+
     """
 
     # convert from sampling

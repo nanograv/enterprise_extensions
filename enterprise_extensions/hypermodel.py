@@ -299,7 +299,8 @@ class HyperModel(object):
                                mle=False, model=0):
         """
         Construct a time series realization of various constrained processes.
-        :param psr: etnerprise pulsar object
+
+        :param psr: enterprise pulsar object
         :param chain: MCMC chain from sampling all models
         :param burn: desired number of initial samples to discard
         :param comp: which process to reconstruct? (red noise or DM) [default=DM]
@@ -392,6 +393,7 @@ class HyperModel(object):
         :param to_stdout: [bool]
             print summary to `stdout` instead of returning it
         :return: [string]
+
         """
 
         summary = ""

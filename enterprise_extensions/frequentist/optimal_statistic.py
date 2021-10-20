@@ -95,7 +95,7 @@ class OptimalStatistic(object):
             OS_sig: 1-sigma uncertainty on OS
 
         .. note:: SNR is computed as OS / OS_sig. In the case of a 'spectrum' model
-        the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
+            the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
 
         """
 
@@ -261,7 +261,7 @@ class OptimalStatistic(object):
 
         :param params: `enterprise` parameter dictionary.
         :param psd: choice of cross-power psd [powerlaw,spectrum]
-        :fgw: frequency of GW spectrum to probe, in Hz [default=None]
+        :param fgw: frequency of GW spectrum to probe, in Hz [default=None]
         :param correlations: list of correlation functions
 
         :returns:
@@ -270,6 +270,7 @@ class OptimalStatistic(object):
             sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair.
             A: An array of correlation amplitudes
             OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
+
         """
 
         xi, rho, sig, _, _ = self.compute_os(params=params, psd='powerlaw', fgw=None)
@@ -327,11 +328,10 @@ class OptimalStatistic(object):
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair and for each noise realization
-            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair
-                 and for each noise realization
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair and for each noise realization
             A: An array of correlation amplitudes for each noise realization
-            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
-                    for each noise realization
+            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes for each noise realization
+
         """
 
         # check that the chain file has the same number of parameters as the model
