@@ -9,8 +9,10 @@ from enterprise.signals import (gp_signals, parameter, signal_base, utils,
 class FeStat(object):
     """
     Class for the Fe-statistic.
+
     :param psrs: List of `enterprise` Pulsar instances.
     :param params: Dictionary of noise parameters.
+
     """
 
     def __init__(self, psrs, params=None):
@@ -58,19 +60,22 @@ class FeStat(object):
     def compute_Fe(self, f0, gw_skyloc, brave=False, maximized_parameters=False):
         """
         Computes the Fe-statistic (see Ellis, Siemens, Creighton 2012).
+
         :param f0: GW frequency
         :param gw_skyloc: 2x{number of sky locations} array containing [theta, phi] for each queried sky location,
                           where theta=pi/2-DEC, phi=RA,
                           for singlge sky location use gw_skyloc= np.array([[theta,],[phi,]])
         :param brave: Skip sanity checks in linalg for speedup if True.
         :param maximized_parameters: Calculate maximized extrinsic parameters if True.
+
         :returns:
-        fstat: value of the Fe-statistic
+            fstat: value of the Fe-statistic
         :if maximized_parameters=True also returns:
-        inc_max: Maximized value of inclination
-        psi_max: Maximized value of polarization angle
-        phase0_max: Maximized value of initial fhase
-        h_max: Maximized value of amplitude
+            inc_max: Maximized value of inclination
+            psi_max: Maximized value of polarization angle
+            phase0_max: Maximized value of initial fhase
+            h_max: Maximized value of amplitude
+
         """
 
         tref=53000*86400

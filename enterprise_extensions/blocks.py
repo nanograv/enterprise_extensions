@@ -105,7 +105,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                     break_flat=False, break_flat_fq=None, logmin=None, logmax=None):
     """
     Returns red noise model:
-        1. Red noise modeled as a power-law with 30 sampling frequencies
+        Red noise modeled as a power-law with 30 sampling frequencies
+
     :param psd:
         PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
     :param prior:
@@ -229,6 +230,7 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     Returns deterministic GW burst with memory model:
         1. Burst event parameterized by time, sky location,
         polarization angle, and amplitude
+
     :param Tmin:
         Min time to search, probably first TOA (MJD).
     :param Tmax:

@@ -93,7 +93,8 @@ class FpStat(object):
         :param fgw: GW frequency
 
         :returns:
-        fstat: value of the Fp-statistic at the given frequency
+            fstat: value of the Fp-statistic at the given frequency
+            
         """
 
         phiinvs = self.pta.get_phiinv(self.params, logdet=False)

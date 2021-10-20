@@ -59,7 +59,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           select='backend', tm_marg=False, dense_like=False):
     """
-    Single pulsar noise model
+    Single pulsar noise model.
+
     :param psr: enterprise pulsar object
     :param tm_var: explicitly vary the timing model parameters
     :param tm_linear: vary the timing model in the linear approximation
@@ -144,6 +145,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
 
     :return s: single pulsar noise model
+
     """
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
@@ -461,6 +463,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
+
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system
@@ -471,7 +474,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         1.Common red noise modeled with user defined PSD with
         30 sampling frequencies. Available PSDs are
         ['powerlaw', 'turnover' 'spectrum']
+
         2. Optional physical ephemeris modeling.
+
     :param psd:
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']. 'powerlaw' is default
@@ -512,6 +517,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1051,9 +1057,11 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         1. Dipole spatially correlated signal modeled with PSD.
         Default PSD is powerlaw. Available options
         ['powerlaw', 'turnover', 'spectrum']
+
         2. Monopole spatially correlated signal modeled with PSD.
         Default PSD is powerlaw. Available options
         ['powerlaw', 'turnover', 'spectrum']
+
         3. Optional physical ephemeris modeling.
 
     :param psd:
@@ -2681,6 +2689,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
+    
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system
@@ -2690,6 +2699,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     global:
         1. Deterministic CW signal.
         2. Optional physical ephemeris modeling.
+
     :param upper_limit:
         Perform upper limit on common red noise amplitude. By default
         this is set to False. Note that when perfoming upper limits it
@@ -2724,6 +2734,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'

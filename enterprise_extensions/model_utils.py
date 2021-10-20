@@ -21,11 +21,13 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     Get the frequency binning for the low-rank approximations, including
     log-spaced low-frequency coverage.
     Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+
     :param T:       Duration experiment
     :param logmode: From which linear mode to switch to log
     :param f_min:   Down to which frequency we'll sample
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
+
     """
     if logmode < 0:
         raise ValueError("Cannot do log-spacing when all frequencies are"
@@ -153,6 +155,7 @@ def ul(chain, q=95.0):
     :param q: desired percentile of upper-limit value [out of 100, default=95]
 
     :returns: (upper limit, uncertainty on upper limit)
+
     """
 
     hist = np.histogram(10.0**chain, bins=100)
@@ -175,6 +178,7 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
+
     """
 
     prior = 1 / (logAmax - logAmin)
@@ -260,6 +264,7 @@ def bic(chain, nobs, log_evidence=False):
     :param evidence: return evidence estimate too?
 
     :returns: (bic, evidence)
+
     """
     nparams = chain.shape[1] - 4  # removing 4 aux columns
     maxlnlike = chain[:, -4].max()
