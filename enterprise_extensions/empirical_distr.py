@@ -1,27 +1,24 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
-import logging
-import numpy as np
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import logging
+import pickle
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-# class used to define a 1D empirical distribution
-# based on posterior from another MCMC
 class EmpiricalDistribution1D(object):
+    """
+    Class used to define a 1D empirical distribution
+    based on posterior from another MCMC.
 
+    :param samples: samples for hist
+    :param bins: edges to use for hist (left and right) make sure bins
+        cover whole prior!
+
+    """
     def __init__(self, param_name, samples, bins):
-        """
-            :param samples: samples for hist
-            :param bins: edges to use for hist (left and right)
-            make sure bins cover whole prior!
-            """
         self.ndim = 1
         self.param_name = param_name
         self._Nbins = len(bins)-1
@@ -61,12 +58,16 @@ class EmpiricalDistribution1D(object):
 # class used to define a 2D empirical distribution
 # based on posteriors from another MCMC
 class EmpiricalDistribution2D(object):
+    """
+    Class used to define a 1D empirical distribution
+    based on posterior from another MCMC.
+
+    :param samples: samples for hist
+    :param bins: edges to use for hist (left and right)
+        make sure bins cover whole prior!
+
+    """
     def __init__(self, param_names, samples, bins):
-        """
-            :param samples: samples for hist
-            :param bins: edges to use for hist (left and right)
-            make sure bins cover whole prior!
-            """
         self.ndim = 2
         self.param_names = param_names
         self._Nbins = [len(b)-1 for b in bins]
@@ -109,6 +110,7 @@ def make_empirical_distributions(paramlist, params, chain,
                                  burn=0, nbins=41, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
+
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param params: list of all parameter names for the MCMC chain
@@ -117,6 +119,7 @@ def make_empirical_distributions(paramlist, params, chain,
         :param nbins: number of bins to use for the empirical distributions
 
         :return distr: list of empirical distributions
+
         """
 
     distr = []
