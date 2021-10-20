@@ -759,21 +759,13 @@ class JumpProposal(object):
         psi = self.params[self.pimap['psi']].sample()
         phase0 = self.params[self.pimap['phase0']].sample()
         log10_h = self.params[self.pimap['log10_h']].sample()
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 
         # put new parameters into q
         for param_name, new_param in zip(['log10_fgw', 'gwphi', 'cos_gwtheta', 'cos_inc', 'psi', 'phase0', 'log10_h'],
                                          [log_f_new, gw_phi, np.cos(gw_theta), cos_inc, psi, phase0, log10_h]):
             q[self.pimap[param_name]] = new_param
 
-<<<<<<< HEAD
-        #calculate Hastings ratio
-=======
         # calculate Hastings ratio
->>>>>>> master
         log_f_old = x[self.pimap['log10_fgw']]
         f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
 
