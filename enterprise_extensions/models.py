@@ -2689,7 +2689,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
-    
+
     per pulsar:
         1. fixed EFAC per backend/receiver system
         2. fixed EQUAD per backend/receiver system

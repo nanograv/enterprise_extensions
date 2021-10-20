@@ -513,7 +513,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     :param psrTerm: Option to include pulsar term [boolean]
     :param tref: Fidicuial time at which initial parameters are referenced [s]
     :param check: Check if frequency evolves significantly over obs. time
-    
+
     :returns: Vector of induced residuals
 
     """

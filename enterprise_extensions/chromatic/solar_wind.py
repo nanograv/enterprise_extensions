@@ -269,7 +269,7 @@ def sw_mask(psrs, angle_cutoff=None):
     """
     Convenience function for masking TOAs lower than a certain solar impact
         angle.
-        
+
     param:: :psrs list of enterprise.Pulsar objects
     param:: :angle_cutoff (degrees) Mask TOAs within this angle
 

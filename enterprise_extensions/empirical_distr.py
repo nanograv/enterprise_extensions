@@ -110,7 +110,7 @@ def make_empirical_distributions(paramlist, params, chain,
                                  burn=0, nbins=41, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
-        
+
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param params: list of all parameter names for the MCMC chain
