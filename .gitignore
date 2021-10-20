@@ -1,5 +1,9 @@
 # editor swap files
 .*.swp
+.vscode
+
+# testing output
+tests/test_out/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -72,6 +76,9 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# mac stuff:
+.DS_Store
 
 # pyenv
 .python-version

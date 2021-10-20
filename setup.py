@@ -3,11 +3,7 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
-import os
-import numpy
-import platform
+from setuptools import setup
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()
@@ -18,7 +14,6 @@ with open("HISTORY.rst") as history_file:
 requirements = [
     "numpy>=1.16.3",
     "scipy>=1.2.0",
-    "Cython>=0.28.5",
     "ephem>=3.7.6.0",
     "healpy>=1.14.0",
     "scikit-sparse>=0.4.5",
@@ -29,35 +24,11 @@ requirements = [
     "ptmcmcsampler",
 ]
 
-test_requirements = [
-    "pytest",
-]
-
-if platform.system() == "Darwin":
-    extra_compile_args = ["-O2", "-Xpreprocessor", "-fopenmp", "-fno-wrapv"]
-    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else ["-lomp"]
-else:
-    extra_compile_args = ["-O2", "-fopenmp", "-fno-wrapv"]
-    extra_link_args = ["-liomp5"] if os.getenv("NO_MKL", 0) == 0 else []
-
-
-ext_modules = [
-    Extension(
-        "enterprise_extensions.outlier.jitterext",
-        ["./enterprise_extensions/outlier/jitterext.pyx"],
-        include_dirs=[numpy.get_include()],
-        extra_compile_args=["-O2"],
-    ),
-    Extension(
-        "enterprise_extensions.outlier.choleskyext_omp",
-        ["./enterprise_extensions/outlier/choleskyext_omp.pyx"],
-        include_dirs=[numpy.get_include()],
-        extra_link_args=extra_link_args,
-        extra_compile_args=extra_compile_args,
-    ),
-]
+test_requirements = []
 
 # Extract version
+
+
 def get_version():
     with open("enterprise_extensions/__init__.py") as f:
         for line in f.readlines():
@@ -70,6 +41,7 @@ setup(
     version=get_version(),
     description="Extensions, model shortcuts, and utilities for the enterprise PTA analysis framework.",
     long_description=readme + "\n\n" + history,
+    long_description_content_type='text/x-rst',
     classifiers=[
         "Topic :: Scientific/Engineering :: Astronomy",
         "Topic :: Scientific/Engineering :: Physics",
@@ -81,23 +53,20 @@ setup(
     keywords="gravitational-wave, black-hole binary, pulsar-timing arrays",
     url="https://github.com/stevertaylor/enterprise_extensions",
     author="Stephen R. Taylor, Paul T. Baker, Jeffrey S. Hazboun, Sarah Vigeland",
-    author_email="srtaylor@caltech.edu",
+    author_email="jeffrey.hazboun@gmail.com",
     license="MIT",
     packages=[
         "enterprise_extensions",
         "enterprise_extensions.frequentist",
         "enterprise_extensions.chromatic",
-        "enterprise_extensions.outlier",
     ],
     package_data={
         "enterprise_extensions.chromatic": [
             "ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt"
         ]
     },
-    ext_modules=cythonize(ext_modules),
     test_suite="tests",
     tests_require=test_requirements,
     install_requires=requirements,
-    include_package_data=True,
     zip_safe=False,
 )

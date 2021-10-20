@@ -6,9 +6,6 @@ enterprise_extensions
 .. image:: https://img.shields.io/pypi/v/enterprise_extensions.svg
         :target: https://pypi.python.org/pypi/enterprise_extensions
 
-.. image:: https://img.shields.io/travis/stevertaylor/enterprise_extensions.svg
-        :target: https://travis-ci.org/stevertaylor/enterprise_extensions
-
 .. image:: https://readthedocs.org/projects/enterprise-extensions/badge/?version=latest
         :target: https://enterprise-extensions.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status

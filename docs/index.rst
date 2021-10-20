@@ -1,5 +1,5 @@
 Welcome to enterprise_extensions's documentation!
-======================================
+=================================================
 
 .. toctree::
    :maxdepth: 2
