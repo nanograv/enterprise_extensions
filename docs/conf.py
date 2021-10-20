@@ -35,6 +35,15 @@ import enterprise_extensions
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
 
+# get doctrings for __init__ method
+autoclass_content = "both"
+
+# make order or docs 'groupwise'
+autodoc_member_order = "groupwise"
+
+# we won't even try installing these
+autodoc_mock_imports = ["enterprise","libstempo", "PINT", "astropy", "healpy", "sksparse", "ephem"]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
