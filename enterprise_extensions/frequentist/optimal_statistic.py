@@ -384,7 +384,7 @@ class OptimalStatistic(object):
             if 'red noise' in sig.signal_name and sig.signal_id in ['gw', 'gw_crn']:
                 # make sure the basis is created
                 _ = sig.get_basis()
-                
+
                 if isinstance(sig._labels, np.ndarray):
                     return sig._labels
                 else:
@@ -396,11 +396,11 @@ class OptimalStatistic(object):
         """ Set cache parameters for efficiency. """
 
         self.white_params = list(set(par for sc in self.pta._signalcollections
-                                         for par in sc.white_params))
+                                 for par in sc.white_params))
         self.basis_params = list(set(par for sc in self.pta._signalcollections
-                                         for par in sc.basis_params))
+                                 for par in sc.basis_params))
         self.delay_params = list(set(par for sc in self.pta._signalcollections
-                                         for par in sc.delay_params))
+                                 for par in sc.delay_params))
 
     def get_TNr(self, params={}):
         return self.pta.get_TNr(params=params)
