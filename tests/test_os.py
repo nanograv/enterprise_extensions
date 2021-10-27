@@ -61,7 +61,6 @@ def pta_model2a(dmx_psrs, caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_os(nodmx_psrs, pta_model2a):
     OS = optstat.OptimalStatistic(psrs=nodmx_psrs, pta=pta_model2a)
-    assert hasattr(OS, 'Fmats')
     OS.compute_os()
     chain = np.zeros((10, len(pta_model2a.params)+4))
     for ii in range(10):
