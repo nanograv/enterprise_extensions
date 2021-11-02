@@ -1,6 +1,9 @@
 =======
 History
 =======
+2.3.4 (2021-11-02)
+Fix phase shift seed caching issue.
+
 2.3.3 (2021-10-04)
 Fix bug in release build by adding ACE text file to MANIFEST.in.
 

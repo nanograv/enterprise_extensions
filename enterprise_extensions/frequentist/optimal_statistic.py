@@ -55,8 +55,7 @@ class OptimalStatistic(object):
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
-        # get F-matrices and set up cache
-        self.Fmats = self.get_Fmats()
+        # set up cache
         self._set_cache_parameters()
 
         # pulsar locations
@@ -95,7 +94,7 @@ class OptimalStatistic(object):
             OS_sig: 1-sigma uncertainty on OS
 
         .. note:: SNR is computed as OS / OS_sig. In the case of a 'spectrum' model
-        the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
+            the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
 
         """
 
@@ -261,7 +260,7 @@ class OptimalStatistic(object):
 
         :param params: `enterprise` parameter dictionary.
         :param psd: choice of cross-power psd [powerlaw,spectrum]
-        :fgw: frequency of GW spectrum to probe, in Hz [default=None]
+        :param fgw: frequency of GW spectrum to probe, in Hz [default=None]
         :param correlations: list of correlation functions
 
         :returns:
@@ -270,6 +269,7 @@ class OptimalStatistic(object):
             sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair.
             A: An array of correlation amplitudes
             OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
+
         """
 
         xi, rho, sig, _, _ = self.compute_os(params=params, psd='powerlaw', fgw=None)
@@ -327,11 +327,10 @@ class OptimalStatistic(object):
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair and for each noise realization
-            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair
-                 and for each noise realization
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair and for each noise realization
             A: An array of correlation amplitudes for each noise realization
-            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
-                    for each noise realization
+            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes for each noise realization
+
         """
 
         # check that the chain file has the same number of parameters as the model
@@ -364,13 +363,14 @@ class OptimalStatistic(object):
 
         return np.array(xi), np.array(rho), np.array(sig), np.array(A), np.array(A_err)
 
+    @signal_base.cache_call(['basis_params'])
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
         Fmats = []
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise' and signal.signal_id in ['gw', 'gw_crn']:
+                if 'red noise' in signal.signal_name and signal.signal_id in ['gw', 'gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -378,44 +378,49 @@ class OptimalStatistic(object):
         return Fmats
 
     def _get_freqs(self, psrs):
-        """ Hackish way to get frequency vector."""
+        """Hackish way to get frequency vector."""
+
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise' and sig.signal_id in ['gw', 'gw_crn']:
-                sig._construct_basis()
-                freqs = np.array(sig._labels[''])
-                break
-        return freqs
+            if 'red noise' in sig.signal_name and sig.signal_id in ['gw', 'gw_crn']:
+                # make sure the basis is created
+                _ = sig.get_basis()
+
+                if isinstance(sig._labels, np.ndarray):
+                    return sig._labels
+                else:
+                    return sig._labels['']
+
+        raise ValueError("No frequency basis in pulsar models")
 
     def _set_cache_parameters(self):
         """ Set cache parameters for efficiency. """
-        self.white_params = []
-        self.basis_params = []
-        self.delay_params = []
 
-        for sc in self.pta._signalcollections:
-            self.white_params.extend(sc.white_params)
-            self.basis_params.extend(sc.basis_params)
-            self.delay_params.extend(sc.delay_params)
+        self.white_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.white_params))
+        self.basis_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.basis_params))
+        self.delay_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.delay_params))
 
     def get_TNr(self, params={}):
         return self.pta.get_TNr(params=params)
 
-    @signal_base.cache_call(['white_params', 'delay_params'])
+    @signal_base.cache_call(['white_params', 'delay_params', 'basis_params'])
     def get_FNr(self, params={}):
         FNrs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             res = sc.get_detres(params=params)
             FNrs.append(N.solve(res, left_array=F))
         return FNrs
 
-    @signal_base.cache_call(['white_params'])
+    @signal_base.cache_call(['white_params', 'basis_params'])
     def get_FNF(self, params={}):
         FNFs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             FNFs.append(N.solve(F, left_array=F))
         return FNFs
 
@@ -427,7 +432,7 @@ class OptimalStatistic(object):
         FNTs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             T = sc.get_basis(params=params)
             FNTs.append(N.solve(T, left_array=F))
         return FNTs

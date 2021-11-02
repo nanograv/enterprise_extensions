@@ -1,0 +1,8 @@
+pip>=18.1
+Sphinx>=1.8.1
+twine>=1.12.1
+sphinx-rtd-theme>=0.4.0
+IPython
+
+numpy>=1.17
+scipy >= 1.0
