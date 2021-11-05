@@ -1,16 +1,17 @@
-from __future__ import (absolute_import, division,
-                        print_function)
+# -*- coding: utf-8 -*-
+
+import os
+
 import numpy as np
 import scipy.stats as sps
 import scipy.special as spsf
 import os
 from enterprise import constants as const
-from enterprise.signals import signal_base
-from enterprise.signals import gp_signals
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
-from enterprise.signals import parameter
+from enterprise.signals import (deterministic_signals, gp_signals, parameter,
+                                signal_base, utils)
+
 from .. import gp_kernels as gpk
+
 defpath = os.path.dirname(__file__)
 
 yr_in_sec = 365.25*24*3600
@@ -20,7 +21,6 @@ yr_in_sec = 365.25*24*3600
 def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
                n_earth=5, n_earth_bins=None,
                t_init=None, t_final=None):
-
     """
     Construct DM-Solar Model fourier design matrix.
 
@@ -118,6 +118,8 @@ def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
 
 
 # linear interpolation basis in time with nu^-2 scaling
+
+
 @signal_base.function
 def linear_interp_basis_sw_dm(toas, freqs, planetssb, sunssb,
                               pos_t, dt=7*86400):
@@ -128,7 +130,7 @@ def linear_interp_basis_sw_dm(toas, freqs, planetssb, sunssb,
     # scale with radio frequency
     theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
     dm_sol_wind = dm_solar(1.0, theta, R_earth)
-    dt_DM = dm_sol_wind * 4.148808e3  / (freqs**2)
+    dt_DM = dm_sol_wind * 4.148808e3 / (freqs**2)
 
     return U * dt_DM[:, None], avetoas
 
@@ -138,7 +140,6 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
                                        modes=None, nmodes=30,
                                        Tspan=None, logf=True, fmin=None,
                                        fmax=None):
-
     """
     Construct DM-Solar Model fourier design matrix.
 
@@ -195,7 +196,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
     """
 
     if n_earth is None and not ACE_prior:
-        n_earth = parameter.Uniform(0,30)('n_earth')
+        n_earth = parameter.Uniform(0, 30)('n_earth')
     elif n_earth is None and ACE_prior:
         n_earth = ACE_SWEPAM_Parameter()('n_earth')
     else:
@@ -208,12 +209,12 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
     if include_swgp:
         if swgp_basis == 'powerlaw':
             # dm noise parameters that are common
-            log10_A_sw = parameter.Uniform(-10,1)
-            gamma_sw = parameter.Uniform(-2,1)
+            log10_A_sw = parameter.Uniform(-10, 1)
+            gamma_sw = parameter.Uniform(-2, 1)
             sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
 
             if Tspan is not None:
-                freqs = np.linspace(1/Tspan,30/Tspan,30)
+                freqs = np.linspace(1/Tspan, 30/Tspan, 30)
                 freqs = freqs[1/freqs > 1.5*yr_in_sec]
                 sw_basis = createfourierdesignmatrix_solar_dm(modes=freqs)
             else:
@@ -222,7 +223,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
 
         elif swgp_basis == 'periodic':
             # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -6)
+            log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
@@ -241,7 +242,6 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
             sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
 
-
         gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
         sw_model += gp_sw
 
@@ -249,16 +249,19 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
 
 ##### Utility Functions #########
 
-AU_light_sec = const.AU / const.c #1 AU in light seconds
-AU_pc = const.AU / const.pc #1 AU in parsecs (for DM normalization)
 
-def _dm_solar_close(n_earth,r_earth):
+AU_light_sec = const.AU / const.c  # 1 AU in light seconds
+AU_pc = const.AU / const.pc  # 1 AU in parsecs (for DM normalization)
+
+
+def _dm_solar_close(n_earth, r_earth):
     return (n_earth * AU_light_sec * AU_pc / r_earth)
 
-def _dm_solar(n_earth,theta,r_earth):
-    return ( (np.pi - theta) *
+
+def _dm_solar(n_earth, theta, r_earth):
+    return ((np.pi - theta) *
             (n_earth * AU_light_sec * AU_pc
-             / (r_earth * np.sin(theta))) )
+             / (r_earth * np.sin(theta))))
 
 
 def dm_solar(n_earth, theta, r_earth):
@@ -328,10 +331,12 @@ def sw_mask(psrs, angle_cutoff=None):
     """
     Convenience function for masking TOAs lower than a certain solar impact
         angle.
+
     param:: :psrs list of enterprise.Pulsar objects
     param:: :angle_cutoff (degrees) Mask TOAs within this angle
 
     returns:: dictionary of masks for each pulsar
+
     """
     solar_wind_mask = {}
     angle_cutoff = np.deg2rad(angle_cutoff)
@@ -342,15 +347,19 @@ def sw_mask(psrs, angle_cutoff=None):
 
     return solar_wind_mask
 
-#ACE Solar Wind Monitoring data prior for SW electron data.
-#Using proton density as a stand in.
+# ACE Solar Wind Monitoring data prior for SW electron data.
+# Using proton density as a stand in.
+
+
 def ACE_SWEPAM_Prior(value):
     """Prior function for ACE SWEPAM parameters."""
     return ACE_RV.pdf(value)
 
+
 def ACE_SWEPAM_Sampler(size=None):
     """Sampling function for Uniform parameters."""
     return ACE_RV.rvs(size=size)
+
 
 def ACE_SWEPAM_Parameter(size=None):
     """Class factory for ACE SWEPAM parameters."""
@@ -364,7 +373,8 @@ def ACE_SWEPAM_Parameter(size=None):
 
 ######## Scipy defined RV for ACE SWEPAM proton density data. ########
 
+
 data_file = defpath + '/ACE_SWEPAM_daily_proton_density_1998_2018_MJD_cm-3.txt'
 proton_density = np.loadtxt(data_file)
-ne_hist = np.histogram(proton_density[:,1], bins=100, density=True)
+ne_hist = np.histogram(proton_density[:, 1], bins=100, density=True)
 ACE_RV = sps.rv_histogram(ne_hist)
