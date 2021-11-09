@@ -87,12 +87,16 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
-                name = ""
-
-            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ch)
+                ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=backend_ch)
+            else:
+                ec = gp_signals.EcorrBasisModel(
+                    log10_ecorr=ecorr, selection=backend_ch, name=name
+                )
 
         else:
-            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr, selection=backend_ch)
+            ec = white_signals.EcorrKernelNoise(
+                log10_ecorr=ecorr, selection=backend_ch, name=name
+            )
 
     # combine signals
     if inc_ecorr:
@@ -137,14 +141,14 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     ]:
         # parameters shared by PSD functions
         if logmin is not None and logmax is not None:
-            if prior == 'uniform':
+            if prior == "uniform":
                 log10_A = parameter.LinearExp(logmin, logmax)
-            elif prior == 'log-uniform':
+            elif prior == "log-uniform":
                 log10_A = parameter.Uniform(logmin, logmax)
         else:
-            if prior == 'uniform':
+            if prior == "uniform":
                 log10_A = parameter.LinearExp(-20, -11)
-            elif prior == 'log-uniform' and gamma_val is not None:
+            elif prior == "log-uniform" and gamma_val is not None:
                 if np.abs(gamma_val - 4.33) < 0.1:
                     log10_A = parameter.Uniform(-20, -11)
                 else:
@@ -268,23 +272,23 @@ def bwm_block(Tmin, Tmax, amp_prior='log-uniform',
     """
 
     # BWM parameters
-    amp_name = '{}_log10_A'.format(name)
-    if amp_prior == 'uniform':
+    amp_name = "{}_log10_A".format(name)
+    if amp_prior == "uniform":
         log10_A_bwm = parameter.LinearExp(logmin, logmax)(amp_name)
-    elif amp_prior == 'log-uniform':
+    elif amp_prior == "log-uniform":
         log10_A_bwm = parameter.Uniform(logmin, logmax)(amp_name)
 
-    pol_name = '{}_pol'.format(name)
+    pol_name = "{}_pol".format(name)
     pol = parameter.Uniform(0, np.pi)(pol_name)
 
-    t0_name = '{}_t0'.format(name)
+    t0_name = "{}_t0".format(name)
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
-    costh_name = '{}_costheta'.format(name)
-    phi_name = '{}_phi'.format(name)
+    costh_name = "{}_costheta".format(name)
+    phi_name = "{}_phi".format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
-        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+        phi = parameter.Uniform(0, 2 * np.pi)(phi_name)
     else:
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
@@ -305,13 +309,13 @@ def bwm_sglpsr_block(Tmin, Tmax, amp_prior='log-uniform',
     else:
         sign = np.sign(fixed_sign)
 
-    amp_name = '{}_log10_A'.format(name)
-    if amp_prior == 'uniform':
+    amp_name = "{}_log10_A".format(name)
+    if amp_prior == "uniform":
         log10_A_ramp = parameter.LinearExp(logmin, logmax)(amp_name)
-    elif amp_prior == 'log-uniform':
+    elif amp_prior == "log-uniform":
         log10_A_ramp = parameter.Uniform(logmin, logmax)(amp_name)
 
-    t0_name = '{}_t0'.format(name)
+    t0_name = "{}_t0".format(name)
     t0 = parameter.Uniform(Tmin, Tmax)(t0_name)
 
     ramp_wf = ee_deterministic.bwm_sglpsr_delay(log10_A=log10_A_ramp, t0=t0, sign=sign)
@@ -684,9 +688,9 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             log10_Agw = parameter.Constant(log10_A_val)(amp_name)
 
         if logmin is not None and logmax is not None:
-            if prior == 'uniform':
+            if prior == "uniform":
                 log10_Agw = parameter.LinearExp(logmin, logmax)(amp_name)
-            elif prior == 'log-uniform' and gamma_val is not None:
+            elif prior == "log-uniform" and gamma_val is not None:
                 if np.abs(gamma_val - 4.33) < 0.1:
                     log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
                 else:
@@ -695,9 +699,9 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
                 log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
 
         else:
-            if prior == 'uniform':
+            if prior == "uniform":
                 log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
-            elif prior == 'log-uniform' and gamma_val is not None:
+            elif prior == "log-uniform" and gamma_val is not None:
                 if np.abs(gamma_val - 4.33) < 0.1:
                     log10_Agw = parameter.Uniform(-18, -14)(amp_name)
                 else:

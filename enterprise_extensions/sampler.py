@@ -67,14 +67,16 @@ class JumpProposal(object):
             pickled_distr = np.array([])
             for idx, emp_file in enumerate(dir_files):
                 try:
-                    with open(emp_file, 'rb') as f:
+                    with open(emp_file, "rb") as f:
                         pickled_distr = np.append(pickled_distr, pickle.load(f))
                 except:
                     try:
                         with open(emp_file, 'rb') as f:
                             pickled_distr = np.append(pickled_distr, pickle.load(f))
                     except:
-                        print(f'\nI can\'t open the empirical distribution pickle file at location {idx} in list!')
+                        print(
+                            f"\nI can't open the empirical distribution pickle file at location {idx} in list!"
+                        )
                         print("Empirical distributions set to 'None'")
                         pickled_distr = None
                         break
@@ -82,7 +84,9 @@ class JumpProposal(object):
             self.empirical_distr = pickled_distr
 
         # check if single pkl file provided
-        elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
+        elif empirical_distr is not None and os.path.isfile(
+            empirical_distr
+        ):  # checking for single file
             try:
                 # try opening the file
                 with open(empirical_distr, 'rb') as f:
@@ -123,7 +127,9 @@ class JumpProposal(object):
 
         if empirical_distr is not None and self.empirical_distr is None:
             # if an emp dist path is provided, but fails the code, this helpful msg is provided
-            print("Adding empirical distributions failed!! Empirical distributions set to 'None'\n")
+            print(
+                "Adding empirical distributions failed!! Empirical distributions set to 'None'\n"
+            )
 
         # F-statistic map
         if f_stat_file is not None and os.path.isfile(f_stat_file):
@@ -268,19 +274,23 @@ class JumpProposal(object):
                     pidx = self.pimap[self.empirical_distr[idx].param_name]
                     q[pidx] = self.empirical_distr[idx].draw()
 
-                    lqxy += (self.empirical_distr[idx].logprob(x[pidx]) -
-                             self.empirical_distr[idx].logprob(q[pidx]))
+                    lqxy += self.empirical_distr[idx].logprob(
+                        x[pidx]
+                    ) - self.empirical_distr[idx].logprob(q[pidx])
 
                 else:
-                    oldsample = [x[self.pnames.index(p)]
-                                 for p in self.empirical_distr[idx].param_names]
+                    oldsample = [
+                        x[self.pnames.index(p)]
+                        for p in self.empirical_distr[idx].param_names
+                    ]
                     newsample = self.empirical_distr[idx].draw()
 
                     for p, n in zip(self.empirical_distr[idx].param_names, newsample):
                         q[self.pnames.index(p)] = n
 
-                    lqxy += (self.empirical_distr[idx].logprob(oldsample) -
-                             self.empirical_distr[idx].logprob(newsample))
+                    lqxy += self.empirical_distr[idx].logprob(
+                        oldsample
+                    ) - self.empirical_distr[idx].logprob(newsample)
 
         return q, float(lqxy)
 
@@ -385,7 +395,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = 'chrom_gp'
+        signal_name = "chrom_gp"
 
         # draw parameter from signal model
         param = np.random.choice(self.snames[signal_name])
@@ -398,8 +408,9 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
-                param.get_logpdf(q[self.pmap[str(param)]]))
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
 
         return q, float(lqxy)
 
@@ -513,7 +524,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = 'fdm'
+        signal_name = "fdm"
 
         # draw parameter from signal model
         param = np.random.choice(self.snames[signal_name])
@@ -526,8 +537,9 @@ class JumpProposal(object):
             q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
-                param.get_logpdf(q[self.pmap[str(param)]]))
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
 
         return q, float(lqxy)
 
@@ -947,8 +959,7 @@ def get_parameter_groups(pta):
 def get_psr_groups(pta):
     groups = []
     for psr in pta.pulsars:
-        grp = [pta.param_names.index(par)
-               for par in pta.param_names if psr in par]
+        grp = [pta.param_names.index(par) for par in pta.param_names if psr in par]
         groups.append(grp)
     return groups
 
@@ -1209,8 +1220,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
     # FDM prior draw
-    if 'fdm_log10_A' in pta.param_names:
-        print('Adding FDM prior draws...\n')
+    if "fdm_log10_A" in pta.param_names:
+        print("Adding FDM prior draws...\n")
         sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
 
     # CW prior draw

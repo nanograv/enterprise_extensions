@@ -297,7 +297,7 @@ def mask_filter(psr, mask):
     psr.sort_data()
 
 
-class CompareTimingModels():
+class CompareTimingModels:
     """
     Compare difference between the usual and marginalized timing models.
 
@@ -316,7 +316,9 @@ class CompareTimingModels():
         self.abs_tol = abs_tol
         self.rel_tol = rel_tol
         if dense:
-            self.pta_marg = model(psrs, tm_marg=True, dense_like=True, **kwargs)  # marginalized model
+            self.pta_marg = model(
+                psrs, tm_marg=True, dense_like=True, **kwargs
+            )  # marginalized model
         else:
             self.pta_marg = model(psrs, tm_marg=True, **kwargs)  # marginalized model
         self.pta_norm = model(psrs, **kwargs)  # normal model
@@ -328,34 +330,42 @@ class CompareTimingModels():
         self.count = 0
 
     def check_timing(self, number=10_000):
-        print('Timing sample creation...')
+        print("Timing sample creation...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
         end = time.time()
         sample_time = end - start
-        print('Sampling {0} points took {1} seconds.'.format(number, sample_time))
+        print("Sampling {0} points took {1} seconds.".format(number, sample_time))
 
-        print('Timing MarginalizedTimingModel...')
+        print("Timing MarginalizedTimingModel...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
             self.pta_marg.get_lnlikelihood(x0)
         end = time.time()
-        time_marg = end - start - sample_time  # remove sampling time from total time taken
-        print('Sampling {0} points took {1} seconds.'.format(number, time_marg))
+        time_marg = (
+            end - start - sample_time
+        )  # remove sampling time from total time taken
+        print("Sampling {0} points took {1} seconds.".format(number, time_marg))
 
-        print('Timing TimingModel...')
+        print("Timing TimingModel...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
             self.pta_norm.get_lnlikelihood(x0)
         end = time.time()
-        time_norm = end - start - sample_time  # remove sampling time from total time taken
-        print('Sampling {0} points took {1} seconds.'.format(number, time_norm))
+        time_norm = (
+            end - start - sample_time
+        )  # remove sampling time from total time taken
+        print("Sampling {0} points took {1} seconds.".format(number, time_norm))
 
         res = time_norm / time_marg
-        print('MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.'.format(res, number))
+        print(
+            "MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.".format(
+                res, number
+            )
+        )
         return res
 
     def get_sample_point(self):

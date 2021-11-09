@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import os
 import json
 import numpy as np
@@ -216,6 +217,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
 
     # Return the time-series for the pulsar
     return -(new_res[isort] - residuals[isort])
+
 
 
 # Model component building blocks #

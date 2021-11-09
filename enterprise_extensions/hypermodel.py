@@ -30,8 +30,9 @@ class HyperModel(object):
         self.param_names = np.append(self.param_names, "nmodel").tolist()
         #########
 
-        self.pulsars = np.unique(np.concatenate([p.pulsars
-                                                 for p in self.models.values()]))
+        self.pulsars = np.unique(
+            np.concatenate([p.pulsars for p in self.models.values()])
+        )
         self.pulsars = np.sort(self.pulsars)
 
         #########
@@ -248,8 +249,8 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
 
         # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
-            print('Adding Chromatic GP noise prior draws...\n')
+        if "chrom_gp" in self.snames:
+            print("Adding Chromatic GP noise prior draws...\n")
             sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # Ephemeris prior draw
@@ -280,8 +281,8 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_bwm_prior, 10)
 
         # FDM prior draw
-        if 'fdm_log10_A' in self.param_names:
-            print('Adding FDM prior draws...\n')
+        if "fdm_log10_A" in self.param_names:
+            print("Adding FDM prior draws...\n")
             sampler.addProposalToCycle(jp.draw_from_fdm_prior, 10)
 
         # CW prior draw

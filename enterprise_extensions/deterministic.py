@@ -44,7 +44,7 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
         log10_f_fdm = fixed_freq
 
     if use_fixed_freq is False:
-        freq_name = '{}_log10_f'.format(name)
+        freq_name = "{}_log10_f".format(name)
         log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
 
     phase_e_name = '{}_phase_e'.format(name)
@@ -821,4 +821,11 @@ def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
     f = 10 ** log10_f
 
     # Return the time-series for the pulsar
-    return - A / (2 * np.pi * f) * (np.sin(2 * np.pi * f * toas + phase_e) - np.sin(2 * np.pi * f * toas + phase_p))
+    return (
+        -A
+        / (2 * np.pi * f)
+        * (
+            np.sin(2 * np.pi * f * toas + phase_e)
+            - np.sin(2 * np.pi * f * toas + phase_p)
+        )
+    )

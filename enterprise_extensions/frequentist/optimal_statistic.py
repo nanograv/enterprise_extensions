@@ -74,20 +74,20 @@ class OptimalStatistic(object):
         # overlap reduction function
         if orf == 'hd':
             self.orf = model_orfs.hd_orf
-        elif orf == 'dipole':
+        elif orf == "dipole":
             self.orf = model_orfs.dipole_orf
-        elif orf == 'monopole':
+        elif orf == "monopole":
             self.orf = model_orfs.monopole_orf
-        elif orf == 'gw_monopole':
+        elif orf == "gw_monopole":
             self.orf = model_orfs.gw_monopole_orf
-        elif orf == 'gw_dipole':
+        elif orf == "gw_dipole":
             self.orf = model_orfs.gw_dipole_orf
-        elif orf == 'st':
+        elif orf == "st":
             self.orf = model_orfs.st_orf
         else:
             raise ValueError("Unknown ORF!")
 
-    def compute_os(self, params=None, psd='powerlaw', fgw=None):
+    def compute_os(self, params=None, psd="powerlaw", fgw=None):
         """
         Computes the optimal statistic values given an
         `enterprise` parameter dictionary.
@@ -291,17 +291,17 @@ class OptimalStatistic(object):
         # construct a list of all the ORFs to be fit simultaneously
         ORFs = []
         for corr in correlations:
-            if corr == 'hd':
+            if corr == "hd":
                 orf_func = model_orfs.hd_orf
-            elif corr == 'dipole':
+            elif corr == "dipole":
                 orf_func = model_orfs.dipole_orf
-            elif corr == 'monopole':
+            elif corr == "monopole":
                 orf_func = model_orfs.monopole_orf
-            elif corr == 'gw_monopole':
+            elif corr == "gw_monopole":
                 orf_func = model_orfs.gw_monopole_orf
-            elif corr == 'gw_dipole':
+            elif corr == "gw_dipole":
                 orf_func = model_orfs.gw_dipole_orf
-            elif corr == 'st':
+            elif corr == "st":
                 orf_func = model_orfs.st_orf
             else:
                 raise ValueError('Unknown ORF!')
@@ -310,7 +310,7 @@ class OptimalStatistic(object):
 
             npsr = len(self.pta._signalcollections)
             for ii in range(npsr):
-                for jj in range(ii+1, npsr):
+                for jj in range(ii + 1, npsr):
                     ORF.append(orf_func(self.psrlocs[ii], self.psrlocs[jj]))
 
             ORFs.append(np.array(ORF))
@@ -320,7 +320,7 @@ class OptimalStatistic(object):
 
         Bmatinv = np.linalg.inv(Bmat)
 
-        Cmat = np.array([np.sum(rho*ORFs[i]/sig**2) for i in range(len(ORFs))])
+        Cmat = np.array([np.sum(rho * ORFs[i] / sig ** 2) for i in range(len(ORFs))])
 
         A = np.dot(Bmatinv, Cmat)
         A_err = np.array([np.sqrt(Bmatinv[i, i]) for i in range(len(ORFs))])
@@ -349,8 +349,8 @@ class OptimalStatistic(object):
 
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
-            msg = 'MCMC chain does not have the same number of parameters '
-            msg += 'as the model.'
+            msg = "MCMC chain does not have the same number of parameters "
+            msg += "as the model."
 
             warnings.warn(msg)
 

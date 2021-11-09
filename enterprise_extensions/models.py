@@ -358,7 +358,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     else:
         # set up PTA
         if dense_like:
-            pta = signal_base.PTA([model], lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+            pta = signal_base.PTA(
+                [model], lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+            )
         else:
             pta = signal_base.PTA([model])
 
@@ -470,7 +472,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -621,7 +625,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -630,7 +636,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     else:
         # set up PTA
         if dense_like:
-            pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+            pta = signal_base.PTA(
+                models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+            )
         else:
             pta = signal_base.PTA(models)
 
@@ -968,7 +976,9 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -1068,9 +1078,16 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # dipole
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='dipole', name='dipole', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="dipole",
+        name="dipole",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -1091,7 +1108,9 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
     # set white noise parameters
@@ -1236,7 +1255,9 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -1336,9 +1357,16 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # monopole
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='monopole', name='monopole', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="monopole",
+        name="monopole",
+        pshift=pshift,
+    )
 
     # ephemeris model
     if bayesephem:
@@ -1359,7 +1387,9 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -1511,7 +1541,9 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     else:
         # set up PTA
         if dense_like:
-            pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+            pta = signal_base.PTA(
+                models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+            )
         else:
             pta = signal_base.PTA(models)
 
@@ -1654,7 +1686,9 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -1811,7 +1845,9 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -1914,14 +1950,26 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='hd', name='gw')
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="hd",
+        name="gw",
+    )
 
     # monopole
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                orf='monopole', name='monopole')
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        orf="monopole",
+        name="monopole",
+    )
 
     # ephemeris model
     if bayesephem:
@@ -1942,7 +1990,9 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2039,13 +2089,20 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
 
     # common red noise block
-    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
-                                components=components, gamma_val=gamma_common,
-                                name='gw', pshift=pshift)
+    s += common_red_noise_block(
+        psd=psd,
+        prior=amp_prior,
+        Tspan=Tspan,
+        components=components,
+        gamma_val=gamma_common,
+        name="gw",
+        pshift=pshift,
+    )
 
     # ephemeris model
-    s += do.Dropout_PhysicalEphemerisSignal(use_epoch_toas=True,
-                                            k_threshold=k_threshold)
+    s += do.Dropout_PhysicalEphemerisSignal(
+        use_epoch_toas=True, k_threshold=k_threshold
+    )
 
     # adding white-noise, and acting on psr objects
     models = []
@@ -2059,7 +2116,9 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2131,7 +2190,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # timing model
-    if (is_wideband and use_dmdata):
+    if is_wideband and use_dmdata:
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2199,7 +2258,9 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2343,7 +2404,9 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2467,20 +2530,22 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
+        if "NANOGrav" in p.flags["pta"] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if dm_var and 'J1713+0747' == p.name:
+            if dm_var and "J1713+0747" == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
-            if dm_var and 'J1713+0747' == p.name:
+            if dm_var and "J1713+0747" == p.name:
                 s3 += dmexp
             models.append(s3(p))
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2558,7 +2623,7 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
 
 
     """
-    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+    amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set frequency sampling
     tmin = psr.toas.min()
@@ -2566,9 +2631,9 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
     Tspan = tmax - tmin
 
     if Tmin_bwm is None:
-        Tmin_bwm = tmin/const.day
+        Tmin_bwm = tmin / const.day
     if Tmax_bwm is None:
-        Tmax_bwm = tmax/const.day
+        Tmax_bwm = tmax / const.day
 
     if tm_marg:
         s = gp_signals.MarginalizingTimingModel()
@@ -2576,12 +2641,20 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components, logmin=logmin, logmax=logmax)
+    s += red_noise_block(
+        prior=amp_prior,
+        psd=red_psd,
+        Tspan=Tspan,
+        components=components,
+        logmin=logmin,
+        logmax=logmax,
+    )
 
     # DM variations
     if dm_var:
-        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                            gamma_val=None)
+        s += dm_noise_block(
+            psd=dm_psd, prior=amp_prior, components=components, gamma_val=None
+        )
         if dm_annual:
             s += chrom.dm_annual_signal()
 
@@ -2599,7 +2672,7 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
     # adding white-noise, and acting on psr objects
     models = []
 
-    if 'NANOGrav' in psr.flags['pta'] and not wideband:
+    if "NANOGrav" in psr.flags["pta"] and not wideband:
         s2 = s + white_noise_block(vary=False, inc_ecorr=True)
         if dm_var and 'J1713+0747' == psr.name:
             s2 += dmexp
@@ -2613,13 +2686,15 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
     # set up PTA
     # TODO: decide on a way to handle likelihood
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
     # set white noise parameters
     if noisedict is None:
-        print('No noise dictionary provided!...')
+        print("No noise dictionary provided!...")
     else:
         noisedict = noisedict
         pta.set_default_params(noisedict)
@@ -2717,7 +2792,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     :return: instantiated enterprise.PTA object
     """
 
-    amp_prior = 'uniform' if upper_limit else 'log-uniform'
+    amp_prior = "uniform" if upper_limit else "log-uniform"
 
     if n_gwbfreqs is None:
         n_gwbfreqs = components
@@ -2731,9 +2806,9 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     Tspan = tmax - tmin
 
     if Tmin_fdm is None:
-        Tmin_fdm = tmin/const.day
+        Tmin_fdm = tmin / const.day
     if Tmax_fdm is None:
-        Tmax_fdm = tmax/const.day
+        Tmax_fdm = tmax / const.day
 
     # timing model
     if tm_marg:
@@ -2742,12 +2817,15 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=n_rnfreqs)
+    s += red_noise_block(
+        prior=amp_prior, psd=red_psd, Tspan=Tspan, components=n_rnfreqs
+    )
 
     # DM variations
     if dm_var:
-        s += dm_noise_block(psd=dm_psd, prior=amp_prior, components=components,
-                            gamma_val=None)
+        s += dm_noise_block(
+            psd=dm_psd, prior=amp_prior, components=components, gamma_val=None
+        )
         if dm_annual:
             s += chrom.dm_annual_signal()
 
@@ -2788,7 +2866,9 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 
@@ -2865,7 +2945,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     Tspan = tmax - tmin
 
     # timing model
-    if (is_wideband and use_dmdata):
+    if is_wideband and use_dmdata:
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2923,7 +3003,9 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.PTA(
+            models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky
+        )
     else:
         pta = signal_base.PTA(models)
 

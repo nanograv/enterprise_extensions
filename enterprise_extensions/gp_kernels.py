@@ -141,7 +141,7 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_i
 
     return (
         U[:, idx] * weights[:, None],
-        {"avetoas": avetoas[idx], "avefreqs": avefreqs[idx],},
+        {"avetoas": avetoas[idx], "avefreqs": avefreqs[idx]},
     )
 
 
