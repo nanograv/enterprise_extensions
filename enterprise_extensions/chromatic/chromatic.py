@@ -1,26 +1,21 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
-
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
 from enterprise import constants as const
+from enterprise.signals import deterministic_signals, parameter, signal_base
 
-__all__ = [
-    "chrom_exp_decay",
-    "chrom_exp_cusp",
-    "chrom_dual_exp_cusp",
-    "chrom_yearly_sinusoid",
-    "chromatic_quad_basis",
-    "chromatic_quad_prior",
-    "dmx_delay",
-    "dm_exponential_dip",
-    "dm_exponential_cusp",
-    "dm_dual_exp_cusp",
-    "dmx_signal",
-    "dm_annual_signal",
-]
+__all__ = ['chrom_exp_decay',
+           'chrom_exp_cusp',
+           'chrom_dual_exp_cusp',
+           'chrom_yearly_sinusoid',
+           'chromatic_quad_basis',
+           'chromatic_quad_prior',
+           'dmx_delay',
+           'dm_exponential_dip',
+           'dm_exponential_cusp',
+           'dm_dual_exp_cusp',
+           'dmx_signal',
+           'dm_annual_signal',
+           ]
 
 
 @signal_base.function
@@ -161,9 +156,7 @@ def chrom_dual_exp_cusp(
         wf_2_post[ind_post] *= np.exp(-(toas[ind_post] - t0) / tau_2_post)
         wf_2 = wf_2_pre + wf_2_post
 
-    return np.sign(sign_param) * (
-        wf_1 * (1400 / freqs) ** idx1 + wf_2 * (1400 / freqs) ** idx2
-    )
+    return np.sign(sign_param) * (wf_1 * (1400 / freqs) ** idx1 + wf_2 * (1400 / freqs) ** idx2)
 
 
 @signal_base.function
@@ -178,7 +171,7 @@ def chrom_yearly_sinusoid(toas, freqs, log10_Amp=-7, phase=0, idx=2):
     :return wf: delay time-series [s]
     """
 
-    wf = 10 ** log10_Amp * np.sin(2 * np.pi * const.fyr * toas + phase)
+    wf = 10**log10_Amp * np.sin(2 * np.pi * const.fyr * toas + phase)
     return wf * (1400 / freqs) ** idx
 
 
@@ -197,6 +190,7 @@ def chromatic_quad_basis(toas, freqs, idx=4):
         ret[:, ii] = (toas - t0) ** (ii) * (1400 / freqs) ** idx
     norm = np.sqrt(np.sum(ret ** 2, axis=0))
     return ret / norm, np.ones(3)
+
 
 
 @signal_base.function
@@ -230,7 +224,7 @@ def dmx_delay(toas, freqs, dmx_ids, **kwargs):
     return wf
 
 
-def dm_exponential_dip(tmin, tmax, idx=2, sign="negative", name="dmexp"):
+def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -267,9 +261,8 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign="negative", name="dmexp"):
     return dmexp
 
 
-def dm_exponential_cusp(
-    tmin, tmax, idx=2, sign="negative", symmetric=False, name="dm_cusp"
-):
+def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
+                        symmetric=False, name='dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -319,9 +312,8 @@ def dm_exponential_cusp(
     return dm_cusp
 
 
-def dm_dual_exp_cusp(
-    tmin, tmax, idx1=2, idx2=4, sign="negative", symmetric=False, name="dual_dm_cusp"
-):
+def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
+                     symmetric=False, name='dual_dm_cusp'):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -375,7 +367,7 @@ def dm_dual_exp_cusp(
     return dm_cusp
 
 
-def dmx_signal(dmx_data, name="dmx_signal"):
+def dmx_signal(dmx_data, name='dmx_signal'):
     """
     Returns DMX signal:
 
@@ -388,20 +380,15 @@ def dmx_signal(dmx_data, name="dmx_signal"):
     dmx = {}
     for dmx_id in sorted(dmx_data):
         dmx_data_tmp = dmx_data[dmx_id]
-        dmx.update(
-            {
-                dmx_id: parameter.Normal(
-                    mu=dmx_data_tmp["DMX_VAL"], sigma=dmx_data_tmp["DMX_ERR"]
-                )
-            }
-        )
+        dmx.update({dmx_id: parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
+                                             sigma=dmx_data_tmp['DMX_ERR'])})
     wf = dmx_delay(dmx_ids=dmx_data, **dmx)
     dmx_sig = deterministic_signals.Deterministic(wf, name=name)
 
     return dmx_sig
 
 
-def dm_annual_signal(idx=2, name="dm_s1yr"):
+def dm_annual_signal(idx=2, name='dm_s1yr'):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 

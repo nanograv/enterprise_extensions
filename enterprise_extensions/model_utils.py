@@ -1,32 +1,33 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
+
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scistats
-import acor
-import matplotlib.pyplot as plt
 
 try:
-    import cPickle as pickle
+    import acor
 except ImportError:
-    import pickle
+    from emcee.autocorr import integrated_time as acor
 
-from enterprise_extensions.empirical_distr import (
-    EmpiricalDistribution1D,
-    EmpiricalDistribution2D,
-    make_empirical_distributions,
-)
+from enterprise_extensions import models
 
 # Log-spaced frequncies
+
+
 def linBinning(T, logmode, f_min, nlin, nlog):
     """
     Get the frequency binning for the low-rank approximations, including
     log-spaced low-frequency coverage.
     Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+
     :param T:       Duration experiment
     :param logmode: From which linear mode to switch to log
     :param f_min:   Down to which frequency we'll sample
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
+
     """
     if logmode < 0:
         raise ValueError(
@@ -42,7 +43,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     if nlog > 0:
         # Now the log-spacing, and weights
         f_min_log = np.log(f_min)
-        f_max_log = np.log((logmode + 0.5) / T)
+        f_max_log = np.log((logmode+0.5)/T)
         df_log = (f_max_log - f_min_log) / (nlog)
         f_log = np.exp(
             np.linspace(f_min_log + 0.5 * df_log, f_max_log - 0.5 * df_log, nlog)
@@ -54,6 +55,8 @@ def linBinning(T, logmode, f_min, nlin, nlog):
 
 
 # New filter for different cadences
+
+
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
 
@@ -129,7 +132,7 @@ class PostProcessing(object):
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
 
-    def plot_hist(self, hist_kwargs={"bins": 50, "normed": True}):
+    def plot_hist(self, hist_kwargs={'bins': 50, 'normed': True}):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
@@ -153,6 +156,7 @@ def ul(chain, q=95.0):
     :param q: desired percentile of upper-limit value [out of 100, default=95]
 
     :returns: (upper limit, uncertainty on upper limit)
+
     """
 
     hist = np.histogram(10.0 ** chain, bins=100)
@@ -161,12 +165,8 @@ def ul(chain, q=95.0):
     A_ul = 10 ** np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
-    Aul_error = (
-        np.sqrt(
-            (q / 100.0) * (1.0 - (q / 100.0)) / (chain.shape[0] / acor.acor(chain)[0])
-        )
-        / p_ul
-    )
+    Aul_error = np.sqrt((q/100.) * (1.0 - (q/100.0)) /
+                        (chain.shape[0]/acor.acor(chain)[0])) / p_ul
 
     return A_ul, Aul_error
 
@@ -179,6 +179,7 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
+
     """
 
     prior = 1 / (logAmax - logAmin)
@@ -243,10 +244,8 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
                         ct_bt += 1
 
             try:
-                sigma = bf * np.sqrt(
-                    (float(top) - float(ct_tb)) / (float(top) * float(ct_tb))
-                    + (float(bot) - float(ct_bt)) / (float(bot) * float(ct_bt))
-                )
+                sigma = bf * np.sqrt((float(top) - float(ct_tb))/(float(top)*float(ct_tb)) +
+                                     (float(bot) - float(ct_bt))/(float(bot)*float(ct_bt)))
             except ZeroDivisionError:
                 sigma = 0.0
 
@@ -266,6 +265,7 @@ def bic(chain, nobs, log_evidence=False):
     :param evidence: return evidence estimate too?
 
     :returns: (bic, evidence)
+
     """
     nparams = chain.shape[1] - 4  # removing 4 aux columns
     maxlnlike = chain[:, -4].max()
@@ -295,3 +295,93 @@ def mask_filter(psr, mask):
         psr._planetssb = psr.planetssb[mask, :, :]
 
     psr.sort_data()
+
+
+class CompareTimingModels():
+    """
+    Compare difference between the usual and marginalized timing models.
+
+    After instantiating, the __call__() method can be used for sampling for any number of points.
+    To see the results, use the results() method.
+
+    :param psrs: Pulsar object containing pulsars from model
+    :param model_name: String name of model to test. Model must be defined in enterprise_extensions.models.
+    :param abs_tol: absolute tolerance for error between timing models (default 1e-3), set to None to bypass errors
+    :param rel_tol: relative tolerance for error between timing models (default 1e-6), set to None to bypass errors
+    :param dense: use the dense cholesky algorithm over sparse
+    """
+
+    def __init__(self, psrs, model_name='model_1', abs_tol=1e-3, rel_tol=1e-6, dense=True, **kwargs):
+        model = getattr(models, model_name)
+        self.abs_tol = abs_tol
+        self.rel_tol = rel_tol
+        if dense:
+            self.pta_marg = model(psrs, tm_marg=True, dense_like=True, **kwargs)  # marginalized model
+        else:
+            self.pta_marg = model(psrs, tm_marg=True, **kwargs)  # marginalized model
+        self.pta_norm = model(psrs, **kwargs)  # normal model
+        self.tm_correction = 0
+        for psr in psrs:
+            self.tm_correction -= 0.5 * np.log(1e40) * psr.Mmat.shape[1]
+        self.abs_err = []
+        self.rel_err = []
+        self.count = 0
+
+    def check_timing(self, number=10_000):
+        print('Timing sample creation...')
+        start = time.time()
+        for __ in range(number):
+            x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+        end = time.time()
+        sample_time = end - start
+        print('Sampling {0} points took {1} seconds.'.format(number, sample_time))
+
+        print('Timing MarginalizedTimingModel...')
+        start = time.time()
+        for __ in range(number):
+            x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+            self.pta_marg.get_lnlikelihood(x0)
+        end = time.time()
+        time_marg = end - start - sample_time  # remove sampling time from total time taken
+        print('Sampling {0} points took {1} seconds.'.format(number, time_marg))
+
+        print('Timing TimingModel...')
+        start = time.time()
+        for __ in range(number):
+            x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+            self.pta_norm.get_lnlikelihood(x0)
+        end = time.time()
+        time_norm = end - start - sample_time  # remove sampling time from total time taken
+        print('Sampling {0} points took {1} seconds.'.format(number, time_norm))
+
+        res = time_norm / time_marg
+        print('MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.'.format(res, number))
+        return res
+
+    def get_sample_point(self):
+        x0 = np.hstack([p.sample() for p in self.pta_marg.params])
+        return x0
+
+    def __call__(self, x0):
+        res_norm = self.pta_norm.get_lnlikelihood(x0)
+        res_marg = self.pta_marg.get_lnlikelihood(x0)
+        abs_err = np.abs(res_marg - res_norm)
+        rel_err = abs_err / res_norm
+        self.abs_err.append(abs_err)
+        self.rel_err.append(rel_err)
+        self.count += 1
+        if self.abs_tol is not None and abs_err > self.abs_tol:
+            abs_raise = 'Absolute error is {0} at {1} which is larger than abs_tol of {2}.'.format(
+                abs_err, x0, self.abs_tol)
+            raise ValueError(abs_raise)
+        elif self.rel_tol is not None and rel_err > self.rel_tol:
+            rel_raise = 'Relative error is {0} at {1} which is larger than rel_tol of {2}.'.format(
+                rel_err, x0, self.rel_tol)
+            raise ValueError(rel_raise)
+        return res_norm
+
+    def results(self):
+        print('Number of points evaluated:', self.count)
+        print('Maximum absolute error:', np.max(self.abs_err))
+        print('Maximum relative error:', np.max(self.rel_err))
+        return self.abs_err, self.rel_err

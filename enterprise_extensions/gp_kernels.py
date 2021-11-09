@@ -1,21 +1,17 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
-from enterprise.signals import signal_base
-from enterprise.signals import utils
+from enterprise.signals import signal_base, utils
 
-__all__ = [
-    "linear_interp_basis_dm",
-    "linear_interp_basis_scattering",
-    "linear_interp_basis_freq",
-    "dmx_ridge_prior",
-    "periodic_kernel",
-    "se_kernel",
-    "se_dm_kernel",
-    "get_tf_quantization_matrix",
-    "tf_kernel",
-    "sf_kernel",
-]
+__all__ = ['linear_interp_basis_dm',
+           'linear_interp_basis_freq',
+           'dmx_ridge_prior',
+           'periodic_kernel',
+           'se_kernel',
+           'se_dm_kernel',
+           'get_tf_quantization_matrix',
+           'tf_kernel',
+           'sf_kernel',
+           ]
 
 
 # linear interpolation basis in time with nu^-2 scaling
@@ -31,10 +27,9 @@ def linear_interp_basis_dm(toas, freqs, dt=30 * 86400):
     return U * Dm[:, None], avetoas
 
 
-# linear interpolation basis in time with nu^-4 scaling
 @signal_base.function
-def linear_interp_basis_chromatic(toas, freqs, dt=30 * 86400, idx=4):
-
+def linear_interp_basis_chromatic(toas, freqs, dt=30*86400, idx=4):
+    """Linear interpolation basis in time with nu^-4 scaling"""
     # get linear interpolation basis in time
     U, avetoas = utils.linear_interp_basis(toas, dt=dt)
 
@@ -44,24 +39,23 @@ def linear_interp_basis_chromatic(toas, freqs, dt=30 * 86400, idx=4):
     return U * Dm[:, None], avetoas
 
 
-# linear interpolation in radio frequcny
 @signal_base.function
 def linear_interp_basis_freq(freqs, df=64):
-
+    """Linear interpolation in radio frequency"""
     return utils.linear_interp_basis(freqs, dt=df)
 
 
-# DMX-like signal with Gaussian prior
 @signal_base.function
 def dmx_ridge_prior(avetoas, log10_sigma=-7):
-    sigma = 10 ** log10_sigma
-    return sigma ** 2 * np.ones_like(avetoas)
+    """DMX-like signal with Gaussian prior"""
+    sigma = 10**log10_sigma
+    return sigma**2 * np.ones_like(avetoas)
 
 
-# quasi-periodic kernel for DM
 @signal_base.function
-def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, log10_gam_p=0, log10_p=0):
-
+def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2,
+                    log10_gam_p=0, log10_p=0):
+    """Quasi-periodic kernel for DM"""
     r = np.abs(avetoas[None, :] - avetoas[:, None])
 
     # convert units to seconds
@@ -77,10 +71,9 @@ def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2, log10_gam_p=0, log10_p
     return K
 
 
-# squared-exponential kernel for FD
 @signal_base.function
 def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
-
+    """Squared-exponential kernel for FD"""
     tm = np.abs(avefreqs[None, :] - avefreqs[:, None])
 
     lam = 10 ** log10_lam
@@ -89,10 +82,10 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
     return sigma ** 2 * np.exp(-(tm ** 2) / 2 / lam) + d
 
 
-# squared-exponential kernel for DM
+
 @signal_base.function
 def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
-
+    """Squared-exponential kernel for DM"""
     r = np.abs(avetoas[None, :] - avetoas[:, None])
 
     # Convert everything into seconds
@@ -103,9 +96,12 @@ def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     return K
 
 
-# quantization matrix in time and radio frequency to cut down on the kernel size.
 @signal_base.function
-def get_tf_quantization_matrix(toas, freqs, dt=30 * 86400, df=None, dm=False, dm_idx=2):
+def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_idx=2):
+    """
+    Quantization matrix in time and radio frequency to cut down on the kernel
+    size.
+    """
     if df is None:
         dfs = [(600, 1000), (1000, 1900), (1900, 3000), (3000, 5000)]
     else:
@@ -149,21 +145,16 @@ def get_tf_quantization_matrix(toas, freqs, dt=30 * 86400, df=None, dm=False, dm
     )
 
 
-# kernel is the product of a quasi-periodic time kernel and
-# a rational-quadratic frequency kernel.
-@signal_base.function
-def tf_kernel(
-    labels,
-    log10_sigma=-7,
-    log10_ell=2,
-    log10_gam_p=0,
-    log10_p=0,
-    log10_ell2=4,
-    log10_alpha_wgt=0,
-):
 
-    avetoas = labels["avetoas"]
-    avefreqs = labels["avefreqs"]
+@signal_base.function
+def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
+              log10_p=0, log10_ell2=4, log10_alpha_wgt=0):
+    """
+    The product of a quasi-periodic time kernel and
+    a rational-quadratic frequency kernel.
+    """
+    avetoas = labels['avetoas']
+    avefreqs = labels['avefreqs']
 
     r = np.abs(avetoas[None, :] - avetoas[:, None])
     r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
@@ -185,13 +176,15 @@ def tf_kernel(
     return Kt * Kv + d
 
 
-# kernel is the product of a squared-exponential time kernel and
-# a rational-quadratic frequency kernel
 @signal_base.function
-def sf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_ell2=4, log10_alpha_wgt=0):
-
-    avetoas = labels["avetoas"]
-    avefreqs = labels["avefreqs"]
+def sf_kernel(labels, log10_sigma=-7, log10_ell=2,
+              log10_ell2=4, log10_alpha_wgt=0):
+    """
+    The product of a squared-exponential time kernel and
+    a rational-quadratic frequency kernel.
+    """
+    avetoas = labels['avetoas']
+    avefreqs = labels['avefreqs']
 
     r = np.abs(avetoas[None, :] - avetoas[:, None])
     r2 = np.abs(avefreqs[None, :] - avefreqs[:, None])
