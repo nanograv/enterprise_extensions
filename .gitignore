@@ -2,6 +2,9 @@
 .*.swp
 .vscode
 
+# testing output
+tests/test_out/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
