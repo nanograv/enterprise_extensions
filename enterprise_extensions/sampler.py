@@ -1122,7 +1122,10 @@ def setup_sampler(pta, outdir='chains', resume=False,
 
     # initial jump covariance matrix
     if os.path.exists(outdir+'/cov.npy'):
-        cov = np.load(outdir+'/cov.npy')
+        try:
+            cov = np.load(outdir+'/cov.npy')
+        except (ValueError):
+            cov = np.diag(np.ones(ndim) * 0.1**2)
     else:
         cov = np.diag(np.ones(ndim) * 0.1**2)
 

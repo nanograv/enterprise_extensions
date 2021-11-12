@@ -189,7 +189,10 @@ class HyperModel(object):
 
         # initial jump covariance matrix
         if os.path.exists(outdir+'/cov.npy'):
-            cov = np.load(outdir+'/cov.npy')
+            try:
+                cov = np.load(outdir+'/cov.npy')
+            except (ValueError):
+                cov = np.diag(np.ones(ndim) * 0.1**2)
         else:
             cov = np.diag(np.ones(ndim) * 1.0**2)  # used to be 0.1
 
