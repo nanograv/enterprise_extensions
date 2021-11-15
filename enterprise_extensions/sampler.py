@@ -182,7 +182,6 @@ class JumpProposal(object):
 
         if self.empirical_distr is not None:
 
-
             # randomly choose one of the empirical distributions
             distr_idx = np.random.randint(0, len(self.empirical_distr))
 
