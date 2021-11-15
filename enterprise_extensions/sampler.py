@@ -182,6 +182,7 @@ class JumpProposal(object):
 
         if self.empirical_distr is not None:
 
+
             # randomly choose one of the empirical distributions
             distr_idx = np.random.randint(0, len(self.empirical_distr))
 
@@ -190,6 +191,11 @@ class JumpProposal(object):
                 idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
                 q[idx] = self.empirical_distr[distr_idx].draw()
 
+                # TODO (Aaron): test this:
+                # edges = self.empirical_distr[distr_idx]._edges[idx]
+                # if x[idx] < edges[0] or x[idx] > edges[-1]:
+                #     lqxy = -np.inf
+                # else:
                 lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
                         self.empirical_distr[distr_idx].logprob(q[idx]))
 
@@ -198,12 +204,15 @@ class JumpProposal(object):
                 oldsample = [x[self.pnames.index(p)]
                              for p in self.empirical_distr[distr_idx].param_names]
                 newsample = self.empirical_distr[distr_idx].draw()
+                dist = self.empirical_distr[distr_idx]
 
-                for p, n in zip(self.empirical_distr[distr_idx].param_names, newsample):
-                    q[self.pnames.index(p)] = n
+                for ii in range(len(oldsample)):
+                    if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
+                        lqxy = -np.inf
 
-                lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
-                        self.empirical_distr[distr_idx].logprob(newsample))
+                if lqxy == 0:
+                    lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
+                            self.empirical_distr[distr_idx].logprob(newsample))
 
         return q, float(lqxy)
 
@@ -369,16 +378,21 @@ class JumpProposal(object):
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
+        lqxy = 0
 
         # draw parameter from signal model
-        gw_pars = [par for par in self.pnames
-                   if ('gw' in par and 'log10_A' in par)]
-        gw_par = np.random.choice(gw_pars)
-        idx = self.pnames.index(gw_par)
+        signal_name = [par for par in self.pnames
+                       if ('gw' in par and 'log10_A' in par)][0]
+        idx = list(self.pnames).index(signal_name)
+        param = self.params[idx]
 
-        q[idx] = np.random.uniform(-18, -14)
+        q[self.pmap[str(param)]] = param.sample()
 
-        return q, 0
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
 
     def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
 
