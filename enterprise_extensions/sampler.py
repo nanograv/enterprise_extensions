@@ -8,9 +8,59 @@ import platform
 import healpy as hp
 import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
+from numpy.lib.arraysetops import isin
 
 from enterprise_extensions import __version__
+from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D
 
+
+def extend_emp_dists(pta, emp_dists, npoints=100_000):
+    new_emp_dists = []
+    skip = False
+    for emp_dist in emp_dists:
+
+        if isinstance(emp_dists[0], EmpiricalDistribution2D):
+            samples = np.zeros((npoints, emp_dist.draw().shape[0]))
+            for ii in range(npoints):  # generate samples from old emp dist
+                samples[ii] = emp_dist.draw()
+            new_bins = []
+            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
+                if param not in pta.param_names:
+                    skip = True
+                    continue
+                param_idx = pta.param_names.index(param)
+                prior_min = pta.params[param_idx].prior._defaults['pmin']
+                prior_max = pta.params[param_idx].prior._defaults['pmax']
+                # drop samples that are outside the prior range (in case prior is smaller than samples)
+                samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
+                new_bins.append(np.linspace(prior_min, prior_max, nbins + 10))
+            if skip:
+                skip = False
+                continue
+            new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
+            new_emp_dists.append(new_emp)
+
+        elif isinstance(emp_dists[0], EmpiricalDistribution1D):
+            samples = np.zeros((npoints, 1))
+            for ii in range(npoints):  # generate samples from old emp dist
+                samples[ii] = emp_dist.draw()
+            new_bins = []
+            if emp_dist.param_name not in pta.param_names:
+                continue
+            param_idx = pta.param_names.index(emp_dist.param_name)
+            prior_min = pta.params[param_idx].prior._defaults['pmin']
+            prior_max = pta.params[param_idx].prior._defaults['pmax']
+            # drop samples that are outside the prior range (in case prior is smaller than samples)
+            samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
+            new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 10)
+            new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
+            new_emp_dists.append(new_emp)
+
+        else:
+            print('Unable to extend class of unknown type to the edges of the priors.')
+            new_emp_dists.append(emp_dist)
+            continue
+        return new_emp_dists
 
 class JumpProposal(object):
 
@@ -112,6 +162,9 @@ class JumpProposal(object):
                         mask.append(idx)
             if len(mask) > 1:
                 self.empirical_distr = [self.empirical_distr[m] for m in mask]
+                # extend empirical_distr here:
+                print('Extending empirical distributions to priors...\n')
+                self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000)
             else:
                 self.empirical_distr = None
 
@@ -190,13 +243,13 @@ class JumpProposal(object):
                 idx = self.pnames.index(self.empirical_distr[distr_idx].param_name)
                 q[idx] = self.empirical_distr[distr_idx].draw()
 
-                # TODO (Aaron): test this:
-                # edges = self.empirical_distr[distr_idx]._edges[idx]
-                # if x[idx] < edges[0] or x[idx] > edges[-1]:
-                #     lqxy = -np.inf
-                # else:
                 lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
                         self.empirical_distr[distr_idx].logprob(q[idx]))
+
+                dist = self.empirical_distr[distr_idx]
+                # if we fall outside the emp distr support, pull from prior instead
+                if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
+                    q, lqxy = self.draw_from_prior(x, iter, beta)
 
             else:
 
@@ -205,13 +258,13 @@ class JumpProposal(object):
                 newsample = self.empirical_distr[distr_idx].draw()
                 dist = self.empirical_distr[distr_idx]
 
+                lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
+                        self.empirical_distr[distr_idx].logprob(newsample))
+
+                # if we fall outside the emp distr support, pull from prior instead
                 for ii in range(len(oldsample)):
                     if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
-                        lqxy = -np.inf
-
-                if lqxy == 0:
-                    lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
-                            self.empirical_distr[distr_idx].logprob(newsample))
+                        q, lqxy = self.draw_from_prior(x, iter, beta)
 
         return q, float(lqxy)
 
