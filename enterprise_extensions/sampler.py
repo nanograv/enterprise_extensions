@@ -263,10 +263,7 @@ class JumpProposal(object):
                 # if we fall outside the emp distr support, pull from prior instead
                 for ii in range(len(oldsample)):
                     if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
-                        print('draw from prior!')
                         q, lqxy = self.draw_from_prior(x, iter, beta)
-
-                print(q, lqxy)
 
         return q, float(lqxy)
 
