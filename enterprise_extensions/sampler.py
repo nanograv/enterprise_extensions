@@ -251,19 +251,26 @@ class JumpProposal(object):
                     q, lqxy = self.draw_from_prior(x, iter, beta)
 
             else:
-
-                oldsample = [x[self.pnames.index(p)]
-                             for p in self.empirical_distr[distr_idx].param_names]
-                newsample = self.empirical_distr[distr_idx].draw()
                 dist = self.empirical_distr[distr_idx]
+                oldsample = [x[self.pnames.index(p)] for p in dist.param_names]
+                newsample = dist.draw()
 
-                lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
-                        self.empirical_distr[distr_idx].logprob(newsample))
+                lqxy = (dist.logprob(oldsample) - dist.logprob(newsample))
+
+                for p, n in zip(dist.param_names, newsample):
+                    q[self.pnames.index(p)] = n
 
                 # if we fall outside the emp distr support, pull from prior instead
                 for ii in range(len(oldsample)):
                     if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
+                        print('draw from prior!')
                         q, lqxy = self.draw_from_prior(x, iter, beta)
+
+
+                print(q, lqxy)
+                
+                # print('old =', oldsample)
+                # print('new =', newsample)
 
         return q, float(lqxy)
 
