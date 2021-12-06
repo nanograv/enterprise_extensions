@@ -437,7 +437,7 @@ class JumpProposal(object):
         idx = list(self.pnames).index(signal_name)
         param = self.params[idx]
 
-        q[self.pmap[str(param)]] = param.sample()
+        q[self.pmap[str(param)]] = np.random.uniform(param.prior_defaults['pmin'], param.prior_defaults['pmax'])
 
         # forward-backward jump probability
         lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
