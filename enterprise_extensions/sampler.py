@@ -266,11 +266,7 @@ class JumpProposal(object):
                         print('draw from prior!')
                         q, lqxy = self.draw_from_prior(x, iter, beta)
 
-
                 print(q, lqxy)
-                
-                # print('old =', oldsample)
-                # print('new =', newsample)
 
         return q, float(lqxy)
 
