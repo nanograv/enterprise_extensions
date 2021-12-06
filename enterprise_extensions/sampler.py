@@ -8,7 +8,6 @@ import platform
 import healpy as hp
 import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
-from numpy.lib.arraysetops import isin
 
 from enterprise_extensions import __version__
 from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D
@@ -61,6 +60,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
             new_emp_dists.append(emp_dist)
             continue
         return new_emp_dists
+
 
 class JumpProposal(object):
 
