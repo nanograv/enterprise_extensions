@@ -17,7 +17,6 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
     new_emp_dists = []
     skip = False
     for emp_dist in emp_dists:
-
         if isinstance(emp_dists[0], EmpiricalDistribution2D):
             samples = np.zeros((npoints, emp_dist.draw().shape[0]))
             for ii in range(npoints):  # generate samples from old emp dist
@@ -59,7 +58,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
             print('Unable to extend class of unknown type to the edges of the priors.')
             new_emp_dists.append(emp_dist)
             continue
-        return new_emp_dists
+    return new_emp_dists
 
 
 class JumpProposal(object):
