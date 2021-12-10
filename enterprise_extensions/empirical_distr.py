@@ -36,10 +36,10 @@ class EmpiricalDistribution1D(object):
 
     def draw(self):
         draw = np.random.rand()
-        draw_bin = np.searchsorted(self._cdf, draw)
+        draw_bin = np.searchsorted(self._cdf, draw, side='right')
 
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
+        samp = self._edges[idx - 1] + self._wids[idx - 1]*np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
@@ -86,10 +86,9 @@ class EmpiricalDistribution2D(object):
 
     def draw(self):
         draw = np.random.rand()
-        draw_bin = np.searchsorted(self._cdf, draw)
-
+        draw_bin = np.searchsorted(self._cdf, draw, side='right')
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+        samp = [self._edges[ii, idx[ii] - 1] + self._wids[ii, idx[ii] - 1]*np.random.rand()
                 for ii in range(2)]
         return np.array(samp)
 

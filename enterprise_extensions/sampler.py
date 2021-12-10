@@ -31,7 +31,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
                 prior_max = pta.params[param_idx].prior._defaults['pmax']
                 # drop samples that are outside the prior range (in case prior is smaller than samples)
                 samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
-                new_bins.append(np.linspace(prior_min, prior_max, nbins + 10))
+                new_bins.append(np.linspace(prior_min, prior_max, nbins + 40))
             if skip:
                 skip = False
                 continue
@@ -159,7 +159,7 @@ class JumpProposal(object):
                 else:
                     if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
                         mask.append(idx)
-            if len(mask) > 1:
+            if len(mask) >= 1:
                 self.empirical_distr = [self.empirical_distr[m] for m in mask]
                 # extend empirical_distr here:
                 print('Extending empirical distributions to priors...\n')
@@ -437,7 +437,7 @@ class JumpProposal(object):
         idx = list(self.pnames).index(signal_name)
         param = self.params[idx]
 
-        q[self.pmap[str(param)]] = np.random.uniform(param.prior_defaults['pmin'], param.prior_defaults['pmax'])
+        q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
 
         # forward-backward jump probability
         lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
