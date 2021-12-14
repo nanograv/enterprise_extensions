@@ -24,7 +24,7 @@ class EmpiricalDistribution1D(object):
         self._Nbins = len(bins)-1
         hist, x_bins = np.histogram(samples, bins=bins)
 
-        self._edges = x_bins[:-1]
+        self._edges = x_bins
         self._wids = np.diff(x_bins)
 
         hist += 1  # add a sample to every bin
@@ -38,19 +38,17 @@ class EmpiricalDistribution1D(object):
         draw = np.random.rand()
         draw_bin = np.searchsorted(self._cdf, draw, side='right')
 
-        idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = self._edges[idx - 1] + self._wids[idx - 1]*np.random.rand()
+        idx = np.unravel_index(draw_bin, self._Nbins)[0]
+        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
-        ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+        ix = np.searchsorted(self._edges, params) - 1
 
         return self._pdf[ix]
 
     def logprob(self, params):
-        ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+        ix = np.searchsorted(self._edges, params) - 1
 
         return self._logpdf[ix]
 
@@ -73,7 +71,7 @@ class EmpiricalDistribution2D(object):
         self._Nbins = [len(b)-1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
-        self._edges = np.array([x_bins[:-1], y_bins[:-1]])
+        self._edges = np.array([x_bins, y_bins])
         self._wids = np.diff([x_bins, y_bins])
 
         area = np.outer(*self._wids)
@@ -86,21 +84,19 @@ class EmpiricalDistribution2D(object):
 
     def draw(self):
         draw = np.random.rand()
-        draw_bin = np.searchsorted(self._cdf, draw, side='right')
+        draw_bin = np.searchsorted(self._cdf, draw)
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [self._edges[ii, idx[ii] - 1] + self._wids[ii, idx[ii] - 1]*np.random.rand()
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
                 for ii in range(2)]
         return np.array(samp)
 
     def prob(self, params):
-        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+        ix, iy = [np.searchsorted(self._edges[ii], params[ii]) - 1 for ii in range(2)]
 
         return self._pdf[ix, iy]
 
     def logprob(self, params):
-        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+        ix, iy = [np.searchsorted(self._edges[ii], params[ii]) - 1 for ii in range(2)]
 
         return self._logpdf[ix, iy]
 

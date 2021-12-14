@@ -50,7 +50,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
             prior_max = pta.params[param_idx].prior._defaults['pmax']
             # drop samples that are outside the prior range (in case prior is smaller than samples)
             samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
-            new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 10)
+            new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 40)
             new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
             new_emp_dists.append(new_emp)
 
