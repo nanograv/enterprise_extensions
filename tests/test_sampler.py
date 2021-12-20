@@ -37,6 +37,32 @@ def dmx_psrs(caplog):
     return psrs
 
 
+@pytest.fixture
+def empirical_distribution_1d(caplog):
+    """Sample pytest fixture.
+
+    See more at: http://doc.pytest.org/en/latest/fixture.html
+    """
+    caplog.set_level(logging.CRITICAL)
+    with open(datadir+'/emp_dist_1d.pkl', 'rb') as fin:
+        emp_dists = pickle.load(fin)
+
+    return emp_dists
+
+
+@pytest.fixture
+def empirical_distribution_2d(caplog):
+    """Sample pytest fixture.
+
+    See more at: http://doc.pytest.org/en/latest/fixture.html
+    """
+    caplog.set_level(logging.CRITICAL)
+    with open(datadir+'/emp_dist_2d.pkl', 'rb') as fin:
+        emp_dists = pickle.load(fin)
+
+    return emp_dists
+
+
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_jumpproposal(dmx_psrs, caplog):
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
@@ -62,3 +88,32 @@ def test_setup_sampler(dmx_psrs, caplog):
         params = [line.rstrip('\n') for line in f]
     for ptapar, filepar in zip(m2a.param_names, params):
         assert ptapar == filepar
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_extend_emp_dists_1d(dmx_psrs, empirical_distribution_1d, caplog):
+    emp_dists = []
+    with open(datadir+'/emp_dist_1d.pkl', 'rb') as fin:
+        emp_dists.append(pickle.load(fin))
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    new_dist = sampler.extend_emp_dists(m2a, empirical_distribution_1d)
+    assert len(new_dist) == 6
+    for i in range(6):
+        assert new_dist[i]._edges[0] <= m2a.params[i].prior._defaults['pmin']
+        assert new_dist[i]._edges[-1] >= m2a.params[i].prior._defaults['pmax']
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_extend_emp_dists_2d(dmx_psrs, empirical_distribution_2d, caplog):
+    emp_dists = []
+    with open(datadir+'/emp_dist_2d.pkl', 'rb') as fin:
+        emp_dists.append(pickle.load(fin))
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    new_dist = sampler.extend_emp_dists(m2a, empirical_distribution_2d)
+    assert len(new_dist) == 3
+    for i in range(3):
+        k = 2 * i
+        assert new_dist[i]._edges[0][0] <= m2a.params[k].prior._defaults['pmin']
+        assert new_dist[i]._edges[0][-1] <= m2a.params[k].prior._defaults['pmax']
+        assert new_dist[i]._edges[1][0] <= m2a.params[k + 1].prior._defaults['pmin']
+        assert new_dist[i]._edges[1][-1] <= m2a.params[k + 1].prior._defaults['pmax']
