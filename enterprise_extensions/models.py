@@ -1043,7 +1043,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2C from the analysis paper:
@@ -1122,9 +1122,9 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
