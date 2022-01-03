@@ -57,6 +57,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           coefficients=False, extra_sigs=None,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
+                          fact_like_logmin=None, fact_like_logmax=None,
                           select='backend', tm_marg=False, dense_like=False):
     """
     Single pulsar noise model.
@@ -137,6 +138,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param gw_components: number of modes in Fourier domain for a common
            process in a factorized likelihood calculation.
     :param fact_like_gamma: fixed common process spectral index
+    :param fact_like_logmin: specify lower prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
+    :param fact_like_logmax: specify upper prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
     :param Tspan: time baseline used to determine Fourier GP frequencies
     :param extra_sigs: Any additional `enterprise` signals to be added to the
         model.
@@ -201,7 +206,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     gamma_val=fact_like_gamma, delta_val=None,
                                     orf=None, name='gw',
                                     coefficients=coefficients,
-                                    pshift=False, pseed=None)
+                                    pshift=False, pseed=None,
+                                    logmin=fact_like_logmin, logmax=fact_like_logmax)
 
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
