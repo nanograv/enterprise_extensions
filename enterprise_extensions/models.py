@@ -1574,7 +1574,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if 'pta' in p.flags.keys():
             if 'NANOGrav' in p.flags['pta'] and not is_wideband:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                        select=select)
+                                           select=select)
                 models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
@@ -1714,7 +1714,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if 'pta' in p.flags.keys():
             if 'NANOGrav' in p.flags['pta'] and not is_wideband:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                        select=select)
+                                           select=select)
                 models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
@@ -1846,7 +1846,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         if 'pta' in p.flags.keys():
             if 'NANOGrav' in p.flags['pta'] and not is_wideband:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                        select=select)
+                                           select=select)
                 models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
@@ -2825,7 +2825,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
         if 'pta' in p.flags.keys():
             if 'NANOGrav' in p.flags['pta'] and not is_wideband:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                        gp_ecorr=True)
+                                           gp_ecorr=True)
                 models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
