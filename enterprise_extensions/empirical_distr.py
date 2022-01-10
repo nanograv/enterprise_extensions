@@ -4,6 +4,13 @@ import logging
 import pickle
 
 import numpy as np
+try:
+    from sklearn.neighbors import KernelDensity
+    sklearn_available=True
+except ModuleNotFoundError:
+    sklearn_available=False 
+from scipy.interpolate import interp2d
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +108,64 @@ class EmpiricalDistribution2D(object):
         return self._logpdf[ix, iy]
 
 
+class EmpiricalDistribution2DKDE(object):
+    def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1):
+        """
+        Minvals and maxvals should specify priors for these. Should make these required.
+        """
+        self.ndim = 2
+        self.param_names = param_names
+
+        # create a 2D KDE from which to evaluate
+        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples)
+        if minvals is None:
+            msg = "minvals for KDE empirical distribution were not supplied. Resulting distribution may not have support over full prior"
+            logger.warning(msg)
+            # widen these to add support
+            minvals = (min(samples[:, 0]), min(samples[:, 1]))
+            maxvals = (max(samples[:, 0]), max(samples[:, 1]))
+        # significantly faster probability estimation using interpolation
+        # instead of evaluating KDE every time
+        self.minvals = minvals
+        self.maxvals = maxvals
+        xvals = np.linspace(minvals[0], maxvals[0], num=41)
+        yvals = np.linspace(minvals[1], maxvals[1], num=40)
+        scores = np.array([self.kde.score(np.array([xvals[ii], yvals[jj]]).reshape((1, 2))) for ii in range(xvals.size) for jj in range(yvals.size)])
+        # interpolate within prior
+        self._logpdf = interp2d(xvals, yvals, scores, kind='linear', fill_value=-90)
+
+    def draw(self):
+        params = self.kde.sample(1).T
+        param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[0]
+        param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
+        # KDE might have a bit of support outside prior range. If so,
+        # make sure not to let things go outside of there.
+        # This should not be an issue when we are using the actual prior and likelihood for sampling
+        # but if manually setting log prior and log likelihood to constant values then we might end up outside by
+        # accident.
+        while param1_out or param2_out:
+            params = self.kde.sample(1).T
+            param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[1]
+            param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
+        return params
+        
+        
+    def prob(self, params):
+        # just in case...make sure to make this zero outside of our prior ranges
+        param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[0]
+        param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
+        if param1_out or param2_out:
+            # essentially zero
+            return -1000
+        else:
+            return np.exp(self._logpdf(*params))[0]
+
+    def logprob(self, params):
+        return self._logpdf(*params)[0]
+
+
+
+
 def make_empirical_distributions(paramlist, params, chain,
                                  burn=0, nbins=41, filename='distr.pkl'):
     """
@@ -146,6 +211,74 @@ def make_empirical_distributions(paramlist, params, chain,
             bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
+
+            distr.append(new_distr)
+
+        else:
+            msg = 'WARNING: only 1D and 2D empirical distributions are currently allowed.'
+            logger.warning(msg)
+
+    # save the list of empirical distributions as a pickle file
+    if len(distr) > 0:
+        with open(filename, 'wb') as f:
+            pickle.dump(distr, f)
+
+        msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+        logger.info(msg)
+    else:
+        msg = 'WARNING: No empirical distributions were made!'
+        logger.warning(msg)
+
+def make_empirical_distributions_KDE(paramlist, params, chain,
+                                 burn=0, nbins=41, filename='distr.pkl'):
+    """
+        Utility function to construct empirical distributions.
+
+        :param paramlist: a list of parameter names,
+                          either single parameters or pairs of parameters
+        :param params: list of all parameter names for the MCMC chain
+        :param chain: MCMC chain from a previous run
+        :param burn: desired number of initial samples to discard
+        :param nbins: number of bins to use for the empirical distributions
+
+        :return distr: list of empirical distributions
+
+        """
+
+    distr = []
+
+    for pl in paramlist:
+
+        if type(pl) is not list:
+
+            pl = [pl]
+
+        if len(pl) == 1:
+
+            # get the parameter index
+            idx = params.index(pl[0])
+
+            # get the bins for the histogram
+            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+
+            new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
+
+            distr.append(new_distr)
+
+        elif len(pl) == 2:
+
+            # get the parameter indices
+            idx = [params.index(pl1) for pl1 in pl]
+
+            # get the bins for the histogram
+            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+
+            if sklearn_available:
+                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bins)
+            else:
+                logger.warn('`sklearn` package not available. Fall back to using histgrams for empirical distribution')
+                new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
+
 
             distr.append(new_distr)
 
