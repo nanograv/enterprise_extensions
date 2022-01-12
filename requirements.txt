@@ -6,7 +6,7 @@ scikit-sparse>=0.4.5
 pint-pulsar>=0.8.2
 libstempo>=2.4.0
 enterprise-pulsar>=3.1.0
-scikit-learn>=1.0.1
+scikit-learn>=0.22
 emcee
 ptmcmcsampler
 numdifftools
