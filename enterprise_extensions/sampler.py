@@ -10,18 +10,21 @@ import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
-from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D
+from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D, EmpiricalDistribution2DKDE, EmpiricalDistribution1DKDE
 
 
 def extend_emp_dists(pta, emp_dists, npoints=100_000):
     new_emp_dists = []
     skip = False
     for emp_dist in emp_dists:
-        if isinstance(emp_dists[0], EmpiricalDistribution2D):
+        if isinstance(emp_dists[0], EmpiricalDistribution2D) or isinstance(emp_dists[0], EmpiricalDistribution2DKDE):
             samples = np.zeros((npoints, emp_dist.draw().shape[0]))
             for ii in range(npoints):  # generate samples from old emp dist
                 samples[ii] = emp_dist.draw()
             new_bins = []
+            minvals = []
+            maxvals = []
+            idxs_to_remove = []
             for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
                 if param not in pta.param_names:
                     skip = True
@@ -30,28 +33,52 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
                 prior_min = pta.params[param_idx].prior._defaults['pmin']
                 prior_max = pta.params[param_idx].prior._defaults['pmax']
                 # drop samples that are outside the prior range (in case prior is smaller than samples)
-                samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
+                if isinstance(emp_dists[0], EmpiricalDistribution2D):
+                    samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
+                elif isinstance(emp_dists[0], EmpiricalDistribution2DKDE):
+                    idxs_to_remove.extend(np.arange(npoints)[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max)])
+                    minvals.append(prior_min)
+                    maxvals.append(prior_max)
+                # new distribution with more bins this time to extend it all the way out in same style as above.
                 new_bins.append(np.linspace(prior_min, prior_max, nbins + 40))
+            samples = np.delete(samples, idxs_to_remove, axis=0)
             if skip:
                 skip = False
                 continue
-            new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
+            if isinstance(emp_dists[0], EmpiricalDistribution2D):
+                new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
+            elif isinstance(emp_dists[0], EmpiricalDistribution2DKDE):
+                # new distribution with more bins this time to extend it all the way out in same style as above.
+                new_emp = EmpiricalDistribution2DKDE(emp_dist.param_names, samples.T, minvals=minvals, maxvals=maxvals, nbins=nbins+40, bandwidth=emp_dist.bandwidth)
             new_emp_dists.append(new_emp)
 
-        elif isinstance(emp_dists[0], EmpiricalDistribution1D):
+        elif isinstance(emp_dists[0], EmpiricalDistribution1D) or isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
             samples = np.zeros((npoints, 1))
             for ii in range(npoints):  # generate samples from old emp dist
                 samples[ii] = emp_dist.draw()
             new_bins = []
+            idxs_to_remove = []
             if emp_dist.param_name not in pta.param_names:
                 continue
             param_idx = pta.param_names.index(emp_dist.param_name)
             prior_min = pta.params[param_idx].prior._defaults['pmin']
             prior_max = pta.params[param_idx].prior._defaults['pmax']
             # drop samples that are outside the prior range (in case prior is smaller than samples)
-            samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
+
+            
+            if isinstance(emp_dists[0], EmpiricalDistribution1D):
+                samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
+            elif isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
+                idxs_to_remove.extend(np.arange(npoints)[(samples.squeeze() < prior_min) | (samples.squeeze() > prior_max)])
+            
+            samples = np.delete(samples, idxs_to_remove, axis=0)
             new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 40)
-            new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
+            if isinstance(emp_dists[0], EmpiricalDistribution1D):
+                new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
+            elif isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
+                new_emp = EmpiricalDistribution1DKDE(emp_dist.param_name, samples,
+                                                     minval=prior_min, maxval=prior_max,
+                                                     bandwidth=emp_dist.bandwidth)
             new_emp_dists.append(new_emp)
 
         else:
