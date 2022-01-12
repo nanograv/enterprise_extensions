@@ -4,13 +4,13 @@ import logging
 import pickle
 
 import numpy as np
+
 try:
     from sklearn.neighbors import KernelDensity
     sklearn_available=True
 except ModuleNotFoundError:
-    sklearn_available=False 
-from scipy.interpolate import interp2d, interp1d
-
+    sklearn_available=False
+from scipy.interpolate import interp1d, interp2d
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ class EmpiricalDistribution1D(object):
 
         return self._logpdf[ix]
 
+
 class EmpiricalDistribution1DKDE(object):
     def __init__(self, param_name, samples, minval=None, maxval=None, bandwidth=0.1, nbins=40):
         """
@@ -67,7 +68,7 @@ class EmpiricalDistribution1DKDE(object):
         self.ndim = 1
         self.param_name = param_name
         self.bandwidth = bandwidth
-        # code below  relies on samples axes being swapped. but we 
+        # code below  relies on samples axes being swapped. but we
         # want to keep inputs the same
         # create a 2D KDE from which to evaluate
         self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.reshape((samples.size, 1)))
@@ -90,6 +91,7 @@ class EmpiricalDistribution1DKDE(object):
     def draw(self):
         params = self.kde.sample(1).T
         return params.squeeze()
+
 
 # class used to define a 2D empirical distribution
 # based on posteriors from another MCMC
@@ -147,7 +149,7 @@ class EmpiricalDistribution2DKDE(object):
         self.ndim = 2
         self.param_names = param_names
         self.bandwidth = bandwidth
-        # code below  relies on samples axes being swapped. but we 
+        # code below  relies on samples axes being swapped. but we
         # want to keep inputs the same
         # create a 2D KDE from which to evaluate
         self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.T)
@@ -171,8 +173,7 @@ class EmpiricalDistribution2DKDE(object):
     def draw(self):
         params = self.kde.sample(1).T
         return params.squeeze()
-        
-        
+
     def prob(self, params):
         # just in case...make sure to make this zero outside of our prior ranges
         param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[0]
@@ -185,25 +186,6 @@ class EmpiricalDistribution2DKDE(object):
 
     def logprob(self, params):
         return self._logpdf(*params)[0]
-
-        
-
-        
-        
-    def prob(self, params):
-        # just in case...make sure to make this zero outside of our prior ranges
-        param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[0]
-        param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
-        if param1_out or param2_out:
-            # essentially zero
-            return -1000
-        else:
-            return np.exp(self._logpdf(*params))[0]
-
-    def logprob(self, params):
-        return self._logpdf(*params)[0]
-
-
 
 
 def make_empirical_distributions(paramlist, params, chain,
@@ -269,8 +251,9 @@ def make_empirical_distributions(paramlist, params, chain,
         msg = 'WARNING: No empirical distributions were made!'
         logger.warning(msg)
 
+
 def make_empirical_distributions_KDE(paramlist, params, chain,
-                                 burn=0, nbins=41, filename='distr.pkl', bandwidth=0.1):
+                                     burn=0, nbins=41, filename='distr.pkl', bandwidth=0.1):
     """
         Utility function to construct empirical distributions.
 
@@ -317,7 +300,6 @@ def make_empirical_distributions_KDE(paramlist, params, chain,
             else:
                 logger.warn('`sklearn` package not available. Fall back to using histgrams for empirical distribution')
                 new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
-
 
             distr.append(new_distr)
 

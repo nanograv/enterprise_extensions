@@ -10,7 +10,10 @@ import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
-from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D, EmpiricalDistribution2DKDE, EmpiricalDistribution1DKDE
+from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
+                                                   EmpiricalDistribution1DKDE,
+                                                   EmpiricalDistribution2D,
+                                                   EmpiricalDistribution2DKDE)
 
 
 def extend_emp_dists(pta, emp_dists, npoints=100_000):
@@ -65,12 +68,11 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000):
             prior_max = pta.params[param_idx].prior._defaults['pmax']
             # drop samples that are outside the prior range (in case prior is smaller than samples)
 
-            
             if isinstance(emp_dists[0], EmpiricalDistribution1D):
                 samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
             elif isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
                 idxs_to_remove.extend(np.arange(npoints)[(samples.squeeze() < prior_min) | (samples.squeeze() > prior_max)])
-            
+
             samples = np.delete(samples, idxs_to_remove, axis=0)
             new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 40)
             if isinstance(emp_dists[0], EmpiricalDistribution1D):

@@ -49,6 +49,7 @@ def empirical_distribution_1d(caplog):
 
     return emp_dists
 
+
 @pytest.fixture
 def empirical_distribution_1d_kde(caplog):
     """Sample pytest fixture.
@@ -61,6 +62,7 @@ def empirical_distribution_1d_kde(caplog):
 
     return emp_dists
 
+
 @pytest.fixture
 def empirical_distribution_2d(caplog):
     """Sample pytest fixture.
@@ -72,6 +74,7 @@ def empirical_distribution_2d(caplog):
         emp_dists = pickle.load(fin)
 
     return emp_dists
+
 
 @pytest.fixture
 def empirical_distribution_2d_kde(caplog):
@@ -141,6 +144,7 @@ def test_extend_emp_dists_2d(dmx_psrs, empirical_distribution_2d, caplog):
         assert new_dist[i]._edges[1][0] <= m2a.params[k + 1].prior._defaults['pmin']
         assert new_dist[i]._edges[1][-1] <= m2a.params[k + 1].prior._defaults['pmax']
 
+
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_extend_emp_dists_1d_kde(dmx_psrs, empirical_distribution_1d_kde, caplog):
     emp_dists = []
@@ -152,6 +156,7 @@ def test_extend_emp_dists_1d_kde(dmx_psrs, empirical_distribution_1d_kde, caplog
     for i in range(6):
         assert new_dist[i].minval <= m2a.params[i].prior._defaults['pmin']
         assert new_dist[i].maxval >= m2a.params[i].prior._defaults['pmax']
+
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_extend_emp_dists_2d_kde(dmx_psrs, empirical_distribution_2d_kde, caplog):
