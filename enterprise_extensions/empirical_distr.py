@@ -188,14 +188,14 @@ class EmpiricalDistribution2DKDE(object):
         return self._logpdf(*params)[0]
 
 
-def make_empirical_distributions(paramlist, params, chain,
-                                 burn=0, nbins=41, filename='distr.pkl'):
+def make_empirical_distributions(pta, paramlist, params, chain,
+                                 burn=0, nbins=81, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
 
+        :param pta: the pta object used to generate the posteriors
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
-        :param params: list of all parameter names for the MCMC chain
         :param chain: MCMC chain from a previous run
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
@@ -213,12 +213,12 @@ def make_empirical_distributions(paramlist, params, chain,
             pl = [pl]
 
         if len(pl) == 1:
-
-            # get the parameter index
-            idx = params.index(pl[0])
+            idx = pta.param_names.index(pl[0])
+            prior_min = pta.params[idx].prior._defaults['pmin']
+            prior_max = pta.params[idx].prior._defaults['pmax']
 
             # get the bins for the histogram
-            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+            bins = np.linspace(prior_min, prior_max, nbins)
 
             new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
 
@@ -227,10 +227,11 @@ def make_empirical_distributions(paramlist, params, chain,
         elif len(pl) == 2:
 
             # get the parameter indices
-            idx = [params.index(pl1) for pl1 in pl]
+            idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
+                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
@@ -252,7 +253,7 @@ def make_empirical_distributions(paramlist, params, chain,
         logger.warning(msg)
 
 
-def make_empirical_distributions_KDE(paramlist, params, chain,
+def make_empirical_distributions_KDE(pta, paramlist, params, chain,
                                      burn=0, nbins=41, filename='distr.pkl', bandwidth=0.1):
     """
         Utility function to construct empirical distributions.
@@ -279,24 +280,29 @@ def make_empirical_distributions_KDE(paramlist, params, chain,
         if len(pl) == 1:
 
             # get the parameter index
-            idx = params.index(pl[0])
+            idx = pta.param_names.index(pl[0])
+            prior_min = pta.params[idx].prior._defaults['pmin']
+            prior_max = pta.params[idx].prior._defaults['pmax']
 
             # get the bins for the histogram
-            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
 
-            new_distr = EmpiricalDistribution1DKDE(pl[0], chain[burn:, idx], bandwidth=bandwidth)
+            new_distr = EmpiricalDistribution1DKDE(pl[0], chain[burn:, idx], bandwidth=bandwidth, minval=prior_min, maxval=prior_max)
 
             distr.append(new_distr)
 
         elif len(pl) == 2:
 
             # get the parameter indices
-            idx = [params.index(pl1) for pl1 in pl]
+            idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
+                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
+            minvals = [pta.params[0].prior._defaults['pmin'], pta.params[1].prior._defaults['pmin']]
+            maxvals = [pta.params[0].prior._defaults['pmax'], pta.params[1].prior._defaults['pmax']]
+            # get the bins for the histogram
             if sklearn_available:
-                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bandwidth=bandwidth)
+                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bandwidth=bandwidth, minvals=minvals, maxvals=maxvals)
             else:
                 logger.warn('`sklearn` package not available. Fall back to using histgrams for empirical distribution')
                 new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
