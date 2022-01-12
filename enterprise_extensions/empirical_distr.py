@@ -101,14 +101,14 @@ class EmpiricalDistribution2D(object):
         return self._logpdf[ix, iy]
 
 
-def make_empirical_distributions(paramlist, params, chain,
-                                 burn=0, nbins=41, filename='distr.pkl'):
+def make_empirical_distributions(pta, paramlist, chain,
+                                 burn=0, nbins=81, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
 
+        :param pta: the pta object used to generate the posteriors
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
-        :param params: list of all parameter names for the MCMC chain
         :param chain: MCMC chain from a previous run
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
@@ -126,12 +126,12 @@ def make_empirical_distributions(paramlist, params, chain,
             pl = [pl]
 
         if len(pl) == 1:
-
-            # get the parameter index
-            idx = params.index(pl[0])
+            idx = pta.param_names.index(pl[0])
+            prior_min = pta.params[idx].prior._defaults['pmin']
+            prior_max = pta.params[idx].prior._defaults['pmax']
 
             # get the bins for the histogram
-            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+            bins = np.linspace(prior_min, prior_max, nbins)
 
             new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
 
@@ -140,10 +140,11 @@ def make_empirical_distributions(paramlist, params, chain,
         elif len(pl) == 2:
 
             # get the parameter indices
-            idx = [params.index(pl1) for pl1 in pl]
+            idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
+                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
