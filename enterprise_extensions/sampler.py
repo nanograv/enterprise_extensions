@@ -103,16 +103,16 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             idxs_to_remove = []
             # drop samples that are outside the prior range (in case prior is smaller than samples)
 
-            if isinstance(emp_dists[0], EmpiricalDistribution1D):
+            if isinstance(emp_dist, EmpiricalDistribution1D):
                 samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
-            elif isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
+            elif isinstance(emp_dist, EmpiricalDistribution1DKDE):
                 idxs_to_remove.extend(np.arange(npoints)[(samples.squeeze() < prior_min) | (samples.squeeze() > prior_max)])
 
             samples = np.delete(samples, idxs_to_remove, axis=0)
             new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 40)
-            if isinstance(emp_dists[0], EmpiricalDistribution1D):
+            if isinstance(emp_dist, EmpiricalDistribution1D):
                 new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
-            elif isinstance(emp_dists[0], EmpiricalDistribution1DKDE):
+            elif isinstance(emp_dist, EmpiricalDistribution1DKDE):
                 new_emp = EmpiricalDistribution1DKDE(emp_dist.param_name, samples,
                                                      minval=prior_min, maxval=prior_max,
                                                      bandwidth=emp_dist.bandwidth)
