@@ -9,7 +9,7 @@ try:
     sklearn_available=True
 except ModuleNotFoundError:
     sklearn_available=False 
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d, interp1d
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,37 @@ class EmpiricalDistribution1D(object):
 
         return self._logpdf[ix]
 
+class EmpiricalDistribution1DKDE(object):
+    def __init__(self, param_name, samples, minval=None, maxval=None, bandwidth=0.1, nbins=40):
+        """
+        Minvals and maxvals should specify priors for these. Should make these required.
+        """
+        self.ndim = 1
+        self.param_name = param_name
+        self.bandwidth = bandwidth
+        # code below  relies on samples axes being swapped. but we 
+        # want to keep inputs the same
+        # create a 2D KDE from which to evaluate
+        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.reshape((samples.size, 1)))
+        if minval is None:
+            # msg = "minvals for KDE empirical distribution were not supplied. Resulting distribution may not have support over full prior"
+            # logger.warning(msg)
+            # widen these to add support
+            minval = min(samples)
+            maxval = max(samples)
+        # significantly faster probability estimation using interpolation
+        # instead of evaluating KDE every time
+        self.minval = minval
+        self.maxval = maxval
+        xvals = np.linspace(minval, maxval, num=nbins)
+        self._Nbins = nbins
+        scores = np.array([self.kde.score(np.atleast_2d(xval)) for xval in xvals])
+        # interpolate within prior
+        self._logpdf = interp1d(xvals, scores, kind='linear', fill_value=-1000)
+
+    def draw(self):
+        params = self.kde.sample(1).T
+        return params.squeeze()
 
 # class used to define a 2D empirical distribution
 # based on posteriors from another MCMC
@@ -109,45 +140,54 @@ class EmpiricalDistribution2D(object):
 
 
 class EmpiricalDistribution2DKDE(object):
-    def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1):
+    def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1, nbins=40):
         """
         Minvals and maxvals should specify priors for these. Should make these required.
         """
         self.ndim = 2
         self.param_names = param_names
-
+        self.bandwidth = bandwidth
+        # code below  relies on samples axes being swapped. but we 
+        # want to keep inputs the same
         # create a 2D KDE from which to evaluate
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples)
+        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.T)
         if minvals is None:
             msg = "minvals for KDE empirical distribution were not supplied. Resulting distribution may not have support over full prior"
             logger.warning(msg)
             # widen these to add support
-            minvals = (min(samples[:, 0]), min(samples[:, 1]))
-            maxvals = (max(samples[:, 0]), max(samples[:, 1]))
+            minvals = (min(samples[0, :]), min(samples[1, :]))
+            maxvals = (max(samples[0, :]), max(samples[1, :]))
         # significantly faster probability estimation using interpolation
         # instead of evaluating KDE every time
         self.minvals = minvals
         self.maxvals = maxvals
-        xvals = np.linspace(minvals[0], maxvals[0], num=41)
-        yvals = np.linspace(minvals[1], maxvals[1], num=40)
+        xvals = np.linspace(minvals[0], maxvals[0], num=nbins)
+        yvals = np.linspace(minvals[1], maxvals[1], num=nbins)
+        self._Nbins = [yvals.size for ii in range(xvals.size)]
         scores = np.array([self.kde.score(np.array([xvals[ii], yvals[jj]]).reshape((1, 2))) for ii in range(xvals.size) for jj in range(yvals.size)])
         # interpolate within prior
-        self._logpdf = interp2d(xvals, yvals, scores, kind='linear', fill_value=-90)
+        self._logpdf = interp2d(xvals, yvals, scores, kind='linear', fill_value=-1000)
 
     def draw(self):
         params = self.kde.sample(1).T
+        return params.squeeze()
+        
+        
+    def prob(self, params):
+        # just in case...make sure to make this zero outside of our prior ranges
         param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[0]
         param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
-        # KDE might have a bit of support outside prior range. If so,
-        # make sure not to let things go outside of there.
-        # This should not be an issue when we are using the actual prior and likelihood for sampling
-        # but if manually setting log prior and log likelihood to constant values then we might end up outside by
-        # accident.
-        while param1_out or param2_out:
-            params = self.kde.sample(1).T
-            param1_out = params[0] < self.minvals[0] or params[0] > self.maxvals[1]
-            param2_out = params[1] < self.minvals[1] or params[1] > self.maxvals[1]
-        return params
+        if param1_out or param2_out:
+            # essentially zero
+            return -1000
+        else:
+            return np.exp(self._logpdf(*params))[0]
+
+    def logprob(self, params):
+        return self._logpdf(*params)[0]
+
+        
+
         
         
     def prob(self, params):
@@ -230,7 +270,7 @@ def make_empirical_distributions(paramlist, params, chain,
         logger.warning(msg)
 
 def make_empirical_distributions_KDE(paramlist, params, chain,
-                                 burn=0, nbins=41, filename='distr.pkl'):
+                                 burn=0, nbins=41, filename='distr.pkl', bandwidth=0.1):
     """
         Utility function to construct empirical distributions.
 
@@ -261,7 +301,7 @@ def make_empirical_distributions_KDE(paramlist, params, chain,
             # get the bins for the histogram
             bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
 
-            new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
+            new_distr = EmpiricalDistribution1DKDE(pl[0], chain[burn:, idx], bandwidth=bandwidth)
 
             distr.append(new_distr)
 
@@ -272,9 +312,8 @@ def make_empirical_distributions_KDE(paramlist, params, chain,
 
             # get the bins for the histogram
             bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
-
             if sklearn_available:
-                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bins)
+                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bandwidth=bandwidth)
             else:
                 logger.warn('`sklearn` package not available. Fall back to using histgrams for empirical distribution')
                 new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
