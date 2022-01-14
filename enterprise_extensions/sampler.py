@@ -18,14 +18,13 @@ from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
 
 def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir='chains'):
     new_emp_dists = []
-    skip = False  # should we skip this distribution?
     modified = False  # check if anything was changed
     for emp_dist in emp_dists:
         if isinstance(emp_dist, EmpiricalDistribution2D) or isinstance(emp_dist, EmpiricalDistribution2DKDE):
             # check if we need to extend the distribution
+            prior_ok=True
             for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
                 if param not in pta.param_names:  # skip if one of the parameters isn't in our PTA object
-                    skip = True
                     continue
                 # check 2 conditions on both params to make sure that they cover their priors
                 # skip if emp dist already covers the prior
@@ -35,17 +34,15 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
-                    if emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max:
-                        new_emp_dists.append(emp_dist)
-                        skip = True
+                    if not(emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
+                        prior_ok = False
                         continue
                 elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
-                    if emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max:
-                        new_emp_dists.append(emp_dist)
-                        skip = True
+                    if not(emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
+                        prior_ok=False
                         continue
-            if skip:
-                skip = False
+            if prior_ok:
+                new_emp_dists.append(emp_dist)
                 continue
             modified = True
             samples = np.zeros((npoints, emp_dist.draw().shape[0]))
@@ -69,9 +66,6 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
                 # new distribution with more bins this time to extend it all the way out in same style as above.
                 new_bins.append(np.linspace(prior_min, prior_max, nbins + 40))
             samples = np.delete(samples, idxs_to_remove, axis=0)
-            if skip:
-                skip = False
-                continue
             if isinstance(emp_dist, EmpiricalDistribution2D):
                 new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
             elif isinstance(emp_dist, EmpiricalDistribution2DKDE):

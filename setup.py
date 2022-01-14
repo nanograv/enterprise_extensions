@@ -20,7 +20,7 @@ requirements = [
     "pint-pulsar>=0.8.2",
     "libstempo>=2.4.0",
     "enterprise-pulsar>=3.1.0",
-    "scikit-learn==0.24",
+    "scikit-learn>=0.24",
     "emcee",
     "ptmcmcsampler",
 ]

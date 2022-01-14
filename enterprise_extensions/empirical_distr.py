@@ -196,7 +196,9 @@ class EmpiricalDistribution2DKDE(object):
 
 
 def make_empirical_distributions(pta, paramlist, params, chain,
-                                 burn=0, nbins=81, filename='distr.pkl'):
+                                 burn=0, nbins=81, filename='distr.pkl',
+                                 return_distribution=True,
+                                 save_dists=True):
     """
         Utility function to construct empirical distributions.
 
@@ -212,6 +214,10 @@ def make_empirical_distributions(pta, paramlist, params, chain,
         """
 
     distr = []
+
+    if not save_dists and not return_distribution:
+        msg = "no distribution returned or saved, are you sure??"
+        logger.info(msg)
 
     for pl in paramlist:
 
@@ -249,19 +255,26 @@ def make_empirical_distributions(pta, paramlist, params, chain,
             logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file
-    if len(distr) > 0:
-        with open(filename, 'wb') as f:
-            pickle.dump(distr, f)
+    if save_dists:
+        if len(distr) > 0:
+            with open(filename, 'wb') as f:
+                pickle.dump(distr, f)
 
-        msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
-        logger.info(msg)
-    else:
-        msg = 'WARNING: No empirical distributions were made!'
-        logger.warning(msg)
+            msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+            logger.info(msg)
+        else:
+            msg = 'WARNING: No empirical distributions were made!'
+            logger.warning(msg)
+
+    if return_distribution:
+        return distr
 
 
 def make_empirical_distributions_KDE(pta, paramlist, params, chain,
-                                     burn=0, nbins=41, filename='distr.pkl', bandwidth=0.1):
+                                     burn=0, nbins=41, filename='distr.pkl',
+                                     bandwidth=0.1,
+                                     return_distribution=True,
+                                     save_dists=True):
     """
         Utility function to construct empirical distributions.
 
@@ -277,6 +290,9 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
         """
 
     distr = []
+    if not save_dists and not return_distribution:
+        msg = "no distribution returned or saved, are you sure??"
+        logger.info(msg)
 
     for pl in paramlist:
 
@@ -322,12 +338,15 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
             logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file
-    if len(distr) > 0:
-        with open(filename, 'wb') as f:
-            pickle.dump(distr, f)
+    if save_dists:
+        if len(distr) > 0:
+            with open(filename, 'wb') as f:
+                pickle.dump(distr, f)
 
-        msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
-        logger.info(msg)
-    else:
-        msg = 'WARNING: No empirical distributions were made!'
-        logger.warning(msg)
+            msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+            logger.info(msg)
+        else:
+            msg = 'WARNING: No empirical distributions were made!'
+            logger.warning(msg)
+    if return_distribution:
+        return distr
