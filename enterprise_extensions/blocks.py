@@ -504,7 +504,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Whether to keep coefficients of the GP.
 
     """
-    if gp_kernel=='diag':
+    if gp_kernel == 'diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
                                                             Tspan=Tspan)
         if psd in ['powerlaw', 'turnover']:
@@ -629,9 +629,11 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         Value of spectral index for high frequencies in broken power-law
         and turnover models. By default spectral index is varied in range [0,7].\
     :param logmin:
-        Specify the lower bound of the prior on the amplitude.
+        Specify the lower bound of the prior on the amplitude for all psd but 'spectrum'.
+        If psd=='spectrum', then this specifies the lower prior on log10_rho_gw
     :param logmax:
-        Specify the upper bound of the prior on the amplitude
+        Specify the lower bound of the prior on the amplitude for all psd but 'spectrum'.
+        If psd=='spectrum', then this specifies the lower prior on log10_rho_gw
     :param orf:
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
@@ -752,11 +754,18 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
 
     if psd == 'spectrum':
         rho_name = '{}_log10_rho'.format(name)
+
+        # checking if priors specified, otherwise give default values
+        if logmin is None:
+            logmin = -9
+        if logmax is None:
+            logmax = -4
+
         if prior == 'uniform':
-            log10_rho_gw = parameter.LinearExp(-9, -4,
+            log10_rho_gw = parameter.LinearExp(logmin, logmax,
                                                size=components)(rho_name)
         elif prior == 'log-uniform':
-            log10_rho_gw = parameter.Uniform(-9, -4, size=components)(rho_name)
+            log10_rho_gw = parameter.Uniform(logmin, logmax, size=components)(rho_name)
 
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 

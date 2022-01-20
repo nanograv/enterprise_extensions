@@ -24,7 +24,7 @@ class EmpiricalDistribution1D(object):
         self._Nbins = len(bins)-1
         hist, x_bins = np.histogram(samples, bins=bins)
 
-        self._edges = x_bins[:-1]
+        self._edges = x_bins
         self._wids = np.diff(x_bins)
 
         hist += 1  # add a sample to every bin
@@ -36,21 +36,19 @@ class EmpiricalDistribution1D(object):
 
     def draw(self):
         draw = np.random.rand()
-        draw_bin = np.searchsorted(self._cdf, draw)
+        draw_bin = np.searchsorted(self._cdf, draw, side='right')
 
-        idx = np.unravel_index(draw_bin, self._Nbins)
+        idx = np.unravel_index(draw_bin, self._Nbins)[0]
         samp = self._edges[idx] + self._wids[idx]*np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
-        ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+        ix = np.searchsorted(self._edges, params) - 1
 
         return self._pdf[ix]
 
     def logprob(self, params):
-        ix = min(np.searchsorted(self._edges, params),
-                 self._Nbins-1)
+        ix = np.searchsorted(self._edges, params) - 1
 
         return self._logpdf[ix]
 
@@ -73,7 +71,7 @@ class EmpiricalDistribution2D(object):
         self._Nbins = [len(b)-1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
-        self._edges = np.array([x_bins[:-1], y_bins[:-1]])
+        self._edges = np.array([x_bins, y_bins])
         self._wids = np.diff([x_bins, y_bins])
 
         area = np.outer(*self._wids)
@@ -87,33 +85,30 @@ class EmpiricalDistribution2D(object):
     def draw(self):
         draw = np.random.rand()
         draw_bin = np.searchsorted(self._cdf, draw)
-
         idx = np.unravel_index(draw_bin, self._Nbins)
         samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
                 for ii in range(2)]
         return np.array(samp)
 
     def prob(self, params):
-        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+        ix, iy = [np.searchsorted(self._edges[ii], params[ii]) - 1 for ii in range(2)]
 
         return self._pdf[ix, iy]
 
     def logprob(self, params):
-        ix, iy = [min(np.searchsorted(self._edges[ii], params[ii]),
-                      self._Nbins[ii]-1) for ii in range(2)]
+        ix, iy = [np.searchsorted(self._edges[ii], params[ii]) - 1 for ii in range(2)]
 
         return self._logpdf[ix, iy]
 
 
-def make_empirical_distributions(paramlist, params, chain,
-                                 burn=0, nbins=41, filename='distr.pkl'):
+def make_empirical_distributions(pta, paramlist, chain,
+                                 burn=0, nbins=81, filename='distr.pkl'):
     """
         Utility function to construct empirical distributions.
 
+        :param pta: the pta object used to generate the posteriors
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
-        :param params: list of all parameter names for the MCMC chain
         :param chain: MCMC chain from a previous run
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
@@ -131,12 +126,12 @@ def make_empirical_distributions(paramlist, params, chain,
             pl = [pl]
 
         if len(pl) == 1:
-
-            # get the parameter index
-            idx = params.index(pl[0])
+            idx = pta.param_names.index(pl[0])
+            prior_min = pta.params[idx].prior._defaults['pmin']
+            prior_max = pta.params[idx].prior._defaults['pmax']
 
             # get the bins for the histogram
-            bins = np.linspace(min(chain[burn:, idx]), max(chain[burn:, idx]), nbins)
+            bins = np.linspace(prior_min, prior_max, nbins)
 
             new_distr = EmpiricalDistribution1D(pl[0], chain[burn:, idx], bins)
 
@@ -145,10 +140,11 @@ def make_empirical_distributions(paramlist, params, chain,
         elif len(pl) == 2:
 
             # get the parameter indices
-            idx = [params.index(pl1) for pl1 in pl]
+            idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(min(chain[burn:, i]), max(chain[burn:, i]), nbins) for i in idx]
+            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
+                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 

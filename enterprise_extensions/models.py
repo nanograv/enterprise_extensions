@@ -57,6 +57,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           coefficients=False, extra_sigs=None,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
+                          fact_like_logmin=None, fact_like_logmax=None,
                           select='backend', tm_marg=False, dense_like=False):
     """
     Single pulsar noise model.
@@ -139,6 +140,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param gw_components: number of modes in Fourier domain for a common
            process in a factorized likelihood calculation.
     :param fact_like_gamma: fixed common process spectral index
+    :param fact_like_logmin: specify lower prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
+    :param fact_like_logmax: specify upper prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
     :param Tspan: time baseline used to determine Fourier GP frequencies
     :param extra_sigs: Any additional `enterprise` signals to be added to the
         model.
@@ -203,7 +208,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     gamma_val=fact_like_gamma, delta_val=None,
                                     orf=None, name='gw',
                                     coefficients=coefficients,
-                                    pshift=False, pseed=None)
+                                    pshift=False, pseed=None,
+                                    logmin=fact_like_logmin, logmax=fact_like_logmax)
 
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -304,12 +310,13 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                             name=dual_cusp_name_base+str(dd))
         if dm_sw_deter:
             Tspan = psr.toas.max() - psr.toas.min()
-            s+=solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
-                                swgp_prior=swgp_prior, swgp_basis=swgp_basis,
-                                Tspan=Tspan)
+            s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
+                                  swgp_prior=swgp_prior, swgp_basis=swgp_basis,
+                                  Tspan=Tspan)
 
     if extra_sigs is not None:
         s += extra_sigs
+
     # adding white-noise, and acting on psr objects
     if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
@@ -429,10 +436,11 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -623,6 +631,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30,
                   log10_A_common=None, gamma_common=None,
+                  common_logmin=None, common_logmax=None,
                   orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5,
                   upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
@@ -675,6 +684,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param gamma_common: fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
         [default = None]
+    :param common_logmin: specify lower prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log amplitude
+    :param common_logmax: specify upper prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log amplitude
     :param orf: comma de-limited string of multiple common processes with different orfs.
         [default = crn]
     :param orf_names: comma de-limited string of process names for different orfs. Manual
@@ -853,7 +866,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                           log10_A_val=log10_A_val, gamma_val=gamma_common,
                                           delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
                                           orf_ifreq=orf_ifreq, leg_lmax=leg_lmax,
-                                          coefficients=coefficients, pshift=pshift, pseed=None))
+                                          coefficients=coefficients, pshift=pshift, pseed=None,
+                                          logmin=common_logmin, logmax=common_logmax))
         # orf_ifreq only affects freq_hd model.
         # leg_lmax only affects (zero_diag_)legendre_orf model.
     crn = functools.reduce((lambda x, y: x+y), crn)
@@ -1037,10 +1051,11 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1170,10 +1185,11 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1293,10 +1309,11 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1582,10 +1599,11 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1721,10 +1739,11 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1852,10 +1871,11 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           select=select)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
@@ -1971,9 +1991,10 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
@@ -2109,9 +2130,10 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))
@@ -2379,11 +2401,12 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if dm_var and 'J1713+0747' == p.name:
-                s2 += dmexp
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not wideband:
+                s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+                if dm_var and 'J1713+0747' == p.name:
+                    s2 += dmexp
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             if dm_var and 'J1713+0747' == p.name:
@@ -2511,11 +2534,12 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
     # adding white-noise, and acting on psr objects
     models = []
 
-    if 'NANOGrav' in psr.flags['pta'] and not wideband:
-        s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-        if dm_var and 'J1713+0747' == psr.name:
-            s2 += dmexp
-        models.append(s2(psr))
+    if 'pta' in psr.flags.keys():
+        if 'NANOGrav' in psr.flags['pta'] and not wideband:
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            if dm_var and 'J1713+0747' == psr.name:
+                s2 += dmexp
+            models.append(s2(psr))
     else:
         s3 = s + white_noise_block(vary=False, inc_ecorr=False)
         if dm_var and 'J1713+0747' == psr.name:
@@ -2687,11 +2711,12 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if dm_var and 'J1713+0747' == p.name:
-                s2 += dmexp
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not wideband:
+                s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+                if dm_var and 'J1713+0747' == p.name:
+                    s2 += dmexp
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=False, inc_ecorr=False)
             if dm_var and 'J1713+0747' == p.name:
@@ -2825,10 +2850,11 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       gp_ecorr=True)
-            models.append(s2(p))
+        if 'pta' in p.flags.keys():
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           gp_ecorr=True)
+                models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
             models.append(s3(p))

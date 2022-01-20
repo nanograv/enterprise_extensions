@@ -10,11 +10,83 @@ import numpy as np
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
+from enterprise_extensions.empirical_distr import EmpiricalDistribution2D, EmpiricalDistribution1D
+
+
+def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir='chains'):
+    new_emp_dists = []
+    skip = False  # should we skip this distribution?
+    modified = False  # check if anything was changed
+    for emp_dist in emp_dists:
+        if isinstance(emp_dist, EmpiricalDistribution2D):
+            # check if we need to extend the distribution
+            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
+                if param not in pta.param_names:  # skip if one of the parameters isn't in our PTA object
+                    skip = True
+                    continue
+                # check 2 conditions on both params to make sure that they cover their priors
+                # skip if emp dist already covers the prior
+                param_idx = pta.param_names.index(param)
+                prior_min = pta.params[param_idx].prior._defaults['pmin']
+                prior_max = pta.params[param_idx].prior._defaults['pmax']
+                if emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max:
+                    new_emp_dists.append(emp_dist)
+                    skip = True
+                    continue
+            if skip:
+                skip = False
+                continue
+            modified = True
+            samples = np.zeros((npoints, emp_dist.draw().shape[0]))
+            for ii in range(npoints):  # generate samples from old emp dist
+                samples[ii] = emp_dist.draw()
+            new_bins = []
+            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
+                param_idx = pta.param_names.index(param)
+                prior_min = pta.params[param_idx].prior._defaults['pmin']
+                prior_max = pta.params[param_idx].prior._defaults['pmax']
+                # drop samples that are outside the prior range (in case prior is smaller than samples)
+                samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
+                new_bins.append(np.linspace(prior_min, prior_max, nbins + 40))
+            new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
+            new_emp_dists.append(new_emp)
+
+        elif isinstance(emp_dist, EmpiricalDistribution1D):
+            # check if we need to extend the distribution
+            if emp_dist.param_name not in pta.param_names:
+                continue
+            param_idx = pta.param_names.index(emp_dist.param_name)
+            prior_min = pta.params[param_idx].prior._defaults['pmin']
+            prior_max = pta.params[param_idx].prior._defaults['pmax']
+            # check 2 conditions on param to make sure that it covers the prior
+            # skip if emp dist already covers the prior
+            if emp_dist._edges[0] == prior_min and emp_dist._edges[-1] == prior_max:
+                new_emp_dists.append(emp_dist)
+                continue
+            modified = True
+            samples = np.zeros((npoints, 1))
+            for ii in range(npoints):  # generate samples from old emp dist
+                samples[ii] = emp_dist.draw()
+            new_bins = []
+            # drop samples that are outside the prior range (in case prior is smaller than samples)
+            samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
+            new_bins = np.linspace(prior_min, prior_max, emp_dist._Nbins + 40)
+            new_emp = EmpiricalDistribution1D(emp_dist.param_name, samples, new_bins)
+            new_emp_dists.append(new_emp)
+
+        else:
+            print('Unable to extend class of unknown type to the edges of the priors.')
+            new_emp_dists.append(emp_dist)
+            continue
+
+        if save_ext_dists and modified:  # if user wants to save them, and they have been modified...
+            pickle.dump(new_emp_dists, outdir + 'new_emp_dists.pkl')
+    return new_emp_dists
 
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains'):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -110,8 +182,12 @@ class JumpProposal(object):
                 else:
                     if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
                         mask.append(idx)
-            if len(mask) > 1:
+            if len(mask) >= 1:
                 self.empirical_distr = [self.empirical_distr[m] for m in mask]
+                # extend empirical_distr here:
+                print('Extending empirical distributions to priors...\n')
+                self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
+                                                        save_ext_dists=save_ext_dists, outdir=outdir)
             else:
                 self.empirical_distr = None
 
@@ -193,17 +269,25 @@ class JumpProposal(object):
                 lqxy = (self.empirical_distr[distr_idx].logprob(x[idx]) -
                         self.empirical_distr[distr_idx].logprob(q[idx]))
 
+                dist = self.empirical_distr[distr_idx]
+                # if we fall outside the emp distr support, pull from prior instead
+                if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
+                    q, lqxy = self.draw_from_prior(x, iter, beta)
+
             else:
+                dist = self.empirical_distr[distr_idx]
+                oldsample = [x[self.pnames.index(p)] for p in dist.param_names]
+                newsample = dist.draw()
 
-                oldsample = [x[self.pnames.index(p)]
-                             for p in self.empirical_distr[distr_idx].param_names]
-                newsample = self.empirical_distr[distr_idx].draw()
+                lqxy = (dist.logprob(oldsample) - dist.logprob(newsample))
 
-                for p, n in zip(self.empirical_distr[distr_idx].param_names, newsample):
+                for p, n in zip(dist.param_names, newsample):
                     q[self.pnames.index(p)] = n
 
-                lqxy = (self.empirical_distr[distr_idx].logprob(oldsample) -
-                        self.empirical_distr[distr_idx].logprob(newsample))
+                # if we fall outside the emp distr support, pull from prior instead
+                for ii in range(len(oldsample)):
+                    if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
+                        q, lqxy = self.draw_from_prior(x, iter, beta)
 
         return q, float(lqxy)
 
@@ -369,16 +453,21 @@ class JumpProposal(object):
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
         q = x.copy()
+        lqxy = 0
 
         # draw parameter from signal model
-        gw_pars = [par for par in self.pnames
-                   if ('gw' in par and 'log10_A' in par)]
-        gw_par = np.random.choice(gw_pars)
-        idx = self.pnames.index(gw_par)
+        signal_name = [par for par in self.pnames
+                       if ('gw' in par and 'log10_A' in par)][0]
+        idx = list(self.pnames).index(signal_name)
+        param = self.params[idx]
 
-        q[idx] = np.random.uniform(-18, -14)
+        q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
 
-        return q, 0
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
 
     def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
 
@@ -902,7 +991,7 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
 
 def setup_sampler(pta, outdir='chains', resume=False,
-                  empirical_distr=None, groups=None, human=None):
+                  empirical_distr=None, groups=None, human=None, save_ext_dists=False):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -920,6 +1009,11 @@ def setup_sampler(pta, outdir='chains', resume=False,
     whether or not certain parameters are in the model. These are
     all either draws from the prior distribution of parameters or
     draws from uniform distributions.
+
+    save_ext_dists: saves distributions that have been extended to
+    cover priors as a pickle to the outdir folder. These can then
+    be loaded later as distributions to save a minute at the start
+    of the run.
     """
 
     # dimension of parameter space
@@ -942,7 +1036,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir)
     sampler.jp = jp
 
     # always add draw from prior
