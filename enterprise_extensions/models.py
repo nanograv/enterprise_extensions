@@ -2699,7 +2699,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
              white_vary=False, components=30, bayesephem=False, skyloc=None,
              log10_F=None, ecc=False, psrTerm=False, is_wideband=False,
              use_dmdata=False, gp_ecorr='basis_ecorr',
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
