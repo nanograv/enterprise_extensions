@@ -44,7 +44,7 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
                                   np.atleast_1d(np.double(orig_params[:, 0])))))
 
     # Sort the residuals
-    isort = np.argsort(t2pulsar.toas(),kind='mergesort')
+    isort = np.argsort(t2pulsar.toas(), kind='mergesort')
 
     return residuals - new_res[isort]
 
