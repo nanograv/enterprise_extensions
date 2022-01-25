@@ -179,7 +179,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                                    selections.by_frontend))
         else:
             if tm_marg:
-                s = gp_signals.MarginalizingTimingModel()
+                s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
             else:
                 s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
                                            coefficients=coefficients)
@@ -352,7 +352,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             components=30, upper_limit=False, bayesephem=False,
             be_type='orbel', is_wideband=False, use_dmdata=False,
-            select='backend', tm_marg=False, dense_like=False):
+            select='backend', tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with only white and red noise:
@@ -392,6 +392,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -418,9 +419,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(psd=psd, prior=amp_prior,
@@ -466,7 +467,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              be_type='orbel', white_vary=False, is_wideband=False,
              use_dmdata=False, select='backend',
              pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -524,7 +525,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
-
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -557,9 +558,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
@@ -782,7 +783,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     # timing model
     if not tm_var and not use_dmdata:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
             s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
                                        coefficients=coefficients)
@@ -931,7 +932,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', pshift=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2B from the analysis paper:
@@ -978,6 +979,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1004,9 +1006,9 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1054,7 +1056,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2C from the analysis paper:
@@ -1106,6 +1108,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1132,9 +1135,9 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1187,7 +1190,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', pshift=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2D from the analysis paper:
@@ -1234,6 +1237,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1260,9 +1264,9 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1313,7 +1317,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              use_dmdata=False, select='backend',
              correlationsonly=False,
              pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -1374,6 +1378,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1406,9 +1411,9 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
@@ -1462,7 +1467,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3B from the analysis paper:
@@ -1512,6 +1517,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1538,9 +1544,9 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1593,7 +1599,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3C from the analysis paper:
@@ -1646,6 +1652,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1672,9 +1679,9 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1732,7 +1739,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3D from the analysis paper:
@@ -1782,6 +1789,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1808,9 +1816,9 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1862,7 +1870,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                      components=30, gamma_common=None, upper_limit=False,
                      is_wideband=False, use_dmdata=False, k_threshold=0.5,
-                     pshift=False, tm_marg=False, dense_like=False):
+                     pshift=False, tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1907,6 +1915,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1933,9 +1942,9 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1980,7 +1989,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                       components=30, gamma_common=None, upper_limit=False,
                       bayesephem=False, is_wideband=False, use_dmdata=False,
                       k_threshold=0.5, pshift=False, tm_marg=False,
-                      dense_like=False):
+                      dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2025,6 +2034,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2051,9 +2061,9 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -2119,7 +2129,8 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                     components=30, gamma_common=None, upper_limit=False,
                     bayesephem=False, is_wideband=False, use_dmdata=False,
                     pshift=False, idx=4, chromatic_psd='powerlaw',
-                    c_psrs=['J1713+0747'], tm_marg=False, dense_like=False):
+                    c_psrs=['J1713+0747'], tm_marg=False, dense_like=False,
+                    tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper + additional
@@ -2175,6 +2186,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2201,9 +2213,9 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # white noise
     s += white_noise_block(vary=white_vary, inc_ecorr=not is_wideband)
@@ -2331,7 +2343,7 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
         Tmax_bwm = tmax/const.day
 
     if tm_marg:
-        s = gp_signals.MarginalizingTimingModel()
+        s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
     else:
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
@@ -2630,7 +2642,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
     # timing model
     if tm_marg:
-        s = gp_signals.MarginalizingTimingModel()
+        s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
     else:
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
@@ -2748,7 +2760,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
-
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2777,9 +2789,9 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior,
