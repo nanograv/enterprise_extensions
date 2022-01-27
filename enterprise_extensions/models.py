@@ -2822,7 +2822,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             if gp_ecorr:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                        gp_ecorr=True, name=gp_ecorr)
+                                           gp_ecorr=True, name=gp_ecorr)
             else:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
             models.append(s2(p))
