@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import (absolute_import, division,
-                        print_function)
+
 import time
-import numpy as np
-import scipy.stats as scistats
 
 import matplotlib.pyplot as plt
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import numpy as np
+import scipy.stats as scistats
 
 try:
     import acor
@@ -18,21 +12,22 @@ except ImportError:
     from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions import models
-from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
-                                                   EmpiricalDistribution2D,
-                                                   make_empirical_distributions)
 
 # Log-spaced frequncies
+
+
 def linBinning(T, logmode, f_min, nlin, nlog):
     """
     Get the frequency binning for the low-rank approximations, including
     log-spaced low-frequency coverage.
     Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+
     :param T:       Duration experiment
     :param logmode: From which linear mode to switch to log
     :param f_min:   Down to which frequency we'll sample
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
+
     """
     if logmode < 0:
         raise ValueError("Cannot do log-spacing when all frequencies are"
@@ -47,7 +42,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     if nlog > 0:
         # Now the log-spacing, and weights
         f_min_log = np.log(f_min)
-        f_max_log = np.log( (logmode+0.5)/T )
+        f_max_log = np.log((logmode+0.5)/T)
         df_log = (f_max_log - f_min_log) / (nlog)
         f_log = np.exp(np.linspace(f_min_log+0.5*df_log,
                                    f_max_log-0.5*df_log, nlog))
@@ -57,6 +52,8 @@ def linBinning(T, logmode, f_min, nlin, nlog):
         return f_lin, w_lin
 
 # New filter for different cadences
+
+
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
 
@@ -98,6 +95,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
 
     psr.sort_data()
 
+
 def get_tspan(psrs):
     """ Returns maximum time span for all pulsars.
 
@@ -124,7 +122,7 @@ class PostProcessing(object):
             ncols = 4
             nrows = int(np.ceil(ndim/ncols))
         else:
-            ncols, nrows = 1,1
+            ncols, nrows = 1, 1
 
         plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
@@ -133,13 +131,13 @@ class PostProcessing(object):
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
 
-    def plot_hist(self, hist_kwargs={'bins':50, 'normed':True}):
+    def plot_hist(self, hist_kwargs={'bins': 50, 'normed': True}):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
             nrows = int(np.ceil(ndim/ncols))
         else:
-            ncols, nrows = 1,1
+            ncols, nrows = 1, 1
 
         plt.figure(figsize=(15, 2*nrows))
         for ii in range(ndim):
@@ -157,6 +155,7 @@ def ul(chain, q=95.0):
     :param q: desired percentile of upper-limit value [out of 100, default=95]
 
     :returns: (upper limit, uncertainty on upper limit)
+
     """
 
     hist = np.histogram(10.0**chain, bins=100)
@@ -165,13 +164,13 @@ def ul(chain, q=95.0):
     A_ul = 10**np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
-    Aul_error = np.sqrt( (q/100.) * (1.0 - (q/100.0)) /
-                        (chain.shape[0]/acor.acor(chain)[0]) ) / p_ul
+    Aul_error = np.sqrt((q/100.) * (1.0 - (q/100.0)) /
+                        (chain.shape[0]/acor.acor(chain)[0])) / p_ul
 
     return A_ul, Aul_error
 
 
-def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
+def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     """
     Computes the Savage Dickey Bayes Factor and uncertainty.
 
@@ -179,15 +178,16 @@ def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
+
     """
 
     prior = 1 / (logAmax - logAmin)
     dA = np.linspace(0.01, 0.1, 100)
     bf = []
     bf_err = []
-    mask = [] # selecting bins with more than 200 samples
+    mask = []  # selecting bins with more than 200 samples
 
-    for ii,delta in enumerate(dA):
+    for ii, delta in enumerate(dA):
         n = np.sum(samples <= (logAmin + delta))
         N = len(samples)
 
@@ -202,10 +202,10 @@ def bayes_fac(samples, ntol = 200, logAmin = -18, logAmax = -14):
     return np.mean(np.array(bf)[mask]), np.std(np.array(bf)[mask])
 
 
-def odds_ratio(chain, models=[0,1], uncertainty=True, thin=False):
+def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
 
     if thin:
-        indep_samples = np.rint( chain.shape[0] / acor.acor(chain)[0] )
+        indep_samples = np.rint(chain.shape[0] / acor.acor(chain)[0])
         samples = np.random.choice(chain.copy(), int(indep_samples))
     else:
         samples = chain.copy()
@@ -243,8 +243,8 @@ def odds_ratio(chain, models=[0,1], uncertainty=True, thin=False):
                         ct_bt += 1
 
             try:
-                sigma = bf * np.sqrt( (float(top) - float(ct_tb))/(float(top)*float(ct_tb)) +
-                                     (float(bot) - float(ct_bt))/(float(bot)*float(ct_bt)) )
+                sigma = bf * np.sqrt((float(top) - float(ct_tb))/(float(top)*float(ct_tb)) +
+                                     (float(bot) - float(ct_bt))/(float(bot)*float(ct_bt)))
             except ZeroDivisionError:
                 sigma = 0.0
 
@@ -253,6 +253,7 @@ def odds_ratio(chain, models=[0,1], uncertainty=True, thin=False):
     elif not uncertainty:
 
         return bf
+
 
 def bic(chain, nobs, log_evidence=False):
     """
@@ -263,15 +264,17 @@ def bic(chain, nobs, log_evidence=False):
     :param evidence: return evidence estimate too?
 
     :returns: (bic, evidence)
+
     """
-    nparams = chain.shape[1] - 4 # removing 4 aux columns
-    maxlnlike = chain[:,-4].max()
+    nparams = chain.shape[1] - 4  # removing 4 aux columns
+    maxlnlike = chain[:, -4].max()
 
     bic = np.log(nobs)*nparams - 2.0*maxlnlike
     if log_evidence:
         return (bic, -0.5*bic)
     else:
         return bic
+
 
 def mask_filter(psr, mask):
     """filter given pulsar data by user defined mask"""
@@ -306,6 +309,7 @@ class CompareTimingModels():
     :param rel_tol: relative tolerance for error between timing models (default 1e-6), set to None to bypass errors
     :param dense: use the dense cholesky algorithm over sparse
     """
+
     def __init__(self, psrs, model_name='model_1', abs_tol=1e-3, rel_tol=1e-6, dense=True, **kwargs):
         model = getattr(models, model_name)
         self.abs_tol = abs_tol
@@ -366,10 +370,12 @@ class CompareTimingModels():
         self.rel_err.append(rel_err)
         self.count += 1
         if self.abs_tol is not None and abs_err > self.abs_tol:
-            abs_raise = 'Absolute error is {0} at {1} which is larger than abs_tol of {2}.'.format(abs_err, x0, self.abs_tol)
+            abs_raise = 'Absolute error is {0} at {1} which is larger than abs_tol of {2}.'.format(
+                abs_err, x0, self.abs_tol)
             raise ValueError(abs_raise)
         elif self.rel_tol is not None and rel_err > self.rel_tol:
-            rel_raise = 'Relative error is {0} at {1} which is larger than rel_tol of {2}.'.format(rel_err, x0, self.rel_tol)
+            rel_raise = 'Relative error is {0} at {1} which is larger than rel_tol of {2}.'.format(
+                rel_err, x0, self.rel_tol)
             raise ValueError(rel_raise)
         return res_norm
 
