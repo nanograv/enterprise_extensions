@@ -37,7 +37,7 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
     """
 
     # BWM parameters
-    amp_name = "{}_log10_A".format(name)
+    amp_name = '{}_log10_A'.format(name)
     log10_A_fdm = parameter.Uniform(amp_lower, amp_upper)(amp_name)
 
     if use_fixed_freq is True:
@@ -544,30 +544,11 @@ def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
 
 
 @signal_base.function
-def compute_eccentric_residuals(
-    toas,
-    theta,
-    phi,
-    cos_gwtheta,
-    gwphi,
-    log10_mc,
-    log10_dist,
-    log10_h,
-    log10_F,
-    cos_inc,
-    psi,
-    gamma0,
-    e0,
-    l0,
-    q,
-    nmax=400,
-    pdist=1.0,
-    pphase=None,
-    pgam=None,
-    psrTerm=False,
-    tref=0,
-    check=False,
-):
+def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
+                                log10_mc, log10_dist, log10_h, log10_F, cos_inc,
+                                psi, gamma0, e0, l0, q, nmax=400, pdist=1.0,
+                                pphase=None, pgam=None, psrTerm=False,
+                                tref=0, check=False):
     """
     Simulate GW from eccentric SMBHB. Waveform models from
     Taylor et al. (2015) and Barack and Cutler (2004).
@@ -626,10 +607,8 @@ def compute_eccentric_residuals(
     phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
                      np.cos(theta)])
 
-    fplus = (
-        0.5 * (np.dot(m, phat) ** 2 - np.dot(n, phat) ** 2) / (1 + np.dot(omhat, phat))
-    )
-    fcross = (np.dot(m, phat) * np.dot(n, phat)) / (1 + np.dot(omhat, phat))
+    fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
+    fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
     cosMu = -np.dot(omhat, phat)
 
     # get values from pulsar object
@@ -798,23 +777,19 @@ def generalized_gwpol_psd(
     euler_e = 0.5772156649
     pdist = p_dist * const.kpc / const.c
 
-    orf_aa_tt = (2 / 3) * np.ones(len(f))
-    orf_aa_st = (2 / 3) * np.ones(len(f))
-    orf_aa_vl = 2 * np.log(4 * np.pi * f * pdist) - 14 / 3 + 2 * euler_e
-    orf_aa_sl = (
-        np.pi ** 2 * f * pdist / 4 - np.log(4 * np.pi * f * pdist) + 37 / 24 - euler_e
-    )
+    orf_aa_tt = (2/3) * np.ones(len(f))
+    orf_aa_st = (2/3) * np.ones(len(f))
+    orf_aa_vl = 2*np.log(4*np.pi*f*pdist) - 14/3 + 2*euler_e
+    orf_aa_sl = np.pi**2*f*pdist/4 - \
+        np.log(4*np.pi*f*pdist) + 37/24 - euler_e
 
-    prefactor = (1 + kappa ** 2) / (1 + kappa ** 2 * (f / const.fyr) ** (-2 / 3))
-    gwpol_amps = 10 ** (2 * np.array([log10_A_tt, log10_A_st, log10_A_vl, log10_A_sl]))
-    gwpol_factors = np.array(
-        [
-            orf_aa_tt * gwpol_amps[0],
-            orf_aa_st * gwpol_amps[1],
-            orf_aa_vl * gwpol_amps[2],
-            orf_aa_sl * gwpol_amps[3],
-        ]
-    )
+    prefactor = (1 + kappa**2) / (1 + kappa**2 * (f / const.fyr)**(-2/3))
+    gwpol_amps = 10**(2*np.array([log10_A_tt, log10_A_st,
+                                  log10_A_vl, log10_A_sl]))
+    gwpol_factors = np.array([orf_aa_tt*gwpol_amps[0],
+                              orf_aa_st*gwpol_amps[1],
+                              orf_aa_vl*gwpol_amps[2],
+                              orf_aa_sl*gwpol_amps[3]])
 
     S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(-4/3) +
                          np.sum(gwpol_factors[1:, :], axis=0) *

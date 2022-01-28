@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="")
+    parser = argparse.ArgumentParser(description='')
 
     parser.add_argument('--picklefile',
                         help='pickle file for the pulsars')

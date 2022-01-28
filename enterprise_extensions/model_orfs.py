@@ -355,23 +355,19 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15, alpha_tt=-2/3, alph
     euler_e = 0.5772156649
     pdist = p_dist * const.kpc / const.c
 
-    orf_aa_tt = (2 / 3) * np.ones(len(f))
-    orf_aa_st = (2 / 3) * np.ones(len(f))
-    orf_aa_vl = 2 * np.log(4 * np.pi * f * pdist) - 14 / 3 + 2 * euler_e
-    orf_aa_sl = (
-        np.pi ** 2 * f * pdist / 4 - np.log(4 * np.pi * f * pdist) + 37 / 24 - euler_e
-    )
+    orf_aa_tt = (2/3) * np.ones(len(f))
+    orf_aa_st = (2/3) * np.ones(len(f))
+    orf_aa_vl = 2*np.log(4*np.pi*f*pdist) - 14/3 + 2*euler_e
+    orf_aa_sl = np.pi**2*f*pdist/4 - \
+        np.log(4*np.pi*f*pdist) + 37/24 - euler_e
 
-    prefactor = (1 + kappa ** 2) / (1 + kappa ** 2 * (f / const.fyr) ** (-2 / 3))
-    gwpol_amps = 10 ** (2 * np.array([log10_A_tt, log10_A_st, log10_A_vl, log10_A_sl]))
-    gwpol_factors = np.array(
-        [
-            orf_aa_tt * gwpol_amps[0],
-            orf_aa_st * gwpol_amps[1],
-            orf_aa_vl * gwpol_amps[2],
-            orf_aa_sl * gwpol_amps[3],
-        ]
-    )
+    prefactor = (1 + kappa**2) / (1 + kappa**2 * (f / const.fyr)**(-2/3))
+    gwpol_amps = 10**(2*np.array([log10_A_tt, log10_A_st,
+                                  log10_A_vl, log10_A_sl]))
+    gwpol_factors = np.array([orf_aa_tt*gwpol_amps[0],
+                              orf_aa_st*gwpol_amps[1],
+                              orf_aa_vl*gwpol_amps[2],
+                              orf_aa_sl*gwpol_amps[3]])
 
     S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(2 * alpha_tt) +
                          np.sum(gwpol_factors[1:, :], axis=0) *

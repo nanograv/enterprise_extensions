@@ -211,8 +211,9 @@ def solar_wind_block(
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=6 * 86400)
-            sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
+            sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
+            sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                        log10_ell=log10_ell)
 
         gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
         sw_model += gp_sw
@@ -226,16 +227,13 @@ def solar_wind_block(
 AU_light_sec = const.AU / const.c  # 1 AU in light seconds
 AU_pc = const.AU / const.pc  # 1 AU in parsecs (for DM normalization)
 
-
 def _dm_solar_close(n_earth, r_earth):
     return (n_earth * AU_light_sec * AU_pc / r_earth)
-
 
 def _dm_solar(n_earth, theta, r_earth):
     return ((np.pi - theta) *
             (n_earth * AU_light_sec * AU_pc
              / (r_earth * np.sin(theta))))
-
 
 def dm_solar(n_earth, theta, r_earth):
     """
@@ -250,7 +248,6 @@ def dm_solar(n_earth, theta, r_earth):
         _dm_solar(n_earth, theta, r_earth),
         _dm_solar_close(n_earth, r_earth),
     )
-
 
 def theta_impact(planetssb, pos_t):
     """

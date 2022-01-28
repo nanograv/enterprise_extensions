@@ -7,6 +7,8 @@ import platform
 
 import healpy as hp
 import numpy as np
+from scipy.stats import multivariate_normal as mv_norm
+
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
@@ -124,7 +126,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains'):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains', timing=False):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -196,7 +198,7 @@ class JumpProposal(object):
         ):  # checking for single file
             try:
                 # try opening the file
-                with open(empirical_distr, "rb") as f:
+                with open(empirical_distr, 'rb') as f:
                     pickled_distr = pickle.load(f)
             except:
                 # second attempt at opening the file
@@ -205,7 +207,7 @@ class JumpProposal(object):
                         pickled_distr = pickle.load(f)
                 # if the second attempt fails...
                 except:
-                    print("\nI can't open the empirical distribution pickle file!")
+                    print('\nI can\'t open the empirical distribution pickle file!')
                     pickled_distr = None
 
             self.empirical_distr = pickled_distr
@@ -726,20 +728,19 @@ class JumpProposal(object):
 
         q = x.copy()
         lqxy = 0
-        std = [
-            "linear timing model",
-            "red noise",
-            "phys_ephem",
-            "gw",
-            "cw",
-            "bwm",
-            "fdm",
-            "gp_sw",
-            "ecorr_sherman-morrison",
-            "ecorr",
-            "efac",
-            "equad",
-        ]
+        std = ['linear timing model',
+               'red noise',
+               'phys_ephem',
+               'gw',
+               'cw',
+               'bwm',
+               'fdm',
+               'gp_sw',
+               'ecorr_sherman-morrison',
+               'ecorr',
+               'efac',
+               'equad',
+               ]
         non_std = [nm for nm in self.snames.keys() if nm not in std]
         # draw parameter from signal model
         signal_name = np.random.choice(non_std)
@@ -947,29 +948,29 @@ class JumpProposal(object):
         log_f_old = x[self.pimap['log10_fgw']]
         f_idx_old = (np.abs(np.log10(self.fe_freqs) - log_f_old)).argmin()
 
-        gw_theta_old = np.arccos(x[self.pimap["cos_gwtheta"]])
-        gw_phi_old = x[self.pimap["gwphi"]]
+        gw_theta_old = np.arccos(x[self.pimap['cos_gwtheta']])
+        gw_phi_old = x[self.pimap['gwphi']]
         hp_idx_old = hp.ang2pix(hp.get_nside(self.fe), gw_theta_old, gw_phi_old)
 
         fe_old_point = self.fe[f_idx_old, hp_idx_old]
         if fe_old_point > fe_limit:
             fe_old_point = fe_limit
 
-        log10_h_old = x[self.pimap["log10_h"]]
-        phase0_old = x[self.pimap["phase0"]]
-        psi_old = x[self.pimap["psi"]]
-        cos_inc_old = x[self.pimap["cos_inc"]]
+        log10_h_old = x[self.pimap['log10_h']]
+        phase0_old = x[self.pimap['phase0']]
+        psi_old = x[self.pimap['psi']]
+        cos_inc_old = x[self.pimap['cos_inc']]
 
-        hastings_extra_factor = self.params[self.pimap["log10_h"]].get_pdf(log10_h_old)
-        hastings_extra_factor *= 1 / self.params[self.pimap["log10_h"]].get_pdf(log10_h)
-        hastings_extra_factor = self.params[self.pimap["phase0"]].get_pdf(phase0_old)
-        hastings_extra_factor *= 1 / self.params[self.pimap["phase0"]].get_pdf(phase0)
-        hastings_extra_factor = self.params[self.pimap["psi"]].get_pdf(psi_old)
-        hastings_extra_factor *= 1 / self.params[self.pimap["psi"]].get_pdf(psi)
-        hastings_extra_factor = self.params[self.pimap["cos_inc"]].get_pdf(cos_inc_old)
-        hastings_extra_factor *= 1 / self.params[self.pimap["cos_inc"]].get_pdf(cos_inc)
+        hastings_extra_factor = self.params[self.pimap['log10_h']].get_pdf(log10_h_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['log10_h']].get_pdf(log10_h)
+        hastings_extra_factor = self.params[self.pimap['phase0']].get_pdf(phase0_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['phase0']].get_pdf(phase0)
+        hastings_extra_factor = self.params[self.pimap['psi']].get_pdf(psi_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['psi']].get_pdf(psi)
+        hastings_extra_factor = self.params[self.pimap['cos_inc']].get_pdf(cos_inc_old)
+        hastings_extra_factor *= 1/self.params[self.pimap['cos_inc']].get_pdf(cos_inc)
 
-        lqxy = np.log(fe_old_point / fe_new_point * hastings_extra_factor)
+        lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
 
@@ -1248,10 +1249,13 @@ def setup_sampler(pta, outdir='chains', resume=False,
     ndim = len(params)
 
     # initial jump covariance matrix
-    if os.path.exists(outdir + "/cov.npy"):
-        cov = np.load(outdir + "/cov.npy")
+    if os.path.exists(outdir+'/cov.npy'):
+        try:
+            cov = np.load(outdir+'/cov.npy')
+        except (ValueError):
+            cov = np.diag(np.ones(ndim) * 0.1**2)
     else:
-        cov = np.diag(np.ones(ndim) * 0.1 ** 2)
+        cov = np.diag(np.ones(ndim) * 0.1**2)
 
     # parameter groupings
     if groups is None:
@@ -1259,16 +1263,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
 
     if timing:
         groups.extend(get_timing_groups(pta))
-        groups.append(
-            group_from_params(
-                pta,
-                [
-                    x
-                    for x in pta.param_names
-                    if any(y in x for y in ["timing_model", "ecorr"])
-                ],
-            )
-        )
+        groups.append(group_from_params(pta,
+                [x for x in pta.param_names if any(y in x for y in ["timing_model", "ecorr"])]))
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume)
@@ -1276,7 +1272,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir,timing=timing)
     sampler.jp = jp
 
     # always add draw from prior
@@ -1284,7 +1280,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
 
     # try adding empirical proposals
     if empirical_distr is not None:
-        print("Attempting to add empirical proposals...\n")
+        print('Attempting to add empirical proposals...\n')
         sampler.addProposalToCycle(jp.draw_from_empirical_distr, 30)
 
     # Red noise prior draw
@@ -1323,8 +1319,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_ephem_prior, 10)
 
     # GWB uniform distribution draw
-    if np.any([("gw" in par and "log10_A" in par) for par in pta.param_names]):
-        print("Adding GWB uniform distribution draws...\n")
+    if np.any([('gw' in par and 'log10_A' in par) for par in pta.param_names]):
+        print('Adding GWB uniform distribution draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gwb_log_uniform_distribution, 10)
 
     # Dipole uniform distribution draw

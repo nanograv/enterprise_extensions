@@ -23,7 +23,6 @@ from enterprise_extensions.timing import timing_block
 
 # from enterprise.signals.signal_base import LookupLikelihood
 
-
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           tm_param_list=[],
                           ltm_list=[],
@@ -256,52 +255,35 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     logmin=fact_like_logmin, logmax=fact_like_logmax)
 
     if red_var:
-        s += red_noise_block(
-            psd=psd,
-            prior=amp_prior,
-            Tspan=Tspan,
-            components=components,
-            gamma_val=gamma_val,
-            coefficients=coefficients,
-            select=red_select,
-        )
+        s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                             components=components, gamma_val=gamma_val,
+                             coefficients=coefficients, select=red_select)
 
     # DM variations
     if dm_var:
-        if dm_type == "gp":
-            if dmgp_kernel == "diag":
-                s += dm_noise_block(
-                    gp_kernel=dmgp_kernel,
-                    psd=dm_psd,
-                    prior=amp_prior,
-                    components=components,
-                    gamma_val=gamma_dm_val,
-                    coefficients=coefficients,
-                )
-            elif dmgp_kernel == "nondiag":
-                s += dm_noise_block(
-                    gp_kernel=dmgp_kernel,
-                    nondiag_kernel=dm_nondiag_kernel,
-                    dt=dm_dt,
-                    df=dm_df,
-                    coefficients=coefficients,
-                )
-        elif dm_type == "dmx":
+        if dm_type == 'gp':
+            if dmgp_kernel == 'diag':
+                s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
+                                    prior=amp_prior, components=components,
+                                    gamma_val=gamma_dm_val,
+                                    coefficients=coefficients)
+            elif dmgp_kernel == 'nondiag':
+                s += dm_noise_block(gp_kernel=dmgp_kernel,
+                                    nondiag_kernel=dm_nondiag_kernel,
+                                    dt=dm_dt, df=dm_df,
+                                    coefficients=coefficients)
+        elif dm_type == 'dmx':
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
         if dm_annual:
             s += chrom.dm_annual_signal()
         if chrom_gp:
-            s += chromatic_noise_block(
-                gp_kernel=chrom_gp_kernel,
-                psd=chrom_psd,
-                idx=chrom_idx,
-                components=components,
-                nondiag_kernel=chrom_kernel,
-                dt=chrom_dt,
-                df=chrom_df,
-                include_quadratic=chrom_quad,
-                coefficients=coefficients,
-            )
+            s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
+                                       psd=chrom_psd, idx=chrom_idx,
+                                       components=components,
+                                       nondiag_kernel=chrom_kernel,
+                                       dt=chrom_dt, df=chrom_df,
+                                       include_quadratic=chrom_quad,
+                                       coefficients=coefficients)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
@@ -481,6 +463,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             dmefac = parameter.Constant()
             log10_dmequad = parameter.Constant()
             # dmjump = parameter.Constant()
+
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
                                            dmefac_selection=selections.Selection(selections.by_backend),
@@ -612,7 +595,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         n_rnfreqs = components
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -997,17 +980,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
                                        select=select)
             if gequad:
-                s2 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
+                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / const.day
                 tmax = p.toas.max() / const.day
-                s3 = s2 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
+                s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                   sign=False, name='dmexp')
                 models.append(s3(p))
             else:
                 models.append(s2(p))
@@ -1015,17 +995,14 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        select=select)
             if gequad:
-                s4 += white_signals.EquadNoise(
-                    log10_equad=parameter.Uniform(-8.5, -5),
-                    selection=selections.Selection(selections.no_selection),
-                    name="gequad",
-                )
-            if "1713" in p.name and dm_var:
+                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                               selection=selections.Selection(selections.no_selection),
+                                               name='gequad')
+            if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / const.day
                 tmax = p.toas.max() / const.day
-                s5 = s4 + chrom.dm_exponential_dip(
-                    tmin=tmin, tmax=tmax, idx=2, sign=False, name="dmexp"
-                )
+                s5 = s4 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                   sign=False, name='dmexp')
                 models.append(s5(p))
             else:
                 models.append(s4(p))
@@ -1247,7 +1224,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -1574,18 +1551,10 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                          Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
-    s += common_red_noise_block(
-        psd=psd,
-        prior=amp_prior,
-        Tspan=Tspan,
-        components=n_gwbfreqs,
-        gamma_val=gamma_common,
-        delta_val=delta_common,
-        orf="hd",
-        name="gw",
-        pshift=pshift,
-        pseed=pseed,
-    )
+    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                components=n_gwbfreqs, gamma_val=gamma_common,
+                                delta_val=delta_common,
+                                orf='hd', name='gw', pshift=pshift, pseed=pseed)
 
     # ephemeris model
     if bayesephem:
@@ -1689,7 +1658,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2419,7 +2388,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     Tspan = model_utils.get_tspan(psrs)
 
     # timing model
-    if is_wideband and use_dmdata:
+    if (is_wideband and use_dmdata):
         dmjump = parameter.Constant()
         if white_vary:
             dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
@@ -2580,14 +2549,7 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(
-        prior=amp_prior,
-        psd=red_psd,
-        Tspan=Tspan,
-        components=components,
-        logmin=logmin,
-        logmax=logmax,
-    )
+    s += red_noise_block(prior=amp_prior, psd=red_psd, Tspan=Tspan, components=components, logmin=logmin, logmax=logmax)
 
     # DM variations
     if dm_var:
@@ -2633,7 +2595,7 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
 
     # set white noise parameters
     if noisedict is None:
-        print("No noise dictionary provided!...")
+        print('No noise dictionary provided!...')
     else:
         noisedict = noisedict
         pta.set_default_params(noisedict)
@@ -2935,14 +2897,14 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     # adding white-noise, and acting on psr objects
     models = []
     for p in psrs:
-        if "NANOGrav" in p.flags["pta"] and not wideband:
+        if 'NANOGrav' in p.flags['pta'] and not wideband:
             s2 = s + white_noise_block(vary=False, inc_ecorr=True)
-            if dm_var and "J1713+0747" == p.name:
+            if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
-            if dm_var and "J1713+0747" == p.name:
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
 
@@ -2955,12 +2917,11 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
         pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if not white_vary or (is_wideband and use_dmdata):
-        if noisedict is None:
-            print("No noise dictionary provided!...")
-        else:
-            noisedict = noisedict
-            pta.set_default_params(noisedict)
+    if noisedict is None:
+        print('No noise dictionary provided!...')
+    else:
+        noisedict = noisedict
+        pta.set_default_params(noisedict)
 
     return pta
 

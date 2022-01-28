@@ -96,7 +96,6 @@ def test_model_singlepsr_noise_sw(nodmx_psrs, caplog):
     x0 = {pname: p.sample() for pname, p in zip(m.param_names, m.params)}
     m.get_lnlikelihood(x0)
 
-
 def test_model_singlepsr_noise_dip_cusp(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     dip_kwargs = {'dm_expdip': True,

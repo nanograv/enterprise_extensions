@@ -16,7 +16,7 @@ from enterprise_extensions import models, blocks, model_utils
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))
-datadir = os.path.join(testdir, "data")
+datadir = os.path.join(testdir, 'data')
 
 
 psr_names = ['J0613-0200', 'J1713+0747', 'J1909-3744']
@@ -40,7 +40,6 @@ def dmx_psrs(caplog):
 @pytest.fixture
 def nodmx_psrs(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)
@@ -52,7 +51,7 @@ def nodmx_psrs(caplog):
     return psrs
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_model2a(dmx_psrs, caplog):
     m2a=models.model_2a(dmx_psrs, noisedict=noise_dict)

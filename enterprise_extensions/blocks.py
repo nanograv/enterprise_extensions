@@ -23,6 +23,7 @@ __all__ = ['white_noise_block',
            'dm_noise_block',
            'chromatic_noise_block',
            'common_red_noise_block',
+           'channelized_backends'
            ]
 
 
@@ -34,14 +35,8 @@ def channelized_backends(backend_flags):
     return {flagval: backend_flags == flagval for flagval in flagvals}
 
 
-def white_noise_block(
-    vary=False,
-    inc_ecorr=False,
-    gp_ecorr=False,
-    efac1=False,
-    select="backend",
-    name=None,
-):
+def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
+                      efac1=False, select='backend', name=None):
     """
     Returns the white noise block of the model:
 
@@ -112,21 +107,10 @@ def white_noise_block(
     return s
 
 
-def red_noise_block(
-    psd="powerlaw",
-    prior="log-uniform",
-    Tspan=None,
-    components=30,
-    gamma_val=None,
-    coefficients=False,
-    select=None,
-    modes=None,
-    wgts=None,
-    break_flat=False,
-    break_flat_fq=None,
-    logmin=None,
-    logmax=None,
-):
+def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
+                    components=30, gamma_val=None, coefficients=False,
+                    select=None, modes=None, wgts=None,
+                    break_flat=False, break_flat_fq=None, logmin=None, logmax=None):
     """
     Returns red noise model:
         Red noise modeled as a power-law with 30 sampling frequencies
@@ -411,8 +395,8 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                                                alphas_adapt=alpha_adapt_dm,
                                                nfreq=nfreq_dm)
 
-        if psd == "spectrum":
-            if prior == "uniform":
+        if psd == 'spectrum':
+            if prior == 'uniform':
                 log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
             elif prior == "log-uniform":
                 log10_rho_dm = parameter.Uniform(-10, -4, size=components)
@@ -429,14 +413,12 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
-            dm_prior = gpk.periodic_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
-            )
-        elif nondiag_kernel == "periodic_rfband":
+            dm_basis = gpk.linear_interp_basis_dm(dt=dt*const.day)
+            dm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
+                                           log10_ell=log10_ell,
+                                           log10_gam_p=log10_gam_p,
+                                           log10_p=log10_p)
+        elif nondiag_kernel == 'periodic_rfband':
             # Periodic GP kernel for DM with RQ radio-frequency dependence
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
@@ -445,41 +427,39 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt * const.day, dm=True)
-            dm_prior = gpk.tf_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
-                log10_alpha_wgt=log10_alpha_wgt,
-                log10_ell2=log10_ell2,
-            )
-        elif nondiag_kernel == "sq_exp":
+            dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
+                                                      dm=True)
+            dm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
+                                     log10_ell=log10_ell,
+                                     log10_gam_p=log10_gam_p, log10_p=log10_p,
+                                     log10_alpha_wgt=log10_alpha_wgt,
+                                     log10_ell2=log10_ell2)
+        elif nondiag_kernel == 'sq_exp':
             # squared-exponential GP kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
-            dm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
-        elif nondiag_kernel == "sq_exp_rfband":
+            dm_basis = gpk.linear_interp_basis_dm(dt=dt*const.day)
+            dm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                        log10_ell=log10_ell)
+        elif nondiag_kernel == 'sq_exp_rfband':
             # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
             log10_ell2 = parameter.Uniform(2, 7)
             log10_alpha_wgt = parameter.Uniform(-4, 1)
 
-            dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt * const.day, dm=True)
-            dm_prior = gpk.sf_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_alpha_wgt=log10_alpha_wgt,
-                log10_ell2=log10_ell2,
-            )
-        elif nondiag_kernel == "dmx_like":
+            dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
+                                                      dm=True)
+            dm_prior = gpk.sf_kernel(log10_sigma=log10_sigma,
+                                     log10_ell=log10_ell,
+                                     log10_alpha_wgt=log10_alpha_wgt,
+                                     log10_ell2=log10_ell2)
+        elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             log10_sigma = parameter.Uniform(-10, -4)
 
-            dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
+            dm_basis = gpk.linear_interp_basis_dm(dt=dt*const.day)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
     dmgp = gp_signals.BasisGP(
@@ -489,20 +469,12 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
     return dmgp
 
 
-def chromatic_noise_block(
-    gp_kernel="nondiag",
-    psd="powerlaw",
-    nondiag_kernel="periodic",
-    prior="log-uniform",
-    dt=15,
-    df=200,
-    idx=4,
-    include_quadratic=False,
-    Tspan=None,
-    name="chrom",
-    components=30,
-    coefficients=False,
-):
+def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
+                          nondiag_kernel='periodic',
+                          prior='log-uniform', dt=15, df=200,
+                          idx=4, include_quadratic=False,
+                          Tspan=None, name='chrom', components=30,
+                          coefficients=False):
     """
     Returns GP chromatic noise model :
 
@@ -574,13 +546,11 @@ def chromatic_noise_block(
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day)
-            chm_prior = gpk.periodic_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
-            )
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day)
+            chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
+                                            log10_ell=log10_ell,
+                                            log10_gam_p=log10_gam_p,
+                                            log10_p=log10_p)
 
         elif nondiag_kernel == "periodic_rfband":
             # Periodic GP kernel for DM with RQ radio-frequency dependence
@@ -591,26 +561,24 @@ def chromatic_noise_block(
             log10_p = parameter.Uniform(-4, 1)
             log10_gam_p = parameter.Uniform(-3, 2)
 
-            chm_basis = gpk.get_tf_quantization_matrix(
-                df=df, dt=dt * const.day, dm=True, dm_idx=idx
-            )
-            chm_prior = gpk.tf_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
-                log10_alpha_wgt=log10_alpha_wgt,
-                log10_ell2=log10_ell2,
-            )
+            chm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt*const.day,
+                                                       dm=True, dm_idx=idx)
+            chm_prior = gpk.tf_kernel(log10_sigma=log10_sigma,
+                                      log10_ell=log10_ell,
+                                      log10_gam_p=log10_gam_p,
+                                      log10_p=log10_p,
+                                      log10_alpha_wgt=log10_alpha_wgt,
+                                      log10_ell2=log10_ell2)
 
-        elif nondiag_kernel == "sq_exp":
+        elif nondiag_kernel == 'sq_exp':
             # squared-exponential kernel for DM
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day, idx=idx)
-            chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
-        elif nondiag_kernel == "sq_exp_rfband":
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
+            chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                         log10_ell=log10_ell)
+        elif nondiag_kernel == 'sq_exp_rfband':
             # Sq-Exp GP kernel for Chrom with RQ radio-frequency dependence
             log10_sigma = parameter.Uniform(-10, -4)
             log10_ell = parameter.Uniform(1, 4)

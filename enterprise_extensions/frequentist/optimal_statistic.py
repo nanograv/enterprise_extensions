@@ -53,15 +53,11 @@ class OptimalStatistic(object):
         # and powerlaw red and gw signal
 
         if pta is None:
-            self.pta = models.model_2a(
-                psrs,
-                psd="powerlaw",
-                bayesephem=bayesephem,
-                gamma_common=gamma_common,
-                is_wideband=wideband,
-                select="backend",
-                noisedict=noisedict,
-            )
+            self.pta = models.model_2a(psrs, psd='powerlaw',
+                                       bayesephem=bayesephem,
+                                       gamma_common=gamma_common,
+                                       is_wideband=wideband,
+                                       select='backend', noisedict=noisedict)
         else:
             self.pta = pta
 
@@ -76,7 +72,7 @@ class OptimalStatistic(object):
         self.psrlocs = [p.pos for p in psrs]
 
         # overlap reduction function
-        if orf == "hd":
+        if orf == 'hd':
             self.orf = model_orfs.hd_orf
         elif orf == "dipole":
             self.orf = model_orfs.dipole_orf
@@ -172,7 +168,8 @@ class OptimalStatistic(object):
                     Sf = -np.inf * np.ones(int(len(self.freqs)/2))
                     idx = (np.abs(np.unique(self.freqs) - fgw)).argmin()
                     Sf[idx] = 0.0
-                    phiIJ = gp_priors.free_spectrum(self.freqs, log10_rho=Sf)
+                    phiIJ = gp_priors.free_spectrum(self.freqs,
+                                                    log10_rho=Sf)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
                 bot = np.trace(np.dot(Z[ii]*phiIJ[None, :], Z[jj]*phiIJ[None, :]))
@@ -232,7 +229,7 @@ class OptimalStatistic(object):
             rho.append(rho_tmp)
             rho_sig.append(rho_sig_tmp)
 
-        return (np.array(xi), np.array(rho), np.array(rho_sig), opt, opt / sig)
+        return (np.array(xi), np.array(rho), np.array(rho_sig), opt, opt/sig)
 
     def compute_noise_maximized_os(self, chain, param_names=None):
         """
