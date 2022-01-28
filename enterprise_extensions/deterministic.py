@@ -1,36 +1,26 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
+
 import numpy as np
-
-from enterprise.signals import parameter
-from enterprise.signals import signal_base
-from enterprise.signals import deterministic_signals
-from enterprise.signals import utils
 from enterprise import constants as const
+from enterprise.signals import (deterministic_signals, parameter, signal_base,
+                                utils)
 
 
-def fdm_block(
-    Tmin,
-    Tmax,
-    amp_prior="log-uniform",
-    name="fdm",
-    amp_lower=-18,
-    amp_upper=-11,
-    freq_lower=-9,
-    freq_upper=-7,
-    use_fixed_freq=False,
-    fixed_freq=-8,
-):
+def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
+              amp_lower=-18, amp_upper=-11,
+              freq_lower=-9, freq_upper=-7,
+              use_fixed_freq=False, fixed_freq=-8):
     """
     Returns deterministic fuzzy dark matter model:
-        1. FDM parameterized by frequency, phase, 
+        1. FDM parameterized by frequency, phase,
             and amplitude (mass and DM energy density).
+
     :param Tmin:
         Min time to search, probably first TOA (MJD).
     :param Tmax:
         Max time to search, probably last TOA (MJD).
     :param amp_prior:
-        Prior on log10_A. 
+        Prior on log10_A.
     :param logmin:
         log of minimum FDM amplitude for prior (log10)
     :param logmax:
@@ -43,6 +33,7 @@ def fdm_block(
         Whether to do a fixed-frequency run and not search over the frequency.
     :param fixed_freq:
         The frequency value to do a fixed-frequency run with.
+
     """
 
     # BWM parameters
@@ -56,14 +47,13 @@ def fdm_block(
         freq_name = "{}_log10_f".format(name)
         log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
 
-    phase_e_name = "{}_phase_e".format(name)
-    phase_e_fdm = parameter.Uniform(0, 2 * np.pi)(phase_e_name)
+    phase_e_name = '{}_phase_e'.format(name)
+    phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
 
-    phase_p = parameter.Uniform(0, 2 * np.pi)
+    phase_p = parameter.Uniform(0, 2*np.pi)
 
-    fdm_wf = fdm_delay(
-        log10_A=log10_A_fdm, log10_f=log10_f_fdm, phase_e=phase_e_fdm, phase_p=phase_p
-    )
+    fdm_wf = fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm,
+                       phase_e=phase_e_fdm, phase_p=phase_p)
 
     fdm = deterministic_signals.Deterministic(fdm_wf, name=name)
 
@@ -81,6 +71,7 @@ def cw_block_circ(
 ):
     """
     Returns deterministic, cirular orbit continuous GW model:
+
     :param amp_prior:
         Prior on log10_h. Default is "log-uniform."
         Use "uniform" for upper limits, or "None" to search over
@@ -102,6 +93,7 @@ def cw_block_circ(
         Boolean for whether to include the pulsar term. Default is False.
     :param name:
         Name of CW signal.
+
     """
 
     if dist_prior is None:
@@ -184,6 +176,7 @@ def cw_block_ecc(
 ):
     """
     Returns deterministic, eccentric orbit continuous GW model:
+
     :param amp_prior:
         Prior on log10_h and log10_Mc/log10_dL. Default is "log-uniform" with
         log10_Mc and log10_dL searched over. Use "uniform" for upper limits,
@@ -201,6 +194,7 @@ def cw_block_ecc(
         Boolean for whether to include the pulsar term. Default is False.
     :param name:
         Name of CW signal.
+
     """
 
     if amp_prior == "uniform":
@@ -298,6 +292,7 @@ def cw_delay(
     """
     Function to create GW incuced residuals from a SMBMB as
     defined in Ellis et. al 2012,2013.
+
     :param toas:
         Pular toas in seconds
     :param pos:
@@ -339,7 +334,9 @@ def cw_delay(
         Check if frequency evolves significantly over obs. time [boolean]
     :param tref:
         Reference time for phase and frequency [s]
+
     :return: Vector of induced residuals
+
     """
 
     # convert units to time
@@ -373,12 +370,9 @@ def cw_delay(
         fbin = 1 / Tobs
 
         if np.abs(df) > fbin:
-            print("WARNING: Frequency is evolving over more than one " "frequency bin.")
-            print(
-                "f0 = {0}, f1 = {1}, df = {2}, fbin = {3}".format(
-                    fstart, fend, df, fbin
-                )
-            )
+            print('WARNING: Frequency is evolving over more than one '
+                  'frequency bin.')
+            print('f0 = {0}, f1 = {1}, df = {2}, fbin = {3}'.format(fstart, fend, df, fbin))
             return np.ones(len(toas)) * np.nan
 
     # get antenna pattern funcs and cosMu
@@ -395,7 +389,7 @@ def cw_delay(
     # orbital frequency
     w0 = np.pi * fgw
     phase0 /= 2  # orbital phase
-    omegadot = 96 / 5 * mc ** (5 / 3) * w0 ** (11 / 3)
+    # omegadot = 96/5 * mc**(5/3) * w0**(11/3) # Not currently used in code
 
     # evolution
     if evolve:
@@ -481,16 +475,8 @@ def cw_delay(
 
 
 @signal_base.function
-def bwm_delay(
-    toas,
-    pos,
-    log10_h=-14.0,
-    cos_gwtheta=0.0,
-    gwphi=0.0,
-    gwpol=0.0,
-    t0=55000,
-    antenna_pattern_fn=None,
-):
+def bwm_delay(toas, pos, log10_h=-14.0, cos_gwtheta=0.0, gwphi=0.0, gwpol=0.0, t0=55000,
+              antenna_pattern_fn=None):
     """
     Function that calculates the earth-term gravitational-wave
     burst-with-memory signal, as described in:
@@ -519,7 +505,7 @@ def bwm_delay(
 
     # antenna patterns
     if antenna_pattern_fn is None:
-        apc = create_gw_antenna_pattern(pos, gwtheta, gwphi)
+        apc = utils.create_gw_antenna_pattern(pos, gwtheta, gwphi)
     else:
         apc = antenna_pattern_fn(pos, gwtheta, gwphi)
 
@@ -535,7 +521,6 @@ def bwm_delay(
 
 @signal_base.function
 def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
-
     """
     Function that calculates the earth-term gravitational-wave
     burst-with-memory signal for an optimally oriented source in a single pulsar
@@ -549,8 +534,10 @@ def bwm_sglpsr_delay(toas, sign, log10_A=-15, t0=55000):
 
     A = 10 ** log10_A
     t0 *= const.day
+
     # Return the time-series for the pulsar
-    heaviside = lambda x: 0.5 * (np.sign(x) + 1)
+    def heaviside(x):
+        return 0.5 * (np.sign(x) + 1)
 
     # return 0 #Fix the return to 0 in order to test what the heck is wrong with red noise detection in bwm
     return A * np.sign(sign) * heaviside(toas - t0) * (toas - t0)
@@ -587,6 +574,7 @@ def compute_eccentric_residuals(
     WARNING: This residual waveform is only accurate if the
     GW frequency is not significantly evolving over the
     observation time of the pulsar.
+
     :param toa: pulsar observation times
     :param theta: polar coordinate of pulsar
     :param phi: azimuthal coordinate of pulsar
@@ -608,7 +596,9 @@ def compute_eccentric_residuals(
     :param psrTerm: Option to include pulsar term [boolean]
     :param tref: Fidicuial time at which initial parameters are referenced [s]
     :param check: Check if frequency evolves significantly over obs. time
+
     :returns: Vector of induced residuals
+
     """
 
     # convert from sampling
@@ -633,9 +623,8 @@ def compute_eccentric_residuals(
     omhat = np.array([-singwtheta * cosgwphi, -singwtheta * singwphi, -cosgwtheta])
 
     # pulsar position vector
-    phat = np.array(
-        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
-    )
+    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
+                     np.cos(theta)])
 
     fplus = (
         0.5 * (np.dot(m, phat) ** 2 - np.dot(n, phat) ** 2) / (1 + np.dot(omhat, phat))
@@ -648,9 +637,8 @@ def compute_eccentric_residuals(
 
     if check:
         # check that frequency is not evolving significantly over obs. time
-        y = utils.solve_coupled_ecc_solution(
-            F, e0, gamma0, l0, mc, q, np.array([0.0, toas.max()])
-        )
+        y = utils.solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
+                                             np.array([0.0, toas.max()]))
 
         # initial and final values over observation time
         Fc0, ec0, gc0, phic0 = y[0, :]
@@ -708,9 +696,8 @@ def compute_eccentric_residuals(
         tp = toas.copy() - pd * (1 - cosMu)
 
         # solve coupled system of equations to get pulsar term values
-        y = utils.solve_coupled_ecc_solution(
-            F, e0, gamma0, l0, mc, q, np.array([0.0, tp.min()])
-        )
+        y = utils.solve_coupled_ecc_solution(F, e0, gamma0, l0, mc,
+                                             q, np.array([0.0, tp.min()]))
 
         # get pulsar term values
         if np.any(y):
@@ -774,7 +761,7 @@ def compute_eccentric_residuals(
     return rr
 
 
-def CWSignal(cw_wf, ecc=False, psrTerm=False, name="cw"):
+def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
 
     BaseClass = deterministic_signals.Deterministic(cw_wf, name=name)
 
@@ -829,14 +816,10 @@ def generalized_gwpol_psd(
         ]
     )
 
-    S_psd = (
-        prefactor
-        * (
-            gwpol_factors[0, :] * (f / const.fyr) ** (-4 / 3)
-            + np.sum(gwpol_factors[1:, :], axis=0) * (f / const.fyr) ** (-2)
-        )
-        / (8 * np.pi ** 2 * f ** 3)
-    )
+    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(-4/3) +
+                         np.sum(gwpol_factors[1:, :], axis=0) *
+                         (f / const.fyr)**(-2)) / \
+        (8*np.pi**2*f**3)
 
     return S_psd * np.repeat(df, 2)
 
@@ -851,8 +834,8 @@ def fdm_delay(toas, log10_A, log10_f, phase_e, phase_p):
     :param toas: Time-of-arrival measurements [s]
     :param log10_A: log10 of GW strain
     :param log10_f: log10 of GW frequency
-    :param phase_e: The Earth-term phase of the GW 
-    :param phase_p: The Pulsar-term phase of the GW 
+    :param phase_e: The Earth-term phase of the GW
+    :param phase_p: The Pulsar-term phase of the GW
 
     :return: the waveform as induced timing residuals (seconds)
     """

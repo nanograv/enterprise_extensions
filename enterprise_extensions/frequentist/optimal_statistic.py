@@ -1,23 +1,21 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
+# -*- coding: utf-8 -*-
+
+import warnings
 
 import numpy as np
 import scipy.linalg as sl
+from enterprise.signals import gp_priors, signal_base, utils
 
-from enterprise_extensions import models
-
-from enterprise.signals import utils
-from enterprise.signals import signal_base
-from enterprise.signals import gp_priors
-from enterprise_extensions import model_orfs
-import warnings
+from enterprise_extensions import model_orfs, models
 
 
-## Define the output to be on a single line.
+# Define the output to be on a single line.
 def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
     return "%s:%s: %s: %s\n" % (filename, lineno, category.__name__, message)
 
 
-## Override default format.
+
+# Override default format.
 warnings.formatwarning = warning_on_one_line
 
 
@@ -71,8 +69,7 @@ class OptimalStatistic(object):
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
-        # get F-matrices and set up cache
-        self.Fmats = self.get_Fmats()
+        # set up cache
         self._set_cache_parameters()
 
         # pulsar locations
@@ -111,7 +108,7 @@ class OptimalStatistic(object):
             OS_sig: 1-sigma uncertainty on OS
 
         .. note:: SNR is computed as OS / OS_sig. In the case of a 'spectrum' model
-        the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
+            the OS variable will be the PSD(fgw) * Tspan value at the relevant fgw bin.
 
         """
 
@@ -161,25 +158,24 @@ class OptimalStatistic(object):
         npsr = len(self.pta._signalcollections)
         rho, sig, ORF, xi = [], [], [], []
         for ii in range(npsr):
-            for jj in range(ii + 1, npsr):
-                if psd == "powerlaw":
-                    if self.gamma_common is None and "gw_gamma" in params.keys():
-                        print("{0:1.2}".format(params["gw_gamma"]))
-                        phiIJ = utils.powerlaw(
-                            self.freqs, log10_A=0, gamma=params["gw_gamma"]
-                        )
+            for jj in range(ii+1, npsr):
+
+                if psd == 'powerlaw':
+                    if self.gamma_common is None and 'gw_gamma' in params.keys():
+                        print('{0:1.2}'.format(params['gw_gamma']))
+                        phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                               gamma=params['gw_gamma'])
                     else:
-                        phiIJ = utils.powerlaw(
-                            self.freqs, log10_A=0, gamma=self.gamma_common
-                        )
-                elif psd == "spectrum":
-                    Sf = -np.inf * np.ones(int(len(self.freqs) / 2))
+                        phiIJ = utils.powerlaw(self.freqs, log10_A=0,
+                                               gamma=self.gamma_common)
+                elif psd == 'spectrum':
+                    Sf = -np.inf * np.ones(int(len(self.freqs)/2))
                     idx = (np.abs(np.unique(self.freqs) - fgw)).argmin()
                     Sf[idx] = 0.0
                     phiIJ = gp_priors.free_spectrum(self.freqs, log10_rho=Sf)
 
                 top = np.dot(X[ii], phiIJ * X[jj])
-                bot = np.trace(np.dot(Z[ii] * phiIJ[None, :], Z[jj] * phiIJ[None, :]))
+                bot = np.trace(np.dot(Z[ii]*phiIJ[None, :], Z[jj]*phiIJ[None, :]))
 
                 # cross correlation and uncertainty
                 rho.append(top / bot)
@@ -272,32 +268,28 @@ class OptimalStatistic(object):
 
         xi, rho, sig, Opt, Sig = self.compute_os(params=setpars)
 
-        return (xi, rho, sig, Opt, Opt / Sig)
+        return (xi, rho, sig, Opt, Opt/Sig)
 
-    def compute_multiple_corr_os(
-        self,
-        params=None,
-        psd="powerlaw",
-        fgw=None,
-        correlations=["monopole", "dipole", "hd"],
-    ):
+    def compute_multiple_corr_os(self, params=None, psd='powerlaw', fgw=None,
+                                 correlations=['monopole', 'dipole', 'hd']):
         """
         Fits the correlations to multiple spatial correlation functions
-        
+
         :param params: `enterprise` parameter dictionary.
         :param psd: choice of cross-power psd [powerlaw,spectrum]
-        :fgw: frequency of GW spectrum to probe, in Hz [default=None]
+        :param fgw: frequency of GW spectrum to probe, in Hz [default=None]
         :param correlations: list of correlation functions
-        
+
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair
             sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair.
             A: An array of correlation amplitudes
             OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
+
         """
 
-        xi, rho, sig, _, _ = self.compute_os(params=params, psd="powerlaw", fgw=None)
+        xi, rho, sig, _, _ = self.compute_os(params=params, psd='powerlaw', fgw=None)
 
         # construct a list of all the ORFs to be fit simultaneously
         ORFs = []
@@ -315,7 +307,7 @@ class OptimalStatistic(object):
             elif corr == "st":
                 orf_func = model_orfs.st_orf
             else:
-                raise ValueError("Unknown ORF!")
+                raise ValueError('Unknown ORF!')
 
             ORF = []
 
@@ -326,12 +318,8 @@ class OptimalStatistic(object):
 
             ORFs.append(np.array(ORF))
 
-        Bmat = np.array(
-            [
-                [np.sum(ORFs[i] * ORFs[j] / sig ** 2) for i in range(len(ORFs))]
-                for j in range(len(ORFs))
-            ]
-        )
+        Bmat = np.array([[np.sum(ORFs[i]*ORFs[j]/sig**2) for i in range(len(ORFs))]
+                         for j in range(len(ORFs))])
 
         Bmatinv = np.linalg.inv(Bmat)
 
@@ -342,30 +330,24 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, A, A_err
 
-    def compute_noise_marginalized_multiple_corr_os(
-        self,
-        chain,
-        param_names=None,
-        N=10000,
-        correlations=["monopole", "dipole", "hd"],
-    ):
+    def compute_noise_marginalized_multiple_corr_os(self, chain, param_names=None, N=10000,
+                                                    correlations=['monopole', 'dipole', 'hd']):
         """
         Noise-marginalized fitting of the correlations to multiple spatial
         correlation functions
-        
+
         :param correlations: list of correlation functions
         :param chain: MCMC chain from Bayesian run.
         :param param_names: list of parameter names for the chain file
         :param N: number of iterations to run.
-        
+
         :returns:
             xi: angular separation [rad] for each pulsar pair
             rho: correlation coefficient for each pulsar pair and for each noise realization
-            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair
-                 and for each noise realization
+            sig: 1-sigma uncertainty on correlation coefficient for each pulsar pair and for each noise realization
             A: An array of correlation amplitudes for each noise realization
-            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes
-                    for each noise realization
+            OS_sig: An array of 1-sigma uncertainties on the correlation amplitudes for each noise realization
+
         """
 
         # check that the chain file has the same number of parameters as the model
@@ -388,27 +370,24 @@ class OptimalStatistic(object):
             else:
                 setpars = dict(zip(param_names, chain[idx, :-4]))
 
-            xi, rho_tmp, sig_tmp, A_tmp, A_err_tmp = self.compute_multiple_corr_os(
-                params=setpars, correlations=["monopole", "dipole", "hd"]
-            )
+            xi, rho_tmp, sig_tmp, A_tmp, A_err_tmp = self.compute_multiple_corr_os(params=setpars,
+                                                                                   correlations=correlations)
 
             rho.append(rho_tmp)
             sig.append(sig_tmp)
             A.append(A_tmp)
-            A_err.append(A_tmp)
+            A_err.append(A_err_tmp)
 
         return np.array(xi), np.array(rho), np.array(sig), np.array(A), np.array(A_err)
 
+    @signal_base.cache_call(['basis_params'])
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
         Fmats = []
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == "red noise" and signal.signal_id in [
-                    "gw",
-                    "gw_crn",
-                ]:
+                if 'red noise' in signal.signal_name and signal.signal_id in ['gw', 'gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -416,44 +395,49 @@ class OptimalStatistic(object):
         return Fmats
 
     def _get_freqs(self, psrs):
-        """ Hackish way to get frequency vector."""
+        """Hackish way to get frequency vector."""
+
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == "red noise" and sig.signal_id in ["gw", "gw_crn"]:
-                sig._construct_basis()
-                freqs = np.array(sig._labels[""])
-                break
-        return freqs
+            if 'red noise' in sig.signal_name and sig.signal_id in ['gw', 'gw_crn']:
+                # make sure the basis is created
+                _ = sig.get_basis()
+
+                if isinstance(sig._labels, np.ndarray):
+                    return sig._labels
+                else:
+                    return sig._labels['']
+
+        raise ValueError("No frequency basis in pulsar models")
 
     def _set_cache_parameters(self):
         """ Set cache parameters for efficiency. """
-        self.white_params = []
-        self.basis_params = []
-        self.delay_params = []
 
-        for sc in self.pta._signalcollections:
-            self.white_params.extend(sc.white_params)
-            self.basis_params.extend(sc.basis_params)
-            self.delay_params.extend(sc.delay_params)
+        self.white_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.white_params))
+        self.basis_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.basis_params))
+        self.delay_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.delay_params))
 
     def get_TNr(self, params={}):
         return self.pta.get_TNr(params=params)
 
-    @signal_base.cache_call(["white_params", "delay_params"])
+    @signal_base.cache_call(['white_params', 'delay_params', 'basis_params'])
     def get_FNr(self, params={}):
         FNrs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             res = sc.get_detres(params=params)
             FNrs.append(N.solve(res, left_array=F))
         return FNrs
 
-    @signal_base.cache_call(["white_params"])
+    @signal_base.cache_call(['white_params', 'basis_params'])
     def get_FNF(self, params={}):
         FNFs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             FNFs.append(N.solve(F, left_array=F))
         return FNFs
 
@@ -465,7 +449,7 @@ class OptimalStatistic(object):
         FNTs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             T = sc.get_basis(params=params)
             FNTs.append(N.solve(T, left_array=F))
         return FNTs

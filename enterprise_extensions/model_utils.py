@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
+
 import time
-import numpy as np
-import scipy.stats as scistats
 
 import matplotlib.pyplot as plt
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import numpy as np
+import scipy.stats as scistats
 
 try:
     import acor
@@ -17,23 +12,22 @@ except ImportError:
     from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions import models
-from enterprise_extensions.empirical_distr import (
-    EmpiricalDistribution1D,
-    EmpiricalDistribution2D,
-    make_empirical_distributions,
-)
 
 # Log-spaced frequncies
+
+
 def linBinning(T, logmode, f_min, nlin, nlog):
     """
     Get the frequency binning for the low-rank approximations, including
     log-spaced low-frequency coverage.
     Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+
     :param T:       Duration experiment
     :param logmode: From which linear mode to switch to log
     :param f_min:   Down to which frequency we'll sample
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
+
     """
     if logmode < 0:
         raise ValueError(
@@ -49,7 +43,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     if nlog > 0:
         # Now the log-spacing, and weights
         f_min_log = np.log(f_min)
-        f_max_log = np.log((logmode + 0.5) / T)
+        f_max_log = np.log((logmode+0.5)/T)
         df_log = (f_max_log - f_min_log) / (nlog)
         f_log = np.exp(
             np.linspace(f_min_log + 0.5 * df_log, f_max_log - 0.5 * df_log, nlog)
@@ -61,6 +55,8 @@ def linBinning(T, logmode, f_min, nlin, nlog):
 
 
 # New filter for different cadences
+
+
 def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     """ Filter data for coarser cadences. """
 
@@ -136,7 +132,7 @@ class PostProcessing(object):
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
 
-    def plot_hist(self, hist_kwargs={"bins": 50, "normed": True}):
+    def plot_hist(self, hist_kwargs={'bins': 50, 'normed': True}):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
@@ -160,6 +156,7 @@ def ul(chain, q=95.0):
     :param q: desired percentile of upper-limit value [out of 100, default=95]
 
     :returns: (upper limit, uncertainty on upper limit)
+
     """
 
     hist = np.histogram(10.0 ** chain, bins=100)
@@ -168,12 +165,8 @@ def ul(chain, q=95.0):
     A_ul = 10 ** np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
-    Aul_error = (
-        np.sqrt(
-            (q / 100.0) * (1.0 - (q / 100.0)) / (chain.shape[0] / acor.acor(chain)[0])
-        )
-        / p_ul
-    )
+    Aul_error = np.sqrt((q/100.) * (1.0 - (q/100.0)) /
+                        (chain.shape[0]/acor.acor(chain)[0])) / p_ul
 
     return A_ul, Aul_error
 
@@ -186,6 +179,7 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
     :param ntol: Tolerance on number of samples in bin
 
     :returns: (bayes factor, 1-sigma bayes factor uncertainty)
+
     """
 
     prior = 1 / (logAmax - logAmin)
@@ -250,10 +244,8 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
                         ct_bt += 1
 
             try:
-                sigma = bf * np.sqrt(
-                    (float(top) - float(ct_tb)) / (float(top) * float(ct_tb))
-                    + (float(bot) - float(ct_bt)) / (float(bot) * float(ct_bt))
-                )
+                sigma = bf * np.sqrt((float(top) - float(ct_tb))/(float(top)*float(ct_tb)) +
+                                     (float(bot) - float(ct_bt))/(float(bot)*float(ct_bt)))
             except ZeroDivisionError:
                 sigma = 0.0
 
@@ -273,6 +265,7 @@ def bic(chain, nobs, log_evidence=False):
     :param evidence: return evidence estimate too?
 
     :returns: (bic, evidence)
+
     """
     nparams = chain.shape[1] - 4  # removing 4 aux columns
     maxlnlike = chain[:, -4].max()
@@ -318,15 +311,7 @@ class CompareTimingModels:
     :param dense: use the dense cholesky algorithm over sparse
     """
 
-    def __init__(
-        self,
-        psrs,
-        model_name="model_1",
-        abs_tol=1e-3,
-        rel_tol=1e-6,
-        dense=True,
-        **kwargs,
-    ):
+    def __init__(self, psrs, model_name='model_1', abs_tol=1e-3, rel_tol=1e-6, dense=True, **kwargs):
         model = getattr(models, model_name)
         self.abs_tol = abs_tol
         self.rel_tol = rel_tol
@@ -396,19 +381,17 @@ class CompareTimingModels:
         self.rel_err.append(rel_err)
         self.count += 1
         if self.abs_tol is not None and abs_err > self.abs_tol:
-            abs_raise = "Absolute error is {0} at {1} which is larger than abs_tol of {2}.".format(
-                abs_err, x0, self.abs_tol
-            )
+            abs_raise = 'Absolute error is {0} at {1} which is larger than abs_tol of {2}.'.format(
+                abs_err, x0, self.abs_tol)
             raise ValueError(abs_raise)
         elif self.rel_tol is not None and rel_err > self.rel_tol:
-            rel_raise = "Relative error is {0} at {1} which is larger than rel_tol of {2}.".format(
-                rel_err, x0, self.rel_tol
-            )
+            rel_raise = 'Relative error is {0} at {1} which is larger than rel_tol of {2}.'.format(
+                rel_err, x0, self.rel_tol)
             raise ValueError(rel_raise)
         return res_norm
 
     def results(self):
-        print("Number of points evaluated:", self.count)
-        print("Maximum absolute error:", np.max(self.abs_err))
-        print("Maximum relative error:", np.max(self.rel_err))
+        print('Number of points evaluated:', self.count)
+        print('Maximum absolute error:', np.max(self.abs_err))
+        print('Maximum relative error:', np.max(self.rel_err))
         return self.abs_err, self.rel_err

@@ -3,9 +3,7 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-import os
-import platform
+from setuptools import setup
 
 with open("README.rst") as readme_file:
     readme = readme_file.read()
@@ -22,6 +20,7 @@ requirements = [
     "pint-pulsar>=0.8.2",
     "libstempo>=2.4.0",
     "enterprise-pulsar>=3.1.0",
+    "scikit-learn>=0.24",
     "emcee",
     "ptmcmcsampler",
 ]
@@ -29,6 +28,8 @@ requirements = [
 test_requirements = []
 
 # Extract version
+
+
 def get_version():
     with open("enterprise_extensions/__init__.py") as f:
         for line in f.readlines():
@@ -53,7 +54,7 @@ setup(
     keywords="gravitational-wave, black-hole binary, pulsar-timing arrays",
     url="https://github.com/stevertaylor/enterprise_extensions",
     author="Stephen R. Taylor, Paul T. Baker, Jeffrey S. Hazboun, Sarah Vigeland",
-    author_email="srtaylor@caltech.edu",
+    author_email="jeffrey.hazboun@gmail.com",
     license="MIT",
     packages=[
         "enterprise_extensions",
@@ -68,6 +69,5 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     install_requires=requirements,
-    include_package_data=True,
     zip_safe=False,
 )

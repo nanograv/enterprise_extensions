@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 import os
 import json
 import numpy as np
+
 from collections import OrderedDict
 import scipy.stats as sps
 from scipy.stats import truncnorm
@@ -152,6 +152,8 @@ def filter_Mmat(psr, ltm_list=[]):
 
 
 # timing model delay
+
+
 @signal_base.function
 def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     """
@@ -163,6 +165,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     :return: difference between new and old residuals in seconds
     """
     residuals = np.longdouble(t2pulsar.residuals().copy())
+
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
     tm_params_rescaled = {}
@@ -212,8 +215,7 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     t2pulsar.vals(orig_params)
 
     # Return the time-series for the pulsar
-    return -(new_res[isort] - residuals[isort])
-
+    return residuals[isort]-new_res[isort]
 
 
 # Model component building blocks #

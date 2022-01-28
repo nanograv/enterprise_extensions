@@ -1,21 +1,23 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
+
 import numpy as np
 import scipy.interpolate as interp
-from enterprise.signals import signal_base
 from enterprise import constants as const
+from enterprise.signals import signal_base
 
 
 @signal_base.function
 def param_hd_orf(pos1, pos2, a=1.5, b=-0.25, c=0.5):
-    """Pre-factor parametrized Hellings & Downs spatial correlation function.
+    '''
+    Pre-factor parametrized Hellings & Downs spatial correlation function.
 
     :param: a, b, c:
         coefficients of H&D-like curve [default=1.5,-0.25,0.5].
 
     Reference: Taylor, Gair, Lentati (2013), https://arxiv.org/abs/1210.6014
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1
     else:
@@ -26,7 +28,8 @@ def param_hd_orf(pos1, pos2, a=1.5, b=-0.25, c=0.5):
 
 @signal_base.function
 def spline_orf(pos1, pos2, params):
-    """Agnostic spline-interpolated spatial correlation function. Spline knots
+    '''
+    Agnostic spline-interpolated spatial correlation function. Spline knots
     are placed at edges, zeros, and minimum of H&D curve. Changing locations
     will require manual intervention to create new function.
 
@@ -35,7 +38,8 @@ def spline_orf(pos1, pos2, params):
 
     Reference: Taylor, Gair, Lentati (2013), https://arxiv.org/abs/1210.6014
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1
     else:
@@ -52,7 +56,8 @@ def spline_orf(pos1, pos2, params):
 
 @signal_base.function
 def bin_orf(pos1, pos2, params):
-    """Agnostic binned spatial correlation function. Bin edges are
+    '''
+    Agnostic binned spatial correlation function. Bin edges are
     placed at edges and across angular separation space. Changing bin
     edges will require manual intervention to create new function.
 
@@ -60,7 +65,8 @@ def bin_orf(pos1, pos2, params):
         inter-pulsar correlation bin amplitudes.
 
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1
     else:
@@ -77,7 +83,8 @@ def bin_orf(pos1, pos2, params):
 
 @signal_base.function
 def zero_diag_bin_orf(pos1, pos2, params):
-    """Agnostic binned spatial correlation function. To be
+    '''
+    Agnostic binned spatial correlation function. To be
     used in a "split likelihood" model with an additional common
     uncorrelated red process. The latter is necessary to regularize
     the overall Phi covariance matrix.
@@ -86,7 +93,8 @@ def zero_diag_bin_orf(pos1, pos2, params):
         inter-pulsar correlation bin amplitudes.
 
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1e-20
     else:
@@ -103,13 +111,15 @@ def zero_diag_bin_orf(pos1, pos2, params):
 
 @signal_base.function
 def zero_diag_hd(pos1, pos2):
-    """Off-diagonal Hellings & Downs spatial correlation function. To be
+    '''
+    Off-diagonal Hellings & Downs spatial correlation function. To be
     used in a "split likelihood" model with an additional common uncorrelated
     red process. The latter is necessary to regularize the overall Phi
     covariance matrix.
 
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1e-20
     else:
@@ -119,7 +129,8 @@ def zero_diag_hd(pos1, pos2):
 
 @signal_base.function
 def freq_hd(pos1, pos2, params):
-    """Frequency-dependent Hellings & Downs spatial correlation function.
+    '''
+    Frequency-dependent Hellings & Downs spatial correlation function.
     Implemented as a model that only enforces H&D inter-pulsar correlations
     after a certain number of frequencies in the spectrum. The first set of
     frequencies are uncorrelated.
@@ -131,7 +142,8 @@ def freq_hd(pos1, pos2, params):
 
     Reference: Taylor et al. (2017), https://arxiv.org/abs/1606.09180
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     nfreq = params[0]
     orf_ifreq = params[1]
     if np.all(pos1 == pos2):
@@ -146,7 +158,8 @@ def freq_hd(pos1, pos2, params):
 
 @signal_base.function
 def legendre_orf(pos1, pos2, params):
-    """Legendre polynomial spatial correlation function. Assumes process
+    '''
+    Legendre polynomial spatial correlation function. Assumes process
     normalization such that autocorrelation signature is 1. A separate function
     is needed to use a "split likelihood" model with this Legendre process
     decoupled from the autocorrelation signature ("zero_diag_legendre_orf").
@@ -158,7 +171,8 @@ def legendre_orf(pos1, pos2, params):
 
     Reference: Gair et al. (2014), https://arxiv.org/abs/1406.4664
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1
     else:
@@ -169,7 +183,8 @@ def legendre_orf(pos1, pos2, params):
 
 @signal_base.function
 def zero_diag_legendre_orf(pos1, pos2, params):
-    """Legendre polynomial spatial correlation function. To be
+    '''
+    Legendre polynomial spatial correlation function. To be
     used in a "split likelihood" model with an additional common uncorrelated
     red process. The latter is necessary to regularize the overall Phi
     covariance matrix.
@@ -181,7 +196,8 @@ def zero_diag_legendre_orf(pos1, pos2, params):
 
     Reference: Gair et al. (2014), https://arxiv.org/abs/1406.4664
     Author: S. R. Taylor (2020)
-    """
+
+    '''
     if np.all(pos1 == pos2):
         return 1e-20
     else:
@@ -242,6 +258,7 @@ def anis_orf(pos1, pos2, params, **kwargs):
     )
 
 
+
 @signal_base.function
 def gw_monopole_orf(pos1, pos2):
     """
@@ -253,6 +270,7 @@ def gw_monopole_orf(pos1, pos2):
         return 1
     else:
         return 1 / 2
+
 
 
 @signal_base.function
@@ -267,6 +285,7 @@ def gw_dipole_orf(pos1, pos2):
         return 1 / 2 * np.dot(pos1, pos2)
 
 
+
 @signal_base.function
 def st_orf(pos1, pos2):
     """
@@ -276,7 +295,7 @@ def st_orf(pos1, pos2):
     if np.all(pos1 == pos2):
         return 1
     else:
-        return 1 / 8 * (3.0 + np.dot(pos1, pos2))
+        return 1/8 * (3.0 + np.dot(pos1, pos2))
 
 
 @signal_base.function
@@ -288,31 +307,26 @@ def gt_orf(pos1, pos2, tau):
 
     :param: tau
         tau = 1 results in ST correlations while tau = -1 results in HD correlations.
+
     Author: N. Laal (2020)
+
     """
     if np.all(pos1 == pos2):
         return 1
     else:
-        k = 1 / 2 * (1 - np.dot(pos1, pos2))
-        return 1 / 8 * (3 + np.dot(pos1, pos2)) + (1 - tau) * 3 / 4 * k * np.log(k)
+        k = 1/2*(1-np.dot(pos1, pos2))
+        return 1/8 * (3+np.dot(pos1, pos2)) + (1-tau)*3/4*k*np.log(k)
 
 
 @signal_base.function
-def generalized_gwpol_psd(
-    f,
-    log10_A_tt=-15,
-    log10_A_st=-15,
-    alpha_tt=-2 / 3,
-    alpha_alt=-1,
-    log10_A_vl=-15,
-    log10_A_sl=-15,
-    kappa=0,
-    p_dist=1.0,
-):
-    """
+def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15, alpha_tt=-2/3, alpha_alt=-1,
+                          log10_A_vl=-15, log10_A_sl=-15,
+                          kappa=0, p_dist=1.0):
+    '''
     General powerlaw spectrum allowing for existence of all possible modes of gravity as
     predicted by a general metric spacetime theory and generated by a binary system.
     The SL and VL modes' powerlaw relations are not normalized.
+
     :param: f
         A list of considered frequencies
     :param: log10_A_tt
@@ -334,7 +348,8 @@ def generalized_gwpol_psd(
 
     Reference: Cornish et al. (2017), https://arxiv.org/abs/1712.07132
     Author: S. R. Taylor, N. Laal (2020)
-    """
+
+    '''
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
     euler_e = 0.5772156649
@@ -358,13 +373,9 @@ def generalized_gwpol_psd(
         ]
     )
 
-    S_psd = (
-        prefactor
-        * (
-            gwpol_factors[0, :] * (f / const.fyr) ** (2 * alpha_tt)
-            + np.sum(gwpol_factors[1:, :], axis=0) * (f / const.fyr) ** (2 * alpha_alt)
-        )
-        / (8 * np.pi ** 2 * f ** 3)
-    )
+    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(2 * alpha_tt) +
+                         np.sum(gwpol_factors[1:, :], axis=0) *
+                         (f / const.fyr)**(2 * alpha_alt)) / \
+        (8*np.pi**2*f**3)
 
     return S_psd * np.repeat(df, 2)
