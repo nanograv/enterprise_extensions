@@ -1422,7 +1422,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s = red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
+    s += red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
                         prior=amp_prior,
                         Tspan=Tspan, components=n_rnfreqs)
 
