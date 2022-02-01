@@ -5,7 +5,7 @@ import os
 import numpy as np
 import scipy.stats as sps
 import scipy.special as spsf
-import os
+
 from enterprise import constants as const
 from enterprise.signals import (deterministic_signals, gp_signals, parameter,
                                 signal_base, utils)
@@ -90,7 +90,6 @@ def solar_wind(toas, freqs, planetssb, sunssb, pos_t,
 @signal_base.function
 def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
                       n_earth=5, power=4.39, log10_ne=False):
-
     """
     Construct DM-Solar Model fourier design matrix.
 
@@ -99,7 +98,7 @@ def solar_wind_r_to_p(toas, freqs, planetssb, sunssb, pos_t,
     :param pos_t: pulsar position as 3-vector
     :param freqs: radio frequencies of observations [MHz]
     :param n_earth: The electron density from the solar wind at 1 AU.
-    :param power: Power of the density profile for the solar wind.
+    :param power: Negative power of the density profile for the solar wind, r^-p.
     :param log10_ne: Whether the provided value is log10 of the electron
         density for this term. Suggested to set True for power much larger than
         normal.
@@ -286,19 +285,20 @@ def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
     See You et al. 20007 for more details.
     """
     return _dm_solar_r_to_p(n_earth, b, z_earth, p)
-    # return np.where(np.pi - theta >= 1e-8,
-    #                 _dm_solar_r_to_p(n_earth, b, z_earth, p),
-    #                 _dm_solar_close_r_to_p(n_earth, z_earth, p))
+
 
 def _dm_solar_close_r_to_p(n, z, p):
     return n * (AU_light_sec / z)**(p - 1) * (AU_pc / p)
+
 
 def _dm_solar_r_to_p(n, b, z, p):
     return (n * (AU_light_sec / b)**p * b / const.pc * const.c
             * (_dm_p_int(b, 1e14, p) - _dm_p_int(b, -z, p)))
 
+
 def _dm_p_int(b, z, p):
     return z / b * spsf.hyp2f1(0.5, p/2., 1.5, -z**2 / b**2)
+
 
 def theta_impact(planetssb, sunssb, pos_t):
     """
@@ -316,7 +316,7 @@ def theta_impact(planetssb, sunssb, pos_t):
              impact distance (b), perpendicular distance (z_earth)
     """
     earth = planetssb[:, 2, :3]
-    sun = sunssb[:,:3]
+    sun = sunssb[:, :3]
     earthsun = earth - sun
     R_earth = np.sqrt(np.einsum('ij,ij->i', earthsun, earthsun))
     Re_cos_theta_impact = np.einsum('ij,ij->i', earthsun, pos_t)
@@ -340,7 +340,7 @@ def sw_mask(psrs, angle_cutoff=None):
     """
     solar_wind_mask = {}
     angle_cutoff = np.deg2rad(angle_cutoff)
-    for ii,p in enumerate(psrs):
+    for ii, p in enumerate(psrs):
         impact_ang, _, _, _ = theta_impact(p)
         solar_wind_mask[p.name] = np.where(impact_ang > angle_cutoff,
                                            True, False)
