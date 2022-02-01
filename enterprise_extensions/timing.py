@@ -46,7 +46,7 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
     # Sort the residuals
     isort = np.argsort(t2pulsar.toas(), kind='mergesort')
 
-    return residuals - new_res[isort]
+    return residuals[isort] - new_res[isort]
 
 # Model component building blocks #
 
