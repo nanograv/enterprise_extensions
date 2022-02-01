@@ -959,13 +959,6 @@ def get_parameter_groups(pta):
 
     return groups
 
-def get_psr_groups(pta):
-    groups = []
-    for psr in pta.pulsars:
-        grp = [pta.param_names.index(par)
-               for par in pta.param_names if psr in par]
-        groups.append(grp)
-    return groups
 
 def get_psr_groups(pta):
     groups = []

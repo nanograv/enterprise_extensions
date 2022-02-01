@@ -14,7 +14,6 @@ from enterprise.signals import (deterministic_signals,
                                 utils)
 
 
-
 @signal_base.function
 def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
                      dropout_psr='B1855+09', k_drop=0.5, k_threshold=0.5):
@@ -22,12 +21,22 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
     Dropout powerlaw for a stochastic process. Switches a stochastic
     process on or off in a single pulsar depending on whether k_drop exceeds
     k_threshold.
+
+    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all'
+        will use the method on all pulsars.
     """
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
+    if name == 'all':
+        if k_drop >= k_threshold:
+            k_switch = 1.0
+        elif k_drop < k_threshold:
+            k_switch = 0.0
 
-    if name == dropout_psr:
+        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
+                           const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
 
+    elif name == dropout_psr:
         if k_drop >= k_threshold:
             k_switch = 1.0
         elif k_drop < k_threshold:
@@ -191,6 +200,7 @@ def Dropout_PhysicalEphemerisSignal(
 
 #### White Noise #####
 
+
 @signal_base.function
 def dp_efac_ndiag(toaerrs, efac=1.0, efac_drop=0.5, efac_thresh=0.5):
     if efac_drop >= efac_thresh:
@@ -234,14 +244,15 @@ def dropout_EquadNoise(log10_equad=parameter.Uniform(-10, -5),
                                       equad_drop=equad_drop,
                                       equad_thresh=equad_thresh)
     BaseClass = white_signals.WhiteNoise(varianceFunction,
-                                       selection=selection,
-                                       name=name)
+                                         selection=selection,
+                                         name=name)
 
     class dropout_EquadNoise(BaseClass):
         signal_name = "equad"
         signal_id = "equad_" + name if name else "equad"
 
     return dropout_EquadNoise
+
 
 @signal_base.function
 def dp_ecorr_basis_prior(weights, log10_ecorr=-8, ecorr_drop=0.5, ecorr_thresh=0.5):

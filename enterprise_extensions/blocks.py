@@ -13,7 +13,7 @@ from enterprise.signals import (gp_signals, parameter, selections, utils,
 from enterprise_extensions import deterministic as ee_deterministic
 
 from . import chromatic as chrom
-from . import dropout as dropout
+from . import dropout as drop
 from . import gp_kernels as gpk
 from . import model_orfs
 
@@ -27,12 +27,14 @@ __all__ = ['white_noise_block',
            'common_red_noise_block',
            ]
 
+
 def channelized_backends(backend_flags):
     """Selection function to split by channelized backend flags only. For ECORR"""
     flagvals = np.unique(backend_flags)
-    ch_b = ['ASP', 'GASP', 'GUPPI', 'PUPPI', 'CHIME']
+    ch_b = ['ASP', 'GASP', 'GUPPI', 'PUPPI', 'YUPPI', 'CHIME']
     flagvals = filter(lambda x: any(map(lambda y: y in x, ch_b)), flagvals)
     return {flagval: backend_flags == flagval for flagval in flagvals}
+
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                       efac1=False, select='backend', name=None):
@@ -60,7 +62,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         backend = selections.Selection(selections.by_backend)
         # define selection by nanograv backends
         backend_ng = selections.Selection(selections.nanograv_backends)
-        backend_ch = selections.Selection(channelized_backends)
+        # backend_ch = selections.Selection(channelized_backends)
     else:
         # define no selection
         backend = selections.Selection(selections.no_selection)
@@ -90,10 +92,10 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             if name is None:
                 name = ''
             ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                            selection=backend_ch)
+                                            selection=backend_ng)
         else:
             ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
-                                                selection=backend_ch)
+                                                selection=backend_ng)
 
     # combine signals
     if inc_ecorr:
@@ -159,9 +161,9 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
         # different PSD function parameters
         if psd == 'powerlaw' and dropout:
             k_drop = parameter.Uniform(0, 1)
-            pl = dropout.dropout_powerlaw(log10_A=log10_A, gamma=gamma,
-                                          k_drop=k_drop,
-                                          k_threshold=k_threshold)
+            pl = drop.dropout_powerlaw(log10_A=log10_A, gamma=gamma,
+                                       dropout_psr='all', k_drop=k_drop,
+                                       k_threshold=k_threshold)
         elif psd == 'powerlaw':
             pl = utils.powerlaw(log10_A=log10_A, gamma=gamma)
         elif psd == 'powerlaw_genmodes':
@@ -598,7 +600,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
 
 def common_red_noise_block(psd='powerlaw', prior='log-uniform',
-                           Tspan=None, components=30,combine=True,
+                           Tspan=None, components=30, combine=True,
                            log10_A_val=None, gamma_val=None, delta_val=None,
                            logmin=None, logmax=None,
                            orf=None, orf_ifreq=0, leg_lmax=5,
