@@ -11,6 +11,8 @@ import pickle
 import pytest
 
 from enterprise_extensions import models, sampler
+from enterprise_extensions.empirical_distr import (
+    make_empirical_distributions, make_empirical_distributions_KDE)
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
@@ -51,6 +53,19 @@ def empirical_distribution_1d(caplog):
 
 
 @pytest.fixture
+def empirical_distribution_1d_kde(caplog):
+    """Sample pytest fixture.
+
+    See more at: http://doc.pytest.org/en/latest/fixture.html
+    """
+    caplog.set_level(logging.CRITICAL)
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        emp_dists = pickle.load(fin)
+
+    return emp_dists
+
+
+@pytest.fixture
 def empirical_distribution_2d(caplog):
     """Sample pytest fixture.
 
@@ -58,6 +73,19 @@ def empirical_distribution_2d(caplog):
     """
     caplog.set_level(logging.CRITICAL)
     with open(datadir+'/emp_dist_2d.pkl', 'rb') as fin:
+        emp_dists = pickle.load(fin)
+
+    return emp_dists
+
+
+@pytest.fixture
+def empirical_distribution_2d_kde(caplog):
+    """Sample pytest fixture.
+
+    See more at: http://doc.pytest.org/en/latest/fixture.html
+    """
+    caplog.set_level(logging.CRITICAL)
+    with open(datadir+'/emp_dist_2d_kde.pkl', 'rb') as fin:
         emp_dists = pickle.load(fin)
 
     return emp_dists
@@ -91,12 +119,20 @@ def test_setup_sampler(dmx_psrs, caplog):
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_extend_emp_dists_1d(dmx_psrs, empirical_distribution_1d, caplog):
-    emp_dists = []
-    with open(datadir+'/emp_dist_1d.pkl', 'rb') as fin:
-        emp_dists.append(pickle.load(fin))
+def test_extend_emp_dists_1d(dmx_psrs, caplog):
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        tmp_data = pickle.load(fin)
+
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
-    new_dist = sampler.extend_emp_dists(m2a, empirical_distribution_1d)
+    new_dist = make_empirical_distributions(m2a, tmp_data['names'], tmp_data['names'],
+                                            tmp_data['samples'], save_dists=False)
+    # run extend when edges match priors
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    # change priors so they don't match edges of
+    # empirical distribution
+    for ii in range(len(tmp_data['names'])):
+        m2a.params[ii].prior._defaults['pmin'] -= 0.1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
     assert len(new_dist) == 6
     for i in range(6):
         assert new_dist[i]._edges[0] <= m2a.params[i].prior._defaults['pmin']
@@ -104,12 +140,22 @@ def test_extend_emp_dists_1d(dmx_psrs, empirical_distribution_1d, caplog):
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_extend_emp_dists_2d(dmx_psrs, empirical_distribution_2d, caplog):
-    emp_dists = []
-    with open(datadir+'/emp_dist_2d.pkl', 'rb') as fin:
-        emp_dists.append(pickle.load(fin))
+def test_extend_emp_dists_2d(dmx_psrs, caplog):
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        tmp_data = pickle.load(fin)
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
-    new_dist = sampler.extend_emp_dists(m2a, empirical_distribution_2d)
+    parnames = [[tmp_data['names'][0], tmp_data['names'][1]],
+                [tmp_data['names'][2], tmp_data['names'][3]],
+                [tmp_data['names'][4], tmp_data['names'][5]]]
+    new_dist = make_empirical_distributions(m2a, parnames, tmp_data['names'],
+                                            tmp_data['samples'], save_dists=False)
+    # case 1, edges match priors
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    # case 2, edges don't match priors (set priors to be different)
+    for ii in range(len(tmp_data['names'])):
+        m2a.params[ii].prior._defaults['pmin'] -= 0.1
+        m2a.params[ii].prior._defaults['pmax'] += 0.1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
     assert len(new_dist) == 3
     for i in range(3):
         k = 2 * i
@@ -117,3 +163,48 @@ def test_extend_emp_dists_2d(dmx_psrs, empirical_distribution_2d, caplog):
         assert new_dist[i]._edges[0][-1] <= m2a.params[k].prior._defaults['pmax']
         assert new_dist[i]._edges[1][0] <= m2a.params[k + 1].prior._defaults['pmin']
         assert new_dist[i]._edges[1][-1] <= m2a.params[k + 1].prior._defaults['pmax']
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_extend_emp_dists_1d_kde(dmx_psrs, caplog):
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        tmp_data = pickle.load(fin)
+
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    new_dist = make_empirical_distributions_KDE(m2a, tmp_data['names'], tmp_data['names'],
+                                                tmp_data['samples'], save_dists=False)
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    for ii in range(len(tmp_data['names'])):
+        m2a.params[ii].prior._defaults['pmin'] -= 0.1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    assert len(new_dist) == 6
+    for i in range(6):
+        assert new_dist[i].minval <= m2a.params[i].prior._defaults['pmin']
+        assert new_dist[i].maxval >= m2a.params[i].prior._defaults['pmax']
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_extend_emp_dists_2d_kde(dmx_psrs, caplog):
+
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        tmp_data = pickle.load(fin)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    parnames = [[tmp_data['names'][0], tmp_data['names'][1]],
+                [tmp_data['names'][2], tmp_data['names'][3]],
+                [tmp_data['names'][4], tmp_data['names'][5]]]
+    new_dist = make_empirical_distributions_KDE(m2a, parnames, tmp_data['names'],
+                                                tmp_data['samples'], save_dists=False)
+    # case 1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    # case 2
+    for ii in range(len(tmp_data['names'])):
+        m2a.params[ii].prior._defaults['pmin'] -= 0.1
+        m2a.params[ii].prior._defaults['pmax'] += 0.1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    assert len(new_dist) == 3
+    for i in range(3):
+        k = 2 * i
+        assert new_dist[i].minvals[0] <= m2a.params[k].prior._defaults['pmin']
+        assert new_dist[i].maxvals[0] <= m2a.params[k].prior._defaults['pmax']
+        assert new_dist[i].minvals[1] <= m2a.params[k + 1].prior._defaults['pmin']
+        assert new_dist[i].maxvals[1] <= m2a.params[k + 1].prior._defaults['pmax']
