@@ -39,12 +39,14 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
     t2pulsar.vals(tmparams_vary)
     new_res = np.double(t2pulsar.residuals().copy())
 
-    # remmeber to set values back to originals
+    # remember to set values back to originals
     t2pulsar.vals(OrderedDict(zip(keys,
                                   np.atleast_1d(np.double(orig_params[:, 0])))))
 
-    # Return the time-series for the pulsar
-    return new_res - residuals
+    # Sort the residuals
+    isort = np.argsort(t2pulsar.toas(), kind='mergesort')
+
+    return residuals[isort] - new_res[isort]
 
 # Model component building blocks #
 
