@@ -752,8 +752,6 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param coefficients: boolean to form full hierarchical PTA object;
         (no analytic latent-coefficient marginalization)
         [default = False]
-    :param names: list of names of signals, if desired different than default.
-        [default=None]
     :param pshift: boolean to add random phase shift to red noise Fourier design
         matrices for false alarm rate studies.
         [default = False]
