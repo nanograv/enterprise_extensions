@@ -85,7 +85,6 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param dmgp_kernel: diagonal in frequency or non-diagonal
     :param dm_psd: power-spectral density of DM variations
     :param dm_nondiag_kernel: type of time-domain DM GP kernel
-    :param dm_dt: linear_interp_basis size in units of days
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
     :param gamma_dm_val: spectral index of power-law DM variations
@@ -98,7 +97,6 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_idx: frequency scaling of chromatic noise
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
-    :param chrom_dt: linear_interp_basis size in units of days
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
     :param chrom_dt: time-scale for chromatic linear interpolation basis (days)
     :param chrom_df: frequency-scale for chromatic linear interpolation basis (MHz)
