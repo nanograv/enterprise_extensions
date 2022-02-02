@@ -1423,8 +1423,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # red noise
     s += red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
-                        prior=amp_prior,
-                        Tspan=Tspan, components=n_rnfreqs)
+                         prior=amp_prior,
+                         Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,

@@ -4,13 +4,9 @@ import enterprise
 import numpy as np
 from enterprise import constants as const
 
-from enterprise.signals.selections import Selection
-from enterprise.signals.gp_signals import BasisGP
 from enterprise.signals import (deterministic_signals,
-                                white_signals,
                                 parameter,
                                 signal_base,
-                                selections,
                                 utils)
 
 
