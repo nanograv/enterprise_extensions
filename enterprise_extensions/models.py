@@ -284,7 +284,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             for dd in range(1, num_dm_cusps+1):
                 s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
                                                tmax=tmax[dd-1],
-                                               idx=dm_cusp_idx,
+                                               idx=dm_cusp_idx[dd-1],
                                                sign=dm_cusp_sign[dd-1],
                                                symmetric=dm_cusp_sym,
                                                name=cusp_name_base+str(dd))
@@ -316,7 +316,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         s += extra_sigs
 
     # adding white-noise, and acting on psr objects
-    if 'NANOGrav' in psr.flags['pta'] and not is_wideband:
+    if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
                                    select=select)
         model = s2(psr)
@@ -464,7 +464,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs=None, n_gwbfreqs=None, gamma_common=None,
              delta_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', white_vary=False, is_wideband=False,
+             be_type='setIII', white_vary=False, is_wideband=False,
              use_dmdata=False, select='backend',
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
@@ -627,7 +627,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30,
                   upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
                   dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
-                  select='backend', tm_marg=False, dense_like=False):
+                  select='backend', tm_marg=False, dense_like=False,
+                  delta_common=None):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -879,6 +880,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # adding white-noise, and acting on psr objects
     models = []
+
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
@@ -1313,7 +1315,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, n_rnfreqs=None, n_gwbfreqs=None,
              gamma_common=None, delta_common=None, upper_limit=False,
-             bayesephem=False, be_type='orbel', is_wideband=False,
+             bayesephem=False, be_type='setIII', is_wideband=False,
              use_dmdata=False, select='backend',
              correlationsonly=False,
              pshift=False, pseed=None, psr_models=False,
