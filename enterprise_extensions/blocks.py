@@ -717,12 +717,7 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
             kappa_name = '{}_kappa'.format(name)
             log10_fb_name = '{}_log10_fb'.format(name)
             kappa_gw = parameter.Uniform(0.01, 0.5)(kappa_name)
-            if Tspan is not None:
-                low_freq = np.log10(1/Tspan)
-                high_freq = np.log10(components/Tspan)
-            else:
-                low_freq, high_freq = -10, -7
-            log10_fb_gw = parameter.Uniform(low_freq, high_freq)(log10_fb_name)
+            log10_fb_gw = parameter.Uniform(-10, -7)(log10_fb_name)
 
             if delta_val is not None:
                 delta_gw = parameter.Constant(delta_val)(delta_name)
