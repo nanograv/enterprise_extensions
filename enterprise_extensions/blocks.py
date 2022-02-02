@@ -346,8 +346,6 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
         use overall time span for indivicual pulsar.
     :param components:
         Number of frequencies in sampling of DM-variations.
-    :param dm_dt:
-        Step size for linear_interpolation_basis in units of days.
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess DM-variations
@@ -503,8 +501,6 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Tspan from which to calculate frequencies for PSD-based GPs.
     :param components:
         Number of frequencies to use in 'diag' GPs.
-    :param chrom_dt:
-        Step size for linear_interpolation_basis in units of days.
     :param coefficients:
         Whether to keep coefficients of the GP.
 
