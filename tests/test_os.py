@@ -55,7 +55,7 @@ def nodmx_psrs(caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_model2a(dmx_psrs, caplog):
-    m2a=models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a=models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     return m2a
 
 
@@ -79,7 +79,7 @@ def test_os(nodmx_psrs, pta_model2a):
 def pta_pshift(dmx_psrs, caplog):
     Tspan = model_utils.get_tspan(dmx_psrs)
     tm = gp_signals.TimingModel()
-    wn = blocks.white_noise_block(inc_ecorr=True)
+    wn = blocks.white_noise_block(inc_ecorr=True, tnequad=True)
     rn = blocks.red_noise_block(Tspan=Tspan)
     pseed = parameter.Uniform(0, 10000)('gw_pseed')
     gw_log10_A = parameter.Uniform(-18, -14)('gw_log10_A')
