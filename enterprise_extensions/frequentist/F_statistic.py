@@ -19,7 +19,7 @@ class FpStat(object):
     """
 
     def __init__(self, psrs, params=None,
-                 psrTerm=True, bayesephem=True, pta=None):
+                 psrTerm=True, bayesephem=True, pta=None, tnequad=False):
 
         if pta is None:
 
@@ -46,10 +46,10 @@ class FpStat(object):
             for p in psrs:
                 if 'NANOGrav' in p.flags['pta']:
                     s2 = s + blocks.white_noise_block(vary=False, inc_ecorr=True,
-                                                      gp_ecorr=True)
+                                                      gp_ecorr=True, tnequad=tnequad)
                     models.append(s2(p))
                 else:
-                    s3 = s + blocks.white_noise_block(vary=False, inc_ecorr=False)
+                    s3 = s + blocks.white_noise_block(vary=False, inc_ecorr=False, tnequad=tnequad)
                     models.append(s3(p))
 
             pta = signal_base.PTA(models)
