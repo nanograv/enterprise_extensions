@@ -37,7 +37,7 @@ def channelized_backends(backend_flags):
 
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', name=None):
+                      efac1=False, select='backend', tnequad=False, name=None):
     """
     Returns the white noise block of the model:
 
@@ -55,6 +55,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         whether to use the Gaussian process model for ECORR
     :param efac1:
         use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
+    :param tnequad:
+        Whether to use the TempoNest definition of EQUAD. Defaults to False to
+        follow Tempo, Tempo2 and Pint definition.
     """
 
     if select == 'backend':
@@ -83,10 +86,15 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             ecorr = parameter.Constant()
 
     # white noise signals
-    ef = white_signals.MeasurementNoise(efac=efac,
-                                        selection=backend, name=name)
-    eq = white_signals.EquadNoise(log10_equad=equad,
-                                  selection=backend, name=name)
+    if tnequad:
+        efeq = white_signals.MeasurementNoise(efac=efac,
+                                              selection=backend, name=name)
+        efeq += white_signals.TNEquadNoise(log10_tnequad=equad,
+                                           selection=backend, name=name)
+    else:
+        efeq = white_signals.MeasurementNoise(efac=efac, log10_t2equad=equad,
+                                              selection=backend, name=name)
+
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
@@ -102,9 +110,9 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                                                 name=name)
     # combine signals
     if inc_ecorr:
-        s = ef + eq + ec
+        s = efeq + ec
     elif not inc_ecorr:
-        s = ef + eq
+        s = efeq
 
     return s
 
