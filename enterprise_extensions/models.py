@@ -351,7 +351,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             components=30, upper_limit=False, bayesephem=False, tnequad=False,
-            be_type='orbel', is_wideband=False, use_dmdata=False,
+            be_type='orbel', is_wideband=False, use_dmdata=False, Tspan=None,
             select='backend', tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -389,6 +389,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -398,7 +400,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -465,7 +468,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs=None, n_gwbfreqs=None, gamma_common=None,
              delta_common=None, upper_limit=False, bayesephem=False,
              be_type='setIII', white_vary=False, is_wideband=False,
-             use_dmdata=False, select='backend', tnequad=False,
+             use_dmdata=False, Tspan=None, select='backend', tnequad=False,
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
     """
@@ -511,6 +514,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param psr_models:
         Return list of psr models rather than signal_base.PTA object.
     :param n_rnfreqs:
@@ -531,7 +536,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     if n_gwbfreqs is None:
         n_gwbfreqs = components
@@ -932,7 +938,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
 def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              bayesephem=False, be_type='orbel', is_wideband=False, components=30,
-             use_dmdata=False, select='backend', pshift=False, tnequad=False,
+             use_dmdata=False, Tspan=None, select='backend', pshift=False, tnequad=False,
              tm_marg=False, dense_like=False, tm_svd=False, upper_limit=False,
              gamma_common=None):
     """
@@ -978,6 +984,8 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -987,7 +995,8 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1057,7 +1066,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1107,6 +1116,8 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1116,7 +1127,8 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1191,7 +1203,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', pshift=False,
+             use_dmdata=False, Tspan=None, select='backend', pshift=False,
              tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1236,6 +1248,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1245,7 +1259,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1316,7 +1331,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, n_rnfreqs=None, n_gwbfreqs=None,
              gamma_common=None, delta_common=None, upper_limit=False,
              bayesephem=False, be_type='setIII', is_wideband=False,
-             use_dmdata=False, select='backend',
+             use_dmdata=False, Tspan=None, select='backend',
              correlationsonly=False, tnequad=False,
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
@@ -1367,6 +1382,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param correlationsonly:
         Give infinite power (well, 1e40) to pulsar red noise, effectively
         canceling out also GW diagonal terms
@@ -1386,7 +1403,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     if n_gwbfreqs is None:
         n_gwbfreqs = components
@@ -1468,7 +1486,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='setIII', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1516,6 +1534,8 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1525,7 +1545,8 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1600,7 +1621,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1651,6 +1672,8 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1660,7 +1683,8 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if is_wideband and use_dmdata:
@@ -1740,7 +1764,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1788,6 +1812,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1797,7 +1823,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
