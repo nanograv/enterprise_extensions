@@ -3,7 +3,10 @@
 import enterprise
 import numpy as np
 from enterprise import constants as const
-from enterprise.signals import (deterministic_signals, parameter, signal_base,
+
+from enterprise.signals import (deterministic_signals,
+                                parameter,
+                                signal_base,
                                 utils)
 
 
@@ -14,12 +17,22 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
     Dropout powerlaw for a stochastic process. Switches a stochastic
     process on or off in a single pulsar depending on whether k_drop exceeds
     k_threshold.
+
+    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all'
+        will use the method on all pulsars.
     """
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
+    if name == 'all':
+        if k_drop >= k_threshold:
+            k_switch = 1.0
+        elif k_drop < k_threshold:
+            k_switch = 0.0
 
-    if name == dropout_psr:
+        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
+                           const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
 
+    elif name == dropout_psr:
         if k_drop >= k_threshold:
             k_switch = 1.0
         elif k_drop < k_threshold:

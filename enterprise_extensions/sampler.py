@@ -1022,7 +1022,8 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
 
 def setup_sampler(pta, outdir='chains', resume=False,
-                  empirical_distr=None, groups=None, human=None, save_ext_dists=False):
+                  empirical_distr=None, groups=None, human=None,
+                  save_ext_dists=False, loglkwargs={}, logpkwargs={}):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -1062,7 +1063,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
         groups = get_parameter_groups(pta)
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
-                     outDir=outdir, resume=resume)
+                     outDir=outdir, resume=resume, loglkwargs=loglkwargs,
+                     logpkwargs=logpkwargs)
 
     save_runtime_info(pta, sampler.outDir, human)
 
