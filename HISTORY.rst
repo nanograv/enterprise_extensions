@@ -1,6 +1,11 @@
 =======
 History
 =======
+2.4.0 (2022-02-10)
+Use Timing Package (Tempo,Tempo2,Pint) definition of EQUAD. Enterprise has
+broken backwards compatibility, and here we use the `tnequad` flag to switch on
+the old definition.
+
 2.3.4 (2021-11-02)
 Fix phase shift seed caching issue.
 
