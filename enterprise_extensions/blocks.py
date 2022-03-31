@@ -146,7 +146,7 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
     """
     # red noise parameters that are common
     if psd in ['powerlaw', 'powerlaw_genmodes', 'turnover',
-               'tprocess', 'tprocess_adapt', 'infinitepower']:
+               'tprocess', 'tprocess_adapt']:
         # parameters shared by PSD functions
         if logmin is not None and logmax is not None:
             if prior == 'uniform':
@@ -194,8 +194,6 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
             nfreq = parameter.Uniform(-0.5, 10-0.5)
             pl = gpp.t_process_adapt(log10_A=log10_A, gamma=gamma,
                                      alphas_adapt=alpha_adapt, nfreq=nfreq)
-        elif psd == 'infinitepower':
-            pl = gpp.infinitepower()
 
     if psd == 'spectrum':
         if prior == 'uniform':
