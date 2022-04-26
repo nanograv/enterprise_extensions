@@ -195,7 +195,7 @@ class EmpiricalDistribution2DKDE(object):
         return self._logpdf(*params)[0]
 
 
-def make_empirical_distributions(pta, paramlist, params, chain,
+def make_empirical_distributions(pta, paramlist, chain,
                                  burn=0, nbins=81, filename='distr.pkl',
                                  return_distribution=True,
                                  save_dists=True):
@@ -227,6 +227,7 @@ def make_empirical_distributions(pta, paramlist, params, chain,
 
         if len(pl) == 1:
             idx = pta.param_names.index(pl[0])
+
             prior_min = pta.params[idx].prior._defaults['pmin']
             prior_max = pta.params[idx].prior._defaults['pmax']
 
@@ -270,7 +271,7 @@ def make_empirical_distributions(pta, paramlist, params, chain,
         return distr
 
 
-def make_empirical_distributions_KDE(pta, paramlist, params, chain,
+def make_empirical_distributions_KDE(pta, paramlist, chain,
                                      burn=0, nbins=41, filename='distr.pkl',
                                      bandwidth=0.1,
                                      return_distribution=True,
