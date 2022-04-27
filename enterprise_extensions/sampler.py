@@ -16,7 +16,7 @@ from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
                                                    EmpiricalDistribution2DKDE)
 
 
-def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir='chains'):
+def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir='./chains'):
     new_emp_dists = []
     modified = False  # check if anything was changed
     for emp_dist in emp_dists:
@@ -29,8 +29,17 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
                 # check 2 conditions on both params to make sure that they cover their priors
                 # skip if emp dist already covers the prior
                 param_idx = pta.param_names.index(param)
-                prior_min = pta.params[param_idx].prior._defaults['pmin']
-                prior_max = pta.params[param_idx].prior._defaults['pmax']
+                if pta.params[param_idx].type not in ['uniform', 'normal']:
+                    msg = 'This prior cannot be covered automatically by the empirical distribution\n'
+                    msg += 'Please check that your prior is covered by the empirical distribution.\n'
+                    print(msg)
+                    continue
+                if pta.params[param_idx].type == 'uniform':
+                    prior_min = pta.params[param_idx].prior._defaults['pmin']
+                    prior_max = pta.params[param_idx].prior._defaults['pmax']
+                elif pta.params[param_idx].type == 'normal':
+                    prior_min = pta.params[param_idx].prior._defaults['mu'] - 10 * pta.params[param_idx].prior._defaults['sigma']
+                    prior_max = pta.params[param_idx].prior._defaults['mu'] + 10 * pta.params[param_idx].prior._defaults['sigma']
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
@@ -54,8 +63,12 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             idxs_to_remove = []
             for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
                 param_idx = pta.param_names.index(param)
-                prior_min = pta.params[param_idx].prior._defaults['pmin']
-                prior_max = pta.params[param_idx].prior._defaults['pmax']
+                if pta.params[param_idx].type == 'uniform':
+                    prior_min = pta.params[param_idx].prior._defaults['pmin']
+                    prior_max = pta.params[param_idx].prior._defaults['pmax']
+                elif pta.params[param_idx].type == 'normal':
+                    prior_min = pta.params[param_idx].prior._defaults['mu'] - 10 * pta.params[param_idx].prior._defaults['sigma']
+                    prior_max = pta.params[param_idx].prior._defaults['mu'] + 10 * pta.params[param_idx].prior._defaults['sigma']
                 # drop samples that are outside the prior range (in case prior is smaller than samples)
                 if isinstance(emp_dist, EmpiricalDistribution2D):
                     samples[(samples[:, ii] < prior_min) | (samples[:, ii] > prior_max), ii] = -np.inf
@@ -77,8 +90,17 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             if emp_dist.param_name not in pta.param_names:
                 continue
             param_idx = pta.param_names.index(emp_dist.param_name)
-            prior_min = pta.params[param_idx].prior._defaults['pmin']
-            prior_max = pta.params[param_idx].prior._defaults['pmax']
+            if pta.params[param_idx].type not in ['uniform', 'normal']:
+                msg = 'This prior cannot be covered automatically by the empirical distribution\n'
+                msg += 'Please check that your prior is covered by the empirical distribution.\n'
+                print(msg)
+                continue
+            if pta.params[param_idx].type == 'uniform':
+                prior_min = pta.params[param_idx].prior._defaults['pmin']
+                prior_max = pta.params[param_idx].prior._defaults['pmax']
+            elif pta.params[param_idx].type == 'uniform':
+                prior_min = pta.params[param_idx].prior._defaults['mu'] - 10 * pta.params[param_idx].prior._defaults['sigma']
+                prior_max = pta.params[param_idx].prior._defaults['mu'] + 10 * pta.params[param_idx].prior._defaults['sigma']
             # check 2 conditions on param to make sure that it covers the prior
             # skip if emp dist already covers the prior
             if isinstance(emp_dist, EmpiricalDistribution1D):
@@ -96,7 +118,6 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             new_bins = []
             idxs_to_remove = []
             # drop samples that are outside the prior range (in case prior is smaller than samples)
-
             if isinstance(emp_dist, EmpiricalDistribution1D):
                 samples[(samples < prior_min) | (samples > prior_max)] = -np.inf
             elif isinstance(emp_dist, EmpiricalDistribution1DKDE):
