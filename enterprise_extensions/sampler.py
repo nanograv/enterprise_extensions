@@ -136,8 +136,6 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
                                                      minval=prior_min, maxval=prior_max,
                                                      bandwidth=emp_dist.bandwidth)
             new_emp_dists.append(new_emp)
-            print(new_emp_dists)
-
         else:
             print('Unable to extend class of unknown type to the edges of the priors.')
             new_emp_dists.append(emp_dist)
