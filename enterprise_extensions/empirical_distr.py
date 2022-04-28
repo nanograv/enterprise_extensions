@@ -195,7 +195,7 @@ class EmpiricalDistribution2DKDE(object):
         return self._logpdf(*params)[0]
 
 
-def make_empirical_distributions(pta, paramlist, chain,
+def make_empirical_distributions(pta, paramlist, params, chain,
                                  burn=0, nbins=81, filename='distr.pkl',
                                  return_distribution=True,
                                  save_dists=True):
@@ -271,7 +271,7 @@ def make_empirical_distributions(pta, paramlist, chain,
         return distr
 
 
-def make_empirical_distributions_KDE(pta, paramlist, chain,
+def make_empirical_distributions_KDE(pta, paramlist, params, chain,
                                      burn=0, nbins=41, filename='distr.pkl',
                                      bandwidth=0.1,
                                      return_distribution=True,
