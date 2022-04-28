@@ -25,16 +25,20 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             prior_ok=True
             for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
                 if param not in pta.param_names:  # skip if one of the parameters isn't in our PTA object
-                    continue
+                    short_par = '_'.join(param.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
+                    if short_par in pta.param_names:
+                        param = short_par
+                    else:
+                        continue
                 # check 2 conditions on both params to make sure that they cover their priors
                 # skip if emp dist already covers the prior
                 param_idx = pta.param_names.index(param)
                 if pta.params[param_idx].type not in ['uniform', 'normal']:
-                    msg = 'This prior cannot be covered automatically by the empirical distribution\n'
+                    msg = '{} cannot be covered automatically by the empirical distribution\n'.format(pta.params[param_idx].prior)
                     msg += 'Please check that your prior is covered by the empirical distribution.\n'
                     print(msg)
                     continue
-                if pta.params[param_idx].type == 'uniform':
+                elif pta.params[param_idx].type == 'uniform':
                     prior_min = pta.params[param_idx].prior._defaults['pmin']
                     prior_max = pta.params[param_idx].prior._defaults['pmax']
                 elif pta.params[param_idx].type == 'normal':
@@ -138,14 +142,15 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             new_emp_dists.append(emp_dist)
             continue
 
-        if save_ext_dists and modified:  # if user wants to save them, and they have been modified...
-            pickle.dump(new_emp_dists, outdir + 'new_emp_dists.pkl')
+    if save_ext_dists and modified:  # if user wants to save them, and they have been modified...
+        with open(outdir + '/new_emp_dists.pkl', 'wb') as f:
+            pickle.dump(new_emp_dists, f)
     return new_emp_dists
 
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains'):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='./chains'):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
