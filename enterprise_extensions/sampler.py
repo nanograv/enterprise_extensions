@@ -93,8 +93,8 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
         elif isinstance(emp_dist, EmpiricalDistribution1D) or isinstance(emp_dist, EmpiricalDistribution1DKDE):
             param_names = [par.name for par in pta.params]
-            if param not in param_names:  # skip if one of the parameters isn't in our PTA object
-                short_par = '_'.join(param.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
+            if emp_dist.param_name not in param_names:  # skip if one of the parameters isn't in our PTA object
+                short_par = '_'.join(emp_dist.param_namem.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
                 if short_par in param_names:
                     param = short_par
                 else:
