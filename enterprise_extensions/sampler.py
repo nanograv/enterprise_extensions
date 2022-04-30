@@ -94,12 +94,14 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
         elif isinstance(emp_dist, EmpiricalDistribution1D) or isinstance(emp_dist, EmpiricalDistribution1DKDE):
             param_names = [par.name for par in pta.params]
             if emp_dist.param_name not in param_names:  # skip if one of the parameters isn't in our PTA object
-                short_par = '_'.join(emp_dist.param_namem.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
+                short_par = '_'.join(emp_dist.param_name.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
                 if short_par in param_names:
                     param = short_par
                 else:
                     continue
-            param_idx = param_names.index(emp_dist.param_name)
+            else:
+                param = emp_dist.param_name
+            param_idx = param_names.index(param)
             if pta.params[param_idx].type not in ['uniform', 'normal']:
                 msg = 'This prior cannot be covered automatically by the empirical distribution\n'
                 msg += 'Please check that your prior is covered by the empirical distribution.\n'
