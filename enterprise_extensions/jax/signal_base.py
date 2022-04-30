@@ -15,7 +15,7 @@ import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
 
-from unsubclass import add_matrices
+from enterprise_extensions.jax.unsubclass import add_matrices
 
 from enterprise import __version__
 from sys import version
