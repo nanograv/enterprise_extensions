@@ -829,4 +829,28 @@ def SignalCollection(metasignals):  # noqa: C901
     return SignalCollection
 
 
+class ndarray_alt(np.ndarray):
+    """Sub-class of ``np.ndarray`` with custom ``solve`` method."""
+
+    def __new__(cls, inputarr):
+        obj = np.asarray(inputarr).view(cls)
+        return obj
+
+    def __add__(self, other):
+        try:
+            ret = super(ndarray_alt, self).__add__(other)
+        except:
+            ret = other + self
+        return ret
+
+    def solve(self, other, left_array=None, logdet=False):
+        if other.ndim == 1:
+            mult = np.array(other / self)
+        elif other.ndim == 2:
+            mult = np.array(other / self[:, None])
+        if left_array is not None:
+            mult = np.dot(left_array.T, mult)
+
+        ret = (mult, float(np.sum(np.log(self)))) if logdet else mult
+        return ret
 
