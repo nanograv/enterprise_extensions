@@ -521,7 +521,7 @@ class JAXPTA(object):
         ct = 0
         for p in self.params:
             n = p.size if p.size else 1
-            ret[p.name] = xs[ct : ct + n] if n > 1 else float(xs[ct])
+            ret[p.name] = xs[ct : ct + n] if n > 1 else xs[ct].astype(float)
             ct += n
         return ret
 
