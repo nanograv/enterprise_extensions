@@ -14,6 +14,7 @@ import numpy as np
 import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
+from jax import jit
 
 from enterprise_extensions.jax.unsubclass import add_matrices, inv_matrix
 
@@ -308,7 +309,7 @@ class JAXPTA(object):
     def _lnlikelihood(self):
         # instantiate on first use
         if not hasattr(self, "_lnlike"):
-            self._lnlike = self.lnlikelihood(self)
+            self._lnlike = jit(self.lnlikelihood(self))
 
         return self._lnlike
 
