@@ -750,8 +750,8 @@ def SignalCollection(metasignals):  # noqa: C901
             if not idx:
                 return {}, None
             else:
-                ncol = len(jnp.unique(sum(idx.values(), [])))
-                return ({key: jnp.array(idx[key]) for key in idx.keys()}, np.zeros((nrow, ncol)))
+                ncol = len(np.unique(sum(idx.values(), [])))
+                return ({key: np.array(idx[key]) for key in idx.keys()}, np.zeros((nrow, ncol)))
 
         # goofy way to cache _idx
         def __getattr__(self, par):
