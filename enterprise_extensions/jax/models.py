@@ -1,28 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import functools
-from collections import OrderedDict
-
 import numpy as np
-from enterprise import constants as const
 from enterprise.signals import (deterministic_signals, parameter,
                                 selections)
-from enterprise_extensions.jax import gp_signals, white_signals, signal_base
-from enterprise_extensions.jax.signal_base import JAXLogLikelihood
+from enterprise_extensions.jax import gp_signals, signal_base
 
-from enterprise_extensions import chromatic as chrom
-from enterprise_extensions import deterministic
 from enterprise_extensions import dropout as do
 from enterprise_extensions import model_utils
-from enterprise_extensions.jax.blocks import (bwm_block, bwm_sglpsr_block,
-                                          chromatic_noise_block,
-                                          common_red_noise_block,
-                                          dm_noise_block, red_noise_block,
+from enterprise_extensions.jax.blocks import (common_red_noise_block,
+                                          red_noise_block,
                                           white_noise_block)
-from enterprise_extensions.chromatic.solar_wind import solar_wind_block
-from enterprise_extensions.timing import timing_block
-
-# from enterprise.signals.signal_base import LookupLikelihood
 
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
@@ -122,9 +109,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -266,18 +253,18 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     if psr_models:
         return models
     else:
         # set up PTA
         if dense_like:
-            pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+            pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
         else:
-            pta = signal_base.PTA(models)
+            pta = signal_base.JAXPTA(models)
 
         # set white noise parameters
         if noisedict is None:
@@ -398,9 +385,9 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
     # set white noise parameters
 
     if not white_vary or (is_wideband and use_dmdata):
@@ -532,9 +519,9 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -656,9 +643,9 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -809,9 +796,9 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     else:
         # set up PTA
         if dense_like:
-            pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+            pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
         else:
-            pta = signal_base.PTA(models)
+            pta = signal_base.JAXPTA(models)
 
         # set white noise parameters
         if not white_vary or (is_wideband and use_dmdata):
@@ -941,9 +928,9 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -1081,9 +1068,9 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -1213,9 +1200,9 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -1332,9 +1319,9 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
@@ -1471,9 +1458,9 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
     # set up PTA
     if dense_like:
-        pta = signal_base.PTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
+        pta = signal_base.JAXPTA(models, lnlikelihood=signal_base.LogLikelihoodDenseCholesky)
     else:
-        pta = signal_base.PTA(models)
+        pta = signal_base.JAXPTA(models)
 
     # set white noise parameters
     if not white_vary or (is_wideband and use_dmdata):
