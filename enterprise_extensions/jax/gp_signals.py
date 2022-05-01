@@ -20,6 +20,8 @@ from enterprise.signals.utils import KernelMatrix
 from enterprise_extensions.jax import signal_base
 from enterprise_extensions.jax.unsubclass import set_matrix
 
+import jax.numpy as jnp
+
 
 # logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -106,7 +108,7 @@ def BasisGP(
             self._basis = np.zeros((len(self._masks[0]), nc))
 
             # TODO: should this be defined here? it will cache phi
-            self._phi = KernelMatrix(nc)
+            self._phi = jnp.zeros(nc)
 
             self._slices = {}
             nctot = 0
