@@ -390,7 +390,7 @@ class JAXPTA(object):
             idx = self._cliques == -1
 
             if logdet:
-                ld += jnp.sum(np.log(phi[idx, idx]))
+                ld += jnp.sum(jnp.log(phi[idx, idx]))
 
             phi = phi.at[idx, idx].set(1.0 / phi[idx, idx])
 
