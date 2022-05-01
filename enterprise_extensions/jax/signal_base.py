@@ -15,7 +15,7 @@ import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
 
-from enterprise_extensions.jax.unsubclass import add_matrices
+from enterprise_extensions.jax.unsubclass import add_matrices, inv_matrix
 
 from enterprise import __version__
 from sys import version
@@ -360,7 +360,7 @@ class JAXPTA(object):
         phi = self.get_phi(params, cliques=True)
 
         if isinstance(phi, list):
-            return [None if phivec is None else phivec.inv(logdet) for phivec in phi]
+            return [None if phivec is None else inv_matrix(phivec) for phivec in phi]
         else:
             ld = 0
 
