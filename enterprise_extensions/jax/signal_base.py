@@ -384,7 +384,7 @@ class JAXPTA(object):
                         if logdet:
                             ld += jnp.linalg.slogdet(phi2)[1]
 
-                        phi.at[idx2].set(jnp.linalg.inv(phi2))
+                        phi = phi.at[idx2].set(jnp.linalg.inv(phi2))
 
             # then do the pure diagonal terms
             idx = self._cliques == -1
@@ -392,7 +392,7 @@ class JAXPTA(object):
             if logdet:
                 ld += jnp.sum(np.log(phi[idx, idx]))
 
-            phi.at[idx, idx].set(1.0 / phi[idx, idx])
+            phi = phi.at[idx, idx].set(1.0 / phi[idx, idx])
 
             return (phi, ld) if logdet else phi
 
@@ -501,10 +501,12 @@ class JAXPTA(object):
 
                     block1, idx1 = slices[csc1], csc1._idx[cs1]
                     block2, idx2 = slices[csc2], csc2._idx[cs2]
+                    block1 = np.arange(block1.start, block1.stop)
+                    block2 = np.arange(block2.start, block2.stop)
 
                     if crossdiag.ndim == 1:
-                        Phi[block1, block2][idx1, idx2] += crossdiag
-                        Phi[block2, block1][idx2, idx1] += crossdiag
+                        Phi = Phi.at[block1, block2].add(crossdiag)
+                        Phi = Phi.at[block2, block1].add(crossdiag)
                     else:
                         Phi[block1, block2][np.ix_(idx1, idx2)] += crossdiag
                         Phi[block2, block1][np.ix_(idx2, idx1)] += crossdiag
