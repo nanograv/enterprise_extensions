@@ -13,10 +13,13 @@ import scipy.sparse as sps
 from sksparse.cholmod import cholesky
 
 from enterprise.signals import parameter, selections, utils
-from enterprise_extensions.jax import signal_base
 from enterprise.signals.parameter import function
 from enterprise.signals.selections import Selection
 from enterprise.signals.utils import KernelMatrix
+
+from enterprise_extensions.jax import signal_base
+from enterprise_extensions.jax.unsubclass import set_matrix
+
 
 # logging.basicConfig(format="%(levelname)s: %(name)s: %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -172,10 +175,11 @@ def BasisGP(
 
             def get_phi(self, params):
                 self._construct_basis(params)
-
                 for key, slc in self._slices.items():
+                    slc_arr = np.arange(slc.start, slc.stop)
                     phislc = self._prior[key](self._labels[key], params=params)
-                    self._phi = self._phi.set(phislc, slc)
+                    # self._phi = self._phi.set(phislc, slc)
+                    self._phi = set_matrix(self._phi, phislc, slc_arr)
                 return self._phi
 
             def get_phiinv(self, params):
