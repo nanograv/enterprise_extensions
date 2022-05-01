@@ -505,8 +505,8 @@ class JAXPTA(object):
                     block2 = np.arange(block2.start, block2.stop)
 
                     if crossdiag.ndim == 1:
-                        Phi = Phi.at[block1, block2].add(crossdiag)
-                        Phi = Phi.at[block2, block1].add(crossdiag)
+                        Phi = Phi.at[block1[idx1], block2[idx2]].add(crossdiag)
+                        Phi = Phi.at[block2[idx2], block1[idx1]].add(crossdiag)
                     else:
                         Phi[block1, block2][np.ix_(idx1, idx2)] += crossdiag
                         Phi[block2, block1][np.ix_(idx2, idx1)] += crossdiag
