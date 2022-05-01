@@ -372,19 +372,19 @@ class JAXPTA(object):
                     idx2 = np.ix_(idx, idx)
 
                     if cholesky:
-                        cf = sl.cho_factor(phi[idx2])
+                        cf = jsl.cho_factor(phi[idx2])
 
                         if logdet:
-                            ld += 2.0 * np.sum(np.log(np.diag(cf[0])))
+                            ld += 2.0 * jnp.sum(np.log(np.diag(cf[0])))
 
-                        phi[idx2] = sl.cho_solve(cf, np.identity(cf[0].shape[0]))
+                        phi[idx2] = jsl.cho_solve(cf, np.identity(cf[0].shape[0]))
                     else:
                         phi2 = phi[idx2]
 
                         if logdet:
-                            ld += np.linalg.slogdet(phi2)[1]
+                            ld += jnp.linalg.slogdet(phi2)[1]
 
-                        phi[idx2] = np.linalg.inv(phi2)
+                        phi[idx2] = jnp.linalg.inv(phi2)
 
             # then do the pure diagonal terms
             idx = self._cliques == -1
