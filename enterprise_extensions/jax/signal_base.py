@@ -372,27 +372,27 @@ class JAXPTA(object):
                     idx2 = np.ix_(idx, idx)
 
                     if cholesky:
-                        cf = jsl.cho_factor(phi[idx2])
+                        cf = sl.cho_factor(phi[idx2])
 
                         if logdet:
                             ld += 2.0 * jnp.sum(np.log(np.diag(cf[0])))
 
-                        phi[idx2] = jsl.cho_solve(cf, np.identity(cf[0].shape[0]))
+                        phi[idx2] = sl.cho_solve(cf, np.identity(cf[0].shape[0]))
                     else:
                         phi2 = phi[idx2]
 
                         if logdet:
                             ld += jnp.linalg.slogdet(phi2)[1]
 
-                        phi[idx2] = jnp.linalg.inv(phi2)
+                        phi.at[idx2].set(jnp.linalg.inv(phi2))
 
             # then do the pure diagonal terms
             idx = self._cliques == -1
 
             if logdet:
-                ld += np.sum(np.log(phi[idx, idx]))
+                ld += jnp.sum(np.log(phi[idx, idx]))
 
-            phi[idx, idx] = 1.0 / phi[idx, idx]
+            phi.at[idx, idx].set(1.0 / phi[idx, idx])
 
             return (phi, ld) if logdet else phi
 
