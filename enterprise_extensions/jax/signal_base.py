@@ -172,7 +172,7 @@ class JAXLogLikelihood(object):
             try:
                 cf = jsl.cho_factor(TNT + phiinv)  # cf(Sigma)
                 expval = jsl.cho_solve(cf, TNr)
-                logdet_sigma = 2 * jnp.sum(np.log(np.diag(cf[0])))
+                logdet_sigma = 2 * jnp.sum(jnp.log(jnp.diag(cf[0])))
             except sl.LinAlgError:  # pragma: no cover
                 return -jnp.inf
 
