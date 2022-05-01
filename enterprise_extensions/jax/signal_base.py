@@ -474,7 +474,7 @@ class JAXPTA(object):
                 # if we have any dense matrices,
                 Phi = sl.block_diag(*[np.diag(phi) if phi.ndim == 1 else phi for phi in phis if phi is not None])
             else:
-                Phi = np.diag(np.concatenate([phi for phi in phis if phi is not None]))
+                Phi = jnp.diag(jnp.concatenate([phi for phi in phis if phi is not None]))
 
             # get a dictionary of slices locating each pulsar in Phi matrix
             slices = self._get_slices(phis)
