@@ -11,6 +11,8 @@ from enterprise.signals.selections import Selection
 
 from enterprise_extensions.jax import signal_base, utils
 
+import jax.numpy as np
+
 
 def Deterministic(waveform, selection=Selection(selections.no_selection), name=""):
     """Class factory for generic deterministic signals."""
@@ -175,23 +177,23 @@ def PhysicalEphemerisSignal(
                 U, _ = utils.create_quantization_matrix(psr.toas, nmin=1)
                 self._uinds = utils.quant2ind(U)
 
-                avetoas = np.array([psr.toas[sc].mean() for sc in self._uinds])
+                avetoas = jnp.array([psr.toas[sc].mean() for sc in self._uinds])
                 self._avetoas = avetoas
 
                 # interpolate ssb planet position vectors to avetoas
-                planetssb = np.zeros((len(avetoas), 9, 3))
+                planetssb = jnp.zeros((len(avetoas), 9, 3))
                 for jj in range(9):
-                    planetssb[:, jj, :] = np.array(
-                        [np.interp(avetoas, psr.toas, psr.planetssb[:, jj, aa]) for aa in range(3)]
+                    planetssb[:, jj, :] = jnp.array(
+                        [jnp.interp(avetoas, psr.toas, psr.planetssb[:, jj, aa]) for aa in range(3)]
                     ).T
                 self._planetssb = planetssb
 
                 # Interpolating the pulsar position vectors onto epoch TOAs
-                pos_t = np.array([np.interp(avetoas, psr.toas, psr.pos_t[:, aa]) for aa in range(3)]).T
+                pos_t = jnp.array([jnp.interp(avetoas, psr.toas, psr.pos_t[:, aa]) for aa in range(3)]).T
                 self._pos_t = pos_t
 
             # initialize delay
-            self._delay = np.zeros(len(psr.toas))
+            self._delay = jnp.zeros(len(psr.toas))
 
         # this defaults to all parameters
         def get_delay(self, params):

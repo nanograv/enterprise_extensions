@@ -920,7 +920,7 @@ def eq2ecl_vec(x):
     Rotate (n,3) vector time series from equatorial to ecliptic.
     """
     M_ecl = const.M_ecl
-    return np.einsum("kj,ik->ij", M_ecl, x)
+    return jnp.einsum("kj,ik->ij", M_ecl, x)
 
 
 def euler_vec(z, y, x, n):
@@ -975,7 +975,7 @@ def ss_framerotate(mjd, planet, x, y, z, dz, offset=None, equatorial=False):
     planet = jnp.einsum("ijk,ik->ij", E, planet)
 
     if offset is not None:
-        planet = np.array(offset) + planet
+        planet = jnp.array(offset) + planet
 
     if equatorial:
         planet = ecl2eq_vec(planet)
@@ -1108,12 +1108,12 @@ def physical_ephem_delay(
 
     def jorb(earth):
         tmp = 0.0009547918983127075 * jnp.dot(jup_orbit.T, jup_orb_elements).T
-        earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+        earth += jnp.array([jnp.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
         return earth
 
     def sorb(earth):
         tmp = 0.00028588567008942334 * jnp.dot(sat_orbit.T, sat_orb_elements).T
-        earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+        earth += jnp.array([jnp.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
         return earth
 
     # Jupiter orbit perturbation
