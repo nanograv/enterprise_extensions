@@ -309,7 +309,7 @@ class JAXPTA(object):
     def _lnlikelihood(self):
         # instantiate on first use
         if not hasattr(self, "_lnlike"):
-            self._lnlike = jit(self.lnlikelihood(self))
+            self._lnlike = self.lnlikelihood(self)  # put jit here
 
         return self._lnlike
 

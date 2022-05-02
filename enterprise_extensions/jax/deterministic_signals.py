@@ -11,7 +11,7 @@ from enterprise.signals.selections import Selection
 
 from enterprise_extensions.jax import signal_base, utils
 
-import jax.numpy as np
+import jax.numpy as jnp
 
 
 def Deterministic(waveform, selection=Selection(selections.no_selection), name=""):
@@ -183,9 +183,9 @@ def PhysicalEphemerisSignal(
                 # interpolate ssb planet position vectors to avetoas
                 planetssb = jnp.zeros((len(avetoas), 9, 3))
                 for jj in range(9):
-                    planetssb[:, jj, :] = jnp.array(
+                    planetssb.at[:, jj, :].set(jnp.array(
                         [jnp.interp(avetoas, psr.toas, psr.planetssb[:, jj, aa]) for aa in range(3)]
-                    ).T
+                    ).T)
                 self._planetssb = planetssb
 
                 # Interpolating the pulsar position vectors onto epoch TOAs
