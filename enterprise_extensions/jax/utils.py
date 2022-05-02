@@ -17,6 +17,8 @@ from sksparse.cholmod import cholesky
 
 import jax.numpy as jnp
 
+from jax import lax
+
 import enterprise
 from enterprise import constants as const
 from enterprise import signals as sigs  # noqa: F401
@@ -1104,17 +1106,21 @@ def physical_ephem_delay(
     ]:
         earth += dmass(planet, dm)
 
-    # Jupiter orbit perturbation
-    if np.any(jup_orb_elements):
+    def jorb(earth):
         tmp = 0.0009547918983127075 * np.einsum("i,ijk->jk", jup_orb_elements, jup_orbit)
-
         earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+        return earth
+
+    def sorb(earth):
+        tmp = 0.00028588567008942334 * np.einsum("i,ijk->jk", sat_orb_elements, sat_orbit)
+        earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+        return earth
+
+    # Jupiter orbit perturbation
+    earth = lax.cond(np.any(jup_orb_elements), jorb, lambda x: x, earth)        
 
     # Saturn orbit perturbation
-    if np.any(sat_orb_elements):
-        tmp = 0.00028588567008942334 * np.einsum("i,ijk->jk", sat_orb_elements, sat_orbit)
-
-        earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+    earth = lax.cond(np.any(sat_orb_elements), sorb, lambda x: x, earth)
 
     # construct the true geocenter to barycenter roemer
     tmp_roemer = np.einsum("ij,ij->i", planetssb[:, 2, :3], pos_t)
