@@ -4,7 +4,6 @@ import types
 
 import numpy as np
 from enterprise import constants as const
-from enterprise.signals import deterministic_signals
 from enterprise.signals import gp_bases as gpb
 from enterprise.signals import gp_priors as gpp
 from enterprise.signals import parameter, selections, utils
@@ -16,7 +15,7 @@ from enterprise_extensions import dropout as drop
 from enterprise_extensions import gp_kernels as gpk
 from enterprise_extensions import model_orfs
 
-from enterprise_extensions.jax import gp_signals, white_signals
+from enterprise_extensions.jax import gp_signals, white_signals, deterministic_signals
 
 __all__ = ['white_noise_block',
            'red_noise_block',

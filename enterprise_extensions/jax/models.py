@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from enterprise.signals import (deterministic_signals, parameter,
+from enterprise.signals import (parameter,
                                 selections)
 from enterprise_extensions.jax import gp_signals, signal_base
 
@@ -10,6 +10,7 @@ from enterprise_extensions import model_utils
 from enterprise_extensions.jax.blocks import (common_red_noise_block,
                                           red_noise_block,
                                           white_noise_block)
+from enterprise_extensions.jax import deterministic_signals
 
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
