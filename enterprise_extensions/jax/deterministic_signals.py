@@ -6,10 +6,10 @@ delay that is to be subtracted from the residuals.
 
 import numpy as np
 
-from enterprise.signals import parameter, selections, utils
+from enterprise.signals import parameter, selections
 from enterprise.signals.selections import Selection
 
-from enterprise_extensions.jax import signal_base
+from enterprise_extensions.jax import signal_base, utils
 
 
 def Deterministic(waveform, selection=Selection(selections.no_selection), name=""):
