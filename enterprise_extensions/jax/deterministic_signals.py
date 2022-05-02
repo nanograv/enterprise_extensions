@@ -201,7 +201,7 @@ def PhysicalEphemerisSignal(
                 delay = self._wf[""](toas=self._avetoas, planetssb=self._planetssb, pos_t=self._pos_t, params=params)
 
                 for slc, val in zip(self._uinds, delay):
-                    self._delay[slc] = val
+                    self._delay.at[slc].set(val)
                 return self._delay
             else:
                 delay = self._wf[""](params=params)
