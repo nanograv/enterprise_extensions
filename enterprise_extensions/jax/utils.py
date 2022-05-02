@@ -1117,7 +1117,7 @@ def physical_ephem_delay(
     #     return earth
 
     # Jupiter orbit perturbation
-    earth = lax.cond(np.any(jup_orb_elements), jorb, lambda x: x, earth)        
+    earth = lax.cond(np.any(jup_orb_elements), jorb, lambda x: x, earth)
 
     # Saturn orbit perturbation
     # earth = lax.cond(np.any(sat_orb_elements), sorb, lambda x: x, earth)

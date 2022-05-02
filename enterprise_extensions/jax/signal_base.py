@@ -14,7 +14,6 @@ import numpy as np
 import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
-from jax import jit
 
 from enterprise_extensions.jax.unsubclass import add_matrices, inv_matrix
 
@@ -23,6 +22,7 @@ from sys import version
 _py_version = version.split(" ")[0]
 
 logger = logging.getLogger(__name__)
+
 
 class MetaSignal(type):
     """Metaclass for Signals. Allows addition of ``Signal`` classes."""
@@ -141,7 +141,7 @@ class JAXLogLikelihood(object):
 
     def _block_TNT(self, TNTs):
         return sl.block_diag(*TNTs)
-    
+
     def _block_TNr(self, TNrs):
         return np.concatenate(TNrs)
 
@@ -150,7 +150,7 @@ class JAXLogLikelihood(object):
         params = xs if isinstance(xs, dict) else self.pta.map_params(xs)
 
         loglike = 0
-         # phiinvs will be a list or may be a big matrix if spatially
+        # phiinvs will be a list or may be a big matrix if spatially
         # correlated signals
         TNrs = self.pta.get_TNr(params)
         TNTs = self.pta.get_TNT(params)
@@ -197,7 +197,6 @@ class JAXLogLikelihood(object):
                 loglike += 0.5 * (jnp.dot(TNr, expval) - logdet_sigma - logdet_phi)
 
         return loglike
-
 
 
 class JAXPTA(object):
@@ -356,7 +355,6 @@ class JAXPTA(object):
         else:
             raise NotImplementedError
 
-    
     def get_phiinv_byfreq_cliques(self, params, logdet=False, cholesky=False):
         phi = self.get_phi(params, cliques=True)
 
@@ -856,6 +854,7 @@ class ndarray_alt(np.ndarray):
 
         ret = (mult, float(np.sum(np.log(self)))) if logdet else mult
         return ret
+
 
 class ShermanMorrison(object):
     """Custom container class for Sherman-morrison array inversion."""

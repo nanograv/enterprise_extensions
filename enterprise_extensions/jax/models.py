@@ -8,8 +8,8 @@ from enterprise_extensions.jax import gp_signals, signal_base
 from enterprise_extensions import dropout as do
 from enterprise_extensions import model_utils
 from enterprise_extensions.jax.blocks import (common_red_noise_block,
-                                          red_noise_block,
-                                          white_noise_block)
+                                              red_noise_block,
+                                              white_noise_block)
 from enterprise_extensions.jax import deterministic_signals
 
 

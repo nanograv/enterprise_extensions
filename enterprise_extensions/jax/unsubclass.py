@@ -6,6 +6,7 @@ import jax.scipy.linalg as jsl
 
 # KernelMatrix functions
 
+
 def add_matrices(self, other, idx):
     if other.ndim == 2 and self.ndim == 1:
         self = jnp.zeros(jnp.diag(self))
@@ -23,6 +24,7 @@ def add_matrices(self, other, idx):
 
     return self
 
+
 def inv_matrix(self):
     if self.ndim == 1:
         inv = 1.0 / self
@@ -34,6 +36,7 @@ def inv_matrix(self):
         ld = 2.0 * jnp.sum(jnp.log(jnp.diag(cf[0])))
 
         return inv, ld
+
 
 def set_matrix(self, other, idx):
     if other.ndim == 2 and self.ndim == 1:
@@ -51,6 +54,7 @@ def set_matrix(self, other, idx):
             self = self.at[idx].set(other)
 
     return self
+
 
 def matrix_setcliques(self, idxs):
     allidx = set(self._cliques[idxs])
