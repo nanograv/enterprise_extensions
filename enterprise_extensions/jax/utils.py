@@ -1107,12 +1107,12 @@ def physical_ephem_delay(
         earth += dmass(planet, dm)
 
     def jorb(earth):
-        tmp = 0.0009547918983127075 * np.einsum("i,ijk->jk", jup_orb_elements, jup_orbit)
+        tmp = 0.0009547918983127075 * jnp.dot(jup_orbit.T, jup_orb_elements).T
         earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
         return earth
 
     def sorb(earth):
-        tmp = 0.00028588567008942334 * np.einsum("i,ijk->jk", sat_orb_elements, sat_orbit)
+        tmp = 0.00028588567008942334 * jnp.dot(sat_orbit.T, sat_orb_elements).T
         earth += np.array([np.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
         return earth
 
