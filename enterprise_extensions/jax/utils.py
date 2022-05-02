@@ -1111,16 +1111,16 @@ def physical_ephem_delay(
         earth += jnp.array([jnp.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
         return earth
 
-    def sorb(earth):
-        tmp = 0.00028588567008942334 * jnp.dot(sat_orbit.T, sat_orb_elements).T
-        earth += jnp.array([jnp.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
-        return earth
+    # def sorb(earth):
+    #     tmp = 0.00028588567008942334 * jnp.dot(sat_orbit.T, sat_orb_elements).T
+    #     earth += jnp.array([jnp.interp(mjd, times, tmp[:, aa]) for aa in range(3)]).T
+    #     return earth
 
     # Jupiter orbit perturbation
     earth = lax.cond(np.any(jup_orb_elements), jorb, lambda x: x, earth)        
 
     # Saturn orbit perturbation
-    earth = lax.cond(np.any(sat_orb_elements), sorb, lambda x: x, earth)
+    # earth = lax.cond(np.any(sat_orb_elements), sorb, lambda x: x, earth)
 
     # construct the true geocenter to barycenter roemer
     tmp_roemer = np.einsum("ij,ij->i", planetssb[:, 2, :3], pos_t)
