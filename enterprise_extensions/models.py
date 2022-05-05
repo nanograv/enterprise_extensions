@@ -699,7 +699,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param red_var: boolean to switch on/off intrinsic red noise.
         [default = True]
     :param red_psd: psd of intrinsic red process.
-        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt', 'infinitepower']
+        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt']
         [default = 'powerlaw']
     :param red_components: number of frequencies starting at 1/T for intrinsic red process.
         [default = 30]
@@ -1317,7 +1317,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              gamma_common=None, delta_common=None, upper_limit=False,
              bayesephem=False, be_type='setIII', is_wideband=False,
              use_dmdata=False, select='backend',
-             correlationsonly=False, tnequad=False,
+             tnequad=False,
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
     """
@@ -1367,9 +1367,6 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
-    :param correlationsonly:
-        Give infinite power (well, 1e40) to pulsar red noise, effectively
-        canceling out also GW diagonal terms
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
         null hypothesis.
@@ -1418,9 +1415,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
-                         prior=amp_prior,
-                         Tspan=Tspan, components=n_rnfreqs)
+    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
