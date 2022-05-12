@@ -184,7 +184,7 @@ class HyperModel(object):
             cov = np.load(outdir+'/cov.npy')
 
             # check that the one we load is the same shape as our data
-            cov_new = np.diag(np.ones(ndim) * 0.1**2)
+            cov_new = np.diag(np.ones(ndim) * 1.0**2)
             if cov.shape != cov_new.shape:
                 msg = 'The covariance matrix (cov.npy) in the output folder is '
                 msg += 'the wrong shape for the parameters given. '
