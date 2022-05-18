@@ -1218,8 +1218,8 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
 
 def setup_sampler(pta, outdir='chains', resume=False,
-                  empirical_distr=None, groups=None, human=None, save_ext_dists=False,
-                  timing=False):
+                  empirical_distr=None, groups=None, human=None,
+                  save_ext_dists=False, timing=False, loglkwargs={}, logpkwargs={}):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -1249,11 +1249,18 @@ def setup_sampler(pta, outdir='chains', resume=False,
     ndim = len(params)
 
     # initial jump covariance matrix
-    if os.path.exists(outdir+'/cov.npy'):
-        try:
-            cov = np.load(outdir+'/cov.npy')
-        except (ValueError):
-            cov = np.diag(np.ones(ndim) * 0.1**2)
+    if os.path.exists(outdir+'/cov.npy') and resume:
+        cov = np.load(outdir+'/cov.npy')
+
+        # check that the one we load is the same shape as our data
+        cov_new = np.diag(np.ones(ndim) * 0.1**2)
+        if cov.shape != cov_new.shape:
+            msg = 'The covariance matrix (cov.npy) in the output folder is '
+            msg += 'the wrong shape for the parameters given. '
+            msg += 'Start with a different output directory or '
+            msg += 'change resume to False to overwrite the run that exists.'
+
+            raise ValueError(msg)
     else:
         cov = np.diag(np.ones(ndim) * 0.1**2)
 
@@ -1267,7 +1274,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
                 [x for x in pta.param_names if any(y in x for y in ["timing_model", "ecorr"])]))
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
-                     outDir=outdir, resume=resume)
+                     outDir=outdir, resume=resume, loglkwargs=loglkwargs,
+                     logpkwargs=logpkwargs)
 
     save_runtime_info(pta, sampler.outDir, human)
 

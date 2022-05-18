@@ -218,7 +218,6 @@ def tm_delay(t2pulsar, tm_params_orig, **kwargs):
     # Return the time-series for the pulsar
     return residuals[isort]-new_res[isort]
 
-
 # Model component building blocks #
 
 

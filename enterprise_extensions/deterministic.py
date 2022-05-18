@@ -119,7 +119,7 @@ def cw_block_circ(
     # orbital inclination angle [radians]
     cosinc = parameter.Uniform(-1.0, 1.0)("{}_cosinc".format(name))
     # initial GW phase [radians]
-    phase0 = parameter.Uniform(0.0, np.pi)("{}_phase0".format(name))
+    phase0 = parameter.Uniform(0.0, 2*np.pi)('{}_phase0'.format(name))
 
     # polarization
     psi_name = "{}_psi".format(name)
@@ -136,7 +136,8 @@ def cw_block_circ(
         phi = parameter.Constant(skyloc[1])(phi_name)
 
     if psrTerm:
-        p_phase = parameter.Uniform(0, 2 * np.pi)
+        # orbital phase
+        p_phase = parameter.Uniform(0, np.pi)
         p_dist = parameter.Normal(0, 1)
     else:
         p_phase = None
@@ -316,7 +317,7 @@ def cw_delay(
         log10 of GW strain,
         used to compute distance, if not None
     :param phase0:
-        Initial Phase of GW source [radians]
+        Initial GW phase of source [radians]
     :param psi:
         Polarization angle of GW source [radians]
     :param psrTerm:
@@ -388,7 +389,7 @@ def cw_delay(
 
     # orbital frequency
     w0 = np.pi * fgw
-    phase0 /= 2  # orbital phase
+    phase0 /= 2  # convert GW to orbital phase
     # omegadot = 96/5 * mc**(5/3) * w0**(11/3) # Not currently used in code
 
     # evolution
