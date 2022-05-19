@@ -258,11 +258,7 @@ class JumpProposal(object):
             # special_pars = ["PX", "SINI", "COSI", "ECC"]
             # Any parameter not centered around zero is considered a "special parameter" that does not draw from a zero-centered Gaussian
             special_pars = []
-            for x in [
-                str(y)
-                for y in pta.params
-                if "Uniform" in str(y) and "timing_model" in str(y)
-            ]:
+            for x in [str(y) for y in pta.params if "Uniform" in str(y) and "timing_model" in str(y)]:
                 pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
                 pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
                 if pmin + pmax != 0.0:

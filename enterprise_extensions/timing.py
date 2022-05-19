@@ -13,6 +13,7 @@ from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
 from enterprise.signals import gp_signals
 
+from pint import fitter
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
     """Prior function for InvGamma parameters."""
@@ -122,6 +123,9 @@ def get_prior(
     :param num_params: number of timing parameters assigned to prior. Default is None (ie. only one)
     """
     if prior_type == "bounded-normal":
+        if mu < prior_lower_bound:
+            mu = np.mean([prior_lower_bound,prior_upper_bound])
+            prior_sigma = np.std([prior_lower_bound,prior_upper_bound])
         return BoundedNormal(
             mu=mu,
             sigma=prior_sigma,
@@ -154,9 +158,77 @@ def filter_Mmat(psr, ltm_list=[]):
 
 # timing model delay
 
+@signal_base.function
+def tm_delay_pint(pintpulsar, tm_params_orig, **kwargs):
+    """
+    Compute difference in residuals due to perturbed timing model.
+
+    :param pintpulsar: pint pulsar object
+    :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
+
+    :return: difference between new and old residuals in seconds
+    """
+
+    raise NotImplementedError
+
+    residuals = np.longdouble(pintpulsar.residuals().copy())
+
+    # grab original timing model parameters and errors in dictionary
+    orig_params = {}
+    tm_params_rescaled = {}
+    for tm_scaled_key, tm_scaled_val in kwargs.items():
+        if "DMX" in tm_scaled_key:
+            tm_param = "_".join(tm_scaled_key.split("_")[-2:])
+        else:
+            tm_param = tm_scaled_key.split("_")[-1]
+
+        if tm_param == "COSI":
+            orig_params["SINI"] = np.longdouble(tm_params_orig["SINI"][0])
+        else:
+            orig_params[tm_param] = np.longdouble(tm_params_orig[tm_param][0])
+
+        if "physical" in tm_params_orig[tm_param]:
+            # User defined priors are assumed to not be scaled
+            if tm_param == "COSI":
+                # Switch for sampling in COSI, but using SINI in libstempo
+                tm_params_rescaled["SINI"] = np.longdouble(
+                    np.sqrt(1 - tm_scaled_val ** 2)
+                )
+            else:
+                tm_params_rescaled[tm_param] = np.longdouble(tm_scaled_val)
+        else:
+            if tm_param == "COSI":
+                # Switch for sampling in COSI, but using SINI in libstempo
+                rescaled_COSI = np.longdouble(
+                    tm_scaled_val * tm_params_orig[tm_param][1]
+                    + tm_params_orig[tm_param][0]
+                )
+                tm_params_rescaled["SINI"] = np.longdouble(
+                    np.sqrt(1 - rescaled_COSI ** 2)
+                )
+            else:
+                tm_params_rescaled[tm_param] = np.longdouble(
+                    tm_scaled_val * tm_params_orig[tm_param][1]
+                    + tm_params_orig[tm_param][0]
+                )
+
+    # TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
+    # Sort residuals by toa to match with get_detres() call
+    isort = np.argsort(pintpulsar.toas, kind="mergesort")
+
+    #FAKE FUNCTIONS
+    #New model?
+    pint_ftr = fitter(pintpulsar.toas,pintpulsar.model)
+    pint_ftr.set_parameters(tm_params_rescaled)
+    new_res = np.longdouble(copy.copy(Residuals(pintpulsar.toas,pintpulsar.model).get_resids()))
+
+    # Do we need to set parameters back with pint
+
+    # Return the time-series for the pulsar
+    return residuals[isort]-new_res[isort]
 
 @signal_base.function
-def tm_delay(t2pulsar, tm_params_orig, **kwargs):
+def tm_delay_t2(t2pulsar, tm_params_orig, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
 
@@ -233,6 +305,7 @@ def timing_block(
     tm_param_dict={},
     fit_remaining_pars=True,
     wideband_kwargs={},
+    timing_package='tempo2'
 ):
     """
     Returns the timing model block of the model
@@ -247,6 +320,7 @@ def timing_block(
     :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
     :param fit_remaining_pars: fits any timing model parameter in the linear regime if not in ``tm_param_list`` or ``tm_param_dict``
     :param wideband_kwargs: extra kwargs for ``gp_signals.WidebandTimingModel``
+    :param timing_package: determines which timing package functionality is used ['tempo2','pint']
     """
     # If param in tm_param_dict not in tm_param_list, add it
     for key in tm_param_dict.keys():
@@ -255,38 +329,59 @@ def timing_block(
 
     physical_tm_priors = get_default_physical_tm_priors()
 
-    # Get values and errors as pulled by libstempo from par file.
-    ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
-    psr.tm_params_orig = OrderedDict(
-        zip(
-            psr.t2pulsar.pars(),
-            map(
-                list,
-                zip(
-                    np.longdouble(psr.t2pulsar.vals()),
-                    np.longdouble(psr.t2pulsar.errs()),
-                    ptypes,
+    if timing_package.lower() == 'pint':
+        #Psuedo code for now!
+        raise NotImplementedError
+
+        ptypes = ["normalized" for ii in range(len(psr.fitpars))]
+        psr.tm_params_orig = OrderedDict(
+            zip(
+                psr.fitpars,
+                map(
+                    list,
+                    zip(
+                        np.longdouble(psr.model.get_values()), #FAKE CALLS
+                        np.longdouble(psr.model.get_errs()), #FAKE CALLS
+                        ptypes,
+                    ),
                 ),
-            ),
+            )
         )
-    )
-    # Check to see if nan or inf in pulsar parameter errors.
-    # The refit will populate the incorrect errors, but sometimes
-    # changes the values by too much, which is why it is done in this order.
-    orig_vals = {p: v for p, v in zip(psr.t2pulsar.pars(), psr.t2pulsar.vals())}
-    orig_errs = {p: e for p, e in zip(psr.t2pulsar.pars(), psr.t2pulsar.errs())}
-    if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
-        [err == 0.0 for err in psr.t2pulsar.errs()]
-    ):
-        eidxs = np.where(
-            np.logical_or(np.isnan(psr.t2pulsar.errs()), psr.t2pulsar.errs() == 0.0)
-        )[0]
-        psr.t2pulsar.fit()
-        for idx in eidxs:
-            par = psr.t2pulsar.pars()[idx]
-            psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
-    psr.t2pulsar.vals(orig_vals)
-    psr.t2pulsar.errs(orig_errs)
+    elif timing_package.lower() == 'tempo2':
+        # Get values and errors as pulled by libstempo from par file.
+        ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
+        psr.tm_params_orig = OrderedDict(
+            zip(
+                psr.t2pulsar.pars(),
+                map(
+                    list,
+                    zip(
+                        np.longdouble(psr.t2pulsar.vals()),
+                        np.longdouble(psr.t2pulsar.errs()),
+                        ptypes,
+                    ),
+                ),
+            )
+        )
+        # Check to see if nan or inf in pulsar parameter errors.
+        # The refit will populate the incorrect errors, but sometimes
+        # changes the values by too much, which is why it is done in this order.
+        orig_vals = {p: v for p, v in zip(psr.t2pulsar.pars(), psr.t2pulsar.vals())}
+        orig_errs = {p: e for p, e in zip(psr.t2pulsar.pars(), psr.t2pulsar.errs())}
+        if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
+            [err == 0.0 for err in psr.t2pulsar.errs()]
+        ):
+            eidxs = np.where(
+                np.logical_or(np.isnan(psr.t2pulsar.errs()), psr.t2pulsar.errs() == 0.0)
+            )[0]
+            psr.t2pulsar.fit()
+            for idx in eidxs:
+                par = psr.t2pulsar.pars()[idx]
+                psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
+        psr.t2pulsar.vals(orig_vals)
+        psr.t2pulsar.errs(orig_errs)
+    else:
+        raise ValueError('timing_package must be either pint or tempo2')
 
     tm_delay_kwargs = {}
     default_prior_params = [
@@ -329,11 +424,11 @@ def timing_block(
             if "prior_lower_bound" in tm_param_dict[par].keys():
                 prior_lower_bound = tm_param_dict[par]["prior_lower_bound"]
             else:
-                prior_lower_bound = np.float(val + err * prior_lower_bound)
+                prior_lower_bound = float(val + err * prior_lower_bound)
             if "prior_upper_bound" in tm_param_dict[par].keys():
                 prior_upper_bound = tm_param_dict[par]["prior_upper_bound"]
             else:
-                prior_upper_bound = np.float(val + err * prior_upper_bound)
+                prior_upper_bound = float(val + err * prior_upper_bound)
 
             if "prior_type" in tm_param_dict[par].keys():
                 prior_type = tm_param_dict[par]["prior_type"]
@@ -382,11 +477,11 @@ def timing_block(
                         if psr.tm_params_orig[par][-1] != "physical":
                             psr.tm_params_orig[par][-1] = "physical"
                             # Need to change lower bound to a non-normed prior too
-                            prior_lower_bound = np.float(val + err * prior_lower_bound)
+                            prior_lower_bound = float(val + err * prior_lower_bound)
                         prior_upper_bound = physical_tm_priors[par]["pmax"]
                     else:
                         if psr.tm_params_orig[par][-1] == "physical":
-                            prior_upper_bound = np.float(val + err * prior_upper_bound)
+                            prior_upper_bound = float(val + err * prior_upper_bound)
                 elif (
                     "pmin" in physical_tm_priors[par].keys()
                     or "pmax" in physical_tm_priors[par].keys()
@@ -399,7 +494,7 @@ def timing_block(
                             psr.tm_params_orig[par][-1] = "physical"
                             prior_lower_bound = physical_tm_priors[par]["pmin"]
                             # Need to change lower bound to a non-normed prior too
-                            prior_upper_bound = np.float(val + err * prior_upper_bound)
+                            prior_upper_bound = float(val + err * prior_upper_bound)
                     elif "pmax" in physical_tm_priors[par].keys():
                         if (
                             val + err * prior_upper_bound
@@ -408,13 +503,18 @@ def timing_block(
                             psr.tm_params_orig[par][-1] = "physical"
                             prior_upper_bound = physical_tm_priors[par]["pmax"]
                             # Need to change lower bound to a non-normed prior too
-                            prior_lower_bound = np.float(val + err * prior_lower_bound)
+                            prior_lower_bound = float(val + err * prior_lower_bound)
 
         tm_delay_kwargs[par] = get_prior(
             prior_type, prior_sigma, prior_lower_bound, prior_upper_bound, mu=prior_mu,
         )
+
     # timing model
-    tm_func = tm_delay(**tm_delay_kwargs)
+    if timing_package.lower() == 'pint':
+        tm_func = tm_delay_pint(**tm_delay_kwargs)
+    elif timing_package.lower() == 'tempo2':
+        tm_func = tm_delay_t2(**tm_delay_kwargs)
+
     tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
 
     # filter design matrix of all but linear params
