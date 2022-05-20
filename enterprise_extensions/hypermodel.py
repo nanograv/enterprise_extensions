@@ -155,7 +155,8 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None, human=None):
+                      empirical_distr=None, groups=None, human=None,
+                      loglkwargs={}, logpkwargs={}):
         """
         Sets up an instance of PTMCMC sampler.
 
@@ -189,7 +190,9 @@ class HyperModel(object):
             groups = self.get_parameter_groups()
 
         sampler = ptmcmc(ndim, self.get_lnlikelihood, self.get_lnprior, cov,
-                         groups=groups, outDir=outdir, resume=resume)
+                         groups=groups, outDir=outdir, resume=resume,
+                         loglkwargs=loglkwargs, logpkwargs=logpkwargs)
+
         save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
@@ -233,6 +236,11 @@ class HyperModel(object):
         if 'dmx_signal' in jp.snames:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
+
+        # Chromatic GP noise prior draw
+        if 'chrom_gp' in self.snames:
+            print('Adding Chromatic GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
         if 'gp_sw' in jp.snames:

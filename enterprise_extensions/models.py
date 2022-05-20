@@ -29,7 +29,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           red_var=True, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
-                          is_wideband=False, use_dmdata=False,
+                          is_wideband=False, use_dmdata=False, tnequad=False,
                           dmjump_var=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
                           dm_nondiag_kernel='periodic', dmx_data=None,
@@ -57,6 +57,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           coefficients=False, extra_sigs=None,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
+                          fact_like_logmin=None, fact_like_logmax=None,
                           select='backend', tm_marg=False, dense_like=False):
     """
     Single pulsar noise model.
@@ -137,6 +138,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param gw_components: number of modes in Fourier domain for a common
            process in a factorized likelihood calculation.
     :param fact_like_gamma: fixed common process spectral index
+    :param fact_like_logmin: specify lower prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
+    :param fact_like_logmax: specify upper prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log10 amplitude
     :param Tspan: time baseline used to determine Fourier GP frequencies
     :param extra_sigs: Any additional `enterprise` signals to be added to the
         model.
@@ -174,7 +179,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                                    selections.by_frontend))
         else:
             if tm_marg:
-                s = gp_signals.MarginalizingTimingModel()
+                s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
             else:
                 s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
                                            coefficients=coefficients)
@@ -201,7 +206,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     gamma_val=fact_like_gamma, delta_val=None,
                                     orf=None, name='gw',
                                     coefficients=coefficients,
-                                    pshift=False, pseed=None)
+                                    pshift=False, pseed=None,
+                                    logmin=fact_like_logmin, logmax=fact_like_logmax)
 
     if red_var:
         s += red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -278,7 +284,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             for dd in range(1, num_dm_cusps+1):
                 s += chrom.dm_exponential_cusp(tmin=tmin[dd-1],
                                                tmax=tmax[dd-1],
-                                               idx=dm_cusp_idx,
+                                               idx=dm_cusp_idx[dd-1],
                                                sign=dm_cusp_sign[dd-1],
                                                symmetric=dm_cusp_sym,
                                                name=cusp_name_base+str(dd))
@@ -302,22 +308,23 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                             name=dual_cusp_name_base+str(dd))
         if dm_sw_deter:
             Tspan = psr.toas.max() - psr.toas.min()
-            s+=solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
-                                swgp_prior=swgp_prior, swgp_basis=swgp_basis,
-                                Tspan=Tspan)
+            s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
+                                  swgp_prior=swgp_prior, swgp_basis=swgp_basis,
+                                  Tspan=Tspan)
 
     if extra_sigs is not None:
         s += extra_sigs
+
     # adding white-noise, and acting on psr objects
-    if 'NANOGrav' in psr.flags['pta'] and not is_wideband:
+    if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
         s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                   select=select)
+                                   tnequad=tnequad, select=select)
         model = s2(psr)
         if psr_model:
             Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                   select=select)
+                                   tnequad=tnequad, select=select)
         model = s3(psr)
         if psr_model:
             Model = s3
@@ -343,9 +350,9 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-            components=30, upper_limit=False, bayesephem=False,
+            components=30, upper_limit=False, bayesephem=False, tnequad=False,
             be_type='orbel', is_wideband=False, use_dmdata=False,
-            select='backend', tm_marg=False, dense_like=False):
+            select='backend', tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with only white and red noise:
@@ -385,6 +392,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -411,9 +419,9 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(psd=psd, prior=amp_prior,
@@ -429,11 +437,11 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -456,10 +464,10 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs=None, n_gwbfreqs=None, gamma_common=None,
              delta_common=None, upper_limit=False, bayesephem=False,
-             be_type='orbel', white_vary=False, is_wideband=False,
-             use_dmdata=False, select='backend',
+             be_type='setIII', white_vary=False, is_wideband=False,
+             use_dmdata=False, select='backend', tnequad=False,
              pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -517,7 +525,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
-
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -550,9 +558,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
@@ -573,11 +581,11 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -608,8 +616,9 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
-                  common_psd='powerlaw', common_components=30,
+                  common_psd='powerlaw', common_components=30, tnequad=False,
                   log10_A_common=None, gamma_common=None,
+                  common_logmin=None, common_logmax=None,
                   orf='crn', orf_names=None, orf_ifreq=0, leg_lmax=5,
                   upper_limit_common=None, upper_limit=False,
                   red_var=True, red_psd='powerlaw', red_components=30, upper_limit_red=None,
@@ -618,7 +627,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   dm_var=False, dm_type='gp', dm_psd='powerlaw', dm_components=30,
                   upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
                   dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
-                  select='backend', tm_marg=False, dense_like=False):
+                  select='backend', tm_marg=False, dense_like=False,
+                  delta_common=None):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -661,6 +671,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param gamma_common: fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
         [default = None]
+    :param common_logmin: specify lower prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log amplitude
+    :param common_logmax: specify upper prior for common psd. This is a prior on log10_rho
+        if common_psd is 'spectrum', else it is a prior on log amplitude
     :param orf: comma de-limited string of multiple common processes with different orfs.
         [default = crn]
     :param orf_names: comma de-limited string of process names for different orfs. Manual
@@ -685,7 +699,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param red_var: boolean to switch on/off intrinsic red noise.
         [default = True]
     :param red_psd: psd of intrinsic red process.
-        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt', 'infinitepower']
+        ['powerlaw', 'spectrum', 'turnover', 'tprocess', 'tprocess_adapt']
         [default = 'powerlaw']
     :param red_components: number of frequencies starting at 1/T for intrinsic red process.
         [default = 30]
@@ -770,7 +784,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     # timing model
     if not tm_var and not use_dmdata:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
             s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm,
                                        coefficients=coefficients)
@@ -837,7 +851,8 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                                           log10_A_val=log10_A_val, gamma_val=gamma_common,
                                           delta_val=None, orf=elem, name='gw_{}'.format(elem_name),
                                           orf_ifreq=orf_ifreq, leg_lmax=leg_lmax,
-                                          coefficients=coefficients, pshift=pshift, pseed=None))
+                                          coefficients=coefficients, pshift=pshift, pseed=None,
+                                          logmin=common_logmin, logmax=common_logmax))
         # orf_ifreq only affects freq_hd model.
         # leg_lmax only affects (zero_diag_)legendre_orf model.
     crn = functools.reduce((lambda x, y: x+y), crn)
@@ -865,10 +880,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
     # adding white-noise, and acting on psr objects
     models = []
+
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             if gequad:
                 s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
                                                selection=selections.Selection(selections.no_selection),
@@ -883,11 +899,11 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                 models.append(s2(p))
         else:
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             if gequad:
-                s4 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
-                                               selection=selections.Selection(selections.no_selection),
-                                               name='gequad')
+                s4 += white_signals.TNEquadNoise(log10_tnequad=parameter.Uniform(-8.5, -5),
+                                                 selection=selections.Selection(selections.no_selection),
+                                                 name='gequad')
             if '1713' in p.name and dm_var:
                 tmin = p.toas.min() / const.day
                 tmax = p.toas.max() / const.day
@@ -915,10 +931,10 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
 
 
 def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
-             bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', pshift=False,
-             tm_marg=False, dense_like=False):
+             bayesephem=False, be_type='orbel', is_wideband=False, components=30,
+             use_dmdata=False, select='backend', pshift=False, tnequad=False,
+             tm_marg=False, dense_like=False, tm_svd=False, upper_limit=False,
+             gamma_common=None):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2B from the analysis paper:
@@ -965,6 +981,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -991,9 +1008,9 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1013,11 +1030,11 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1038,10 +1055,10 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
+             components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2C from the analysis paper:
@@ -1093,6 +1110,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1119,9 +1137,9 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1146,11 +1164,11 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1171,10 +1189,10 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
+             components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', pshift=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2D from the analysis paper:
@@ -1221,6 +1239,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1247,9 +1266,9 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1269,11 +1288,11 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1296,11 +1315,11 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, n_rnfreqs=None, n_gwbfreqs=None,
              gamma_common=None, delta_common=None, upper_limit=False,
-             bayesephem=False, be_type='orbel', is_wideband=False,
+             bayesephem=False, be_type='setIII', is_wideband=False,
              use_dmdata=False, select='backend',
-             correlationsonly=False,
+             tnequad=False,
              pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False):
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
@@ -1348,9 +1367,6 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
-    :param correlationsonly:
-        Give infinite power (well, 1e40) to pulsar red noise, effectively
-        canceling out also GW diagonal terms
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
         null hypothesis.
@@ -1361,6 +1377,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1393,14 +1410,12 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(psd='infinitepower' if correlationsonly else 'powerlaw',
-                         prior=amp_prior,
-                         Tspan=Tspan, components=n_rnfreqs)
+    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1418,11 +1433,11 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     if psr_models:
@@ -1446,10 +1461,10 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
-             bayesephem=False, be_type='orbel', is_wideband=False,
+             components=30, gamma_common=None, upper_limit=False, tnequad=False,
+             bayesephem=False, be_type='setIII', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3B from the analysis paper:
@@ -1499,6 +1514,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1525,9 +1541,9 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1552,11 +1568,11 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1577,10 +1593,10 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
+             components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3C from the analysis paper:
@@ -1633,6 +1649,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1659,9 +1676,9 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1691,11 +1708,11 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1716,10 +1733,10 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False,
+             components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
              use_dmdata=False, select='backend', tm_marg=False,
-             dense_like=False):
+             dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3D from the analysis paper:
@@ -1769,6 +1786,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1795,9 +1813,9 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1822,11 +1840,11 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
             s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
             s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                       select=select)
+                                       tnequad=tnequad, select=select)
             models.append(s3(p))
 
     # set up PTA
@@ -1849,7 +1867,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                      components=30, gamma_common=None, upper_limit=False,
                      is_wideband=False, use_dmdata=False, k_threshold=0.5,
-                     pshift=False, tm_marg=False, dense_like=False):
+                     pshift=False, tm_marg=False, dense_like=False, tm_svd=False,
+                     tnequad=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1894,6 +1913,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -1920,9 +1940,9 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -1940,10 +1960,10 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, tnequad=tnequad)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, tnequad=tnequad)
             models.append(s3(p))
 
     # set up PTA
@@ -1967,7 +1987,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                       components=30, gamma_common=None, upper_limit=False,
                       bayesephem=False, is_wideband=False, use_dmdata=False,
                       k_threshold=0.5, pshift=False, tm_marg=False,
-                      dense_like=False):
+                      dense_like=False, tm_svd=False, tnequad=False,):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -2012,6 +2032,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2038,9 +2059,9 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -2078,10 +2099,10 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, tnequad=tnequad)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, tnequad=tnequad)
             models.append(s3(p))
 
     # set up PTA
@@ -2106,7 +2127,8 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                     components=30, gamma_common=None, upper_limit=False,
                     bayesephem=False, is_wideband=False, use_dmdata=False,
                     pshift=False, idx=4, chromatic_psd='powerlaw',
-                    c_psrs=['J1713+0747'], tm_marg=False, dense_like=False):
+                    c_psrs=['J1713+0747'], tm_marg=False, dense_like=False,
+                    tm_svd=False, tnequad=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper + additional
@@ -2162,6 +2184,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2188,12 +2211,13 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # white noise
-    s += white_noise_block(vary=white_vary, inc_ecorr=not is_wideband)
+    s += white_noise_block(vary=white_vary, inc_ecorr=not is_wideband,
+                           tnequad=tnequad)
 
     # red noise
     s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
@@ -2242,7 +2266,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm_svd=False,
               Tmin_bwm=None, Tmax_bwm=None, skyloc=None, logmin=None, logmax=None,
               burst_logmin=-17, burst_logmax=-12, red_psd='powerlaw', components=30,
-              dm_var=False, dm_psd='powerlaw', dm_annual=False,
+              dm_var=False, dm_psd='powerlaw', dm_annual=False, tnequad=False,
               upper_limit=False, bayesephem=False, wideband=False, tm_marg=False, dense_like=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -2318,7 +2342,7 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
         Tmax_bwm = tmax/const.day
 
     if tm_marg:
-        s = gp_signals.MarginalizingTimingModel()
+        s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
     else:
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
@@ -2348,12 +2372,12 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True, tnequad=tnequad)
             if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False, tnequad=tnequad)
             if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
@@ -2375,7 +2399,7 @@ def model_bwm(psrs, likelihood=LogLikelihood, lookupdir=None, noisedict=None, tm
 
 
 def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
-                     noisedict=None, tm_svd=False,
+                     noisedict=None, tm_svd=False, tnequad=False,
                      Tmin_bwm=None, Tmax_bwm=None,
                      burst_logmin=-17, burst_logmax=-12, fixed_sign=None,
                      red_psd='powerlaw', logmin=None,
@@ -2480,12 +2504,12 @@ def model_bwm_sglpsr(psr, likelihood=LogLikelihood, lookupdir=None,
     models = []
 
     if 'NANOGrav' in psr.flags['pta'] and not wideband:
-        s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+        s2 = s + white_noise_block(vary=False, inc_ecorr=True, tnequad=tnequad)
         if dm_var and 'J1713+0747' == psr.name:
             s2 += dmexp
         models.append(s2(psr))
     else:
-        s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+        s3 = s + white_noise_block(vary=False, inc_ecorr=False, tnequad=tnequad)
         if dm_var and 'J1713+0747' == psr.name:
             s3 += dmexp
         models.append(s3(psr))
@@ -2514,7 +2538,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
               dm_var=False, dm_psd='powerlaw', dm_annual=False,
               upper_limit=False, bayesephem=False, wideband=False,
               pshift=False, pseed=None, model_CRN=False,
-              amp_upper=-11, amp_lower=-18,
+              amp_upper=-11, amp_lower=-18, tnequad=False,
               freq_upper=-7, freq_lower=-9,
               use_fixed_freq=False, fixed_freq=-8, tm_marg=False,
               dense_like=False):
@@ -2617,7 +2641,7 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 
     # timing model
     if tm_marg:
-        s = gp_signals.MarginalizingTimingModel()
+        s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
     else:
         s = gp_signals.TimingModel(use_svd=tm_svd)
 
@@ -2656,12 +2680,12 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not wideband:
-            s2 = s + white_noise_block(vary=False, inc_ecorr=True)
+            s2 = s + white_noise_block(vary=False, inc_ecorr=True, tnequad=tnequad)
             if dm_var and 'J1713+0747' == p.name:
                 s2 += dmexp
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=False, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=False, inc_ecorr=False, tnequad=tnequad)
             if dm_var and 'J1713+0747' == p.name:
                 s3 += dmexp
             models.append(s3(p))
@@ -2685,7 +2709,8 @@ def model_fdm(psrs, noisedict=None, white_vary=False, tm_svd=False,
 def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
              white_vary=False, components=30, bayesephem=False, skyloc=None,
              log10_F=None, ecc=False, psrTerm=False, is_wideband=False,
-             use_dmdata=False, tm_marg=False, dense_like=False):
+             use_dmdata=False, gp_ecorr='basis_ecorr', tnequad=False,
+             tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with CW model:
@@ -2734,7 +2759,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
-
+    :param tm_svd: boolean for svd-stabilised timing model design matrix
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -2763,9 +2788,9 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
-            s = gp_signals.MarginalizingTimingModel()
+            s = gp_signals.MarginalizingTimingModel(use_svd=tm_svd)
         else:
-            s = gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
     s += red_noise_block(prior=amp_prior,
@@ -2794,11 +2819,15 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       gp_ecorr=True)
+            if gp_ecorr:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                           gp_ecorr=True, name=gp_ecorr,
+                                           tnequad=tnequad)
+            else:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, tnequad=tnequad)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False)
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, tnequad=tnequad)
             models.append(s3(p))
 
     # set up PTA

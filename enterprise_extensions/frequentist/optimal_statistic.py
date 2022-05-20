@@ -49,14 +49,18 @@ class OptimalStatistic(object):
                                        is_wideband=wideband,
                                        select='backend', noisedict=noisedict)
         else:
+            if np.any(['marginalizing_linear_timing' in sig for sig in pta.signals]):
+                msg = "Can't run optimal statistic with `enterprise.gp_signals.MarginalizingTimingModel`."
+                msg += " Try creating PTA with `enterprise.gp_signals.TimingModel`, or if using `enterprise_extensions`"
+                msg += " set `tm_marg=False`."
+                raise ValueError(msg)
             self.pta = pta
 
         self.gamma_common = gamma_common
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
-        # get F-matrices and set up cache
-        self.Fmats = self.get_Fmats()
+        # set up cache
         self._set_cache_parameters()
 
         # pulsar locations
@@ -364,13 +368,14 @@ class OptimalStatistic(object):
 
         return np.array(xi), np.array(rho), np.array(sig), np.array(A), np.array(A_err)
 
+    @signal_base.cache_call(['basis_params'])
     def get_Fmats(self, params={}):
         """Kind of a hack to get F-matrices"""
         Fmats = []
         for sc in self.pta._signalcollections:
             ind = []
             for signal, idx in sc._idx.items():
-                if signal.signal_name == 'red noise' and signal.signal_id in ['gw', 'gw_crn']:
+                if 'red noise' in signal.signal_name and signal.signal_id in ['gw', 'gw_crn']:
                     ind.append(idx)
             ix = np.unique(np.concatenate(ind))
             Fmats.append(sc.get_basis(params=params)[:, ix])
@@ -378,44 +383,49 @@ class OptimalStatistic(object):
         return Fmats
 
     def _get_freqs(self, psrs):
-        """ Hackish way to get frequency vector."""
+        """Hackish way to get frequency vector."""
+
         for sig in self.pta._signalcollections[0]._signals:
-            if sig.signal_name == 'red noise' and sig.signal_id in ['gw', 'gw_crn']:
-                sig._construct_basis()
-                freqs = np.array(sig._labels[''])
-                break
-        return freqs
+            if 'red noise' in sig.signal_name and sig.signal_id in ['gw', 'gw_crn']:
+                # make sure the basis is created
+                _ = sig.get_basis()
+
+                if isinstance(sig._labels, np.ndarray):
+                    return sig._labels
+                else:
+                    return sig._labels['']
+
+        raise ValueError("No frequency basis in pulsar models")
 
     def _set_cache_parameters(self):
         """ Set cache parameters for efficiency. """
-        self.white_params = []
-        self.basis_params = []
-        self.delay_params = []
 
-        for sc in self.pta._signalcollections:
-            self.white_params.extend(sc.white_params)
-            self.basis_params.extend(sc.basis_params)
-            self.delay_params.extend(sc.delay_params)
+        self.white_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.white_params))
+        self.basis_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.basis_params))
+        self.delay_params = list(set(par for sc in self.pta._signalcollections
+                                 for par in sc.delay_params))
 
     def get_TNr(self, params={}):
         return self.pta.get_TNr(params=params)
 
-    @signal_base.cache_call(['white_params', 'delay_params'])
+    @signal_base.cache_call(['white_params', 'delay_params', 'basis_params'])
     def get_FNr(self, params={}):
         FNrs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             res = sc.get_detres(params=params)
             FNrs.append(N.solve(res, left_array=F))
         return FNrs
 
-    @signal_base.cache_call(['white_params'])
+    @signal_base.cache_call(['white_params', 'basis_params'])
     def get_FNF(self, params={}):
         FNFs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             FNFs.append(N.solve(F, left_array=F))
         return FNFs
 
@@ -427,7 +437,7 @@ class OptimalStatistic(object):
         FNTs = []
         for ct, sc in enumerate(self.pta._signalcollections):
             N = sc.get_ndiag(params=params)
-            F = self.Fmats[ct]
+            F = self.get_Fmats(params)[ct]
             T = sc.get_basis(params=params)
             FNTs.append(N.solve(T, left_array=F))
         return FNTs
