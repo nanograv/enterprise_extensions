@@ -193,7 +193,6 @@ def chromatic_quad_basis(toas, freqs, idx=4):
     return ret / norm, np.ones(3)
 
 
-
 @signal_base.function
 def chromatic_quad_prior(toas):
     """

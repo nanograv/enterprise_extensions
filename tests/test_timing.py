@@ -2,16 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """Tests for `enterprise_extensions` package."""
-#TODO: Add PINT timing_block test
-#TODO: Add Wideband tests
+# TODO: Add PINT timing_block test
+# TODO: Add Wideband tests
 
-import json
 import logging
 import os
-import pickle
-
 import pytest
-
 import numpy as np
 
 from enterprise.pulsar import Pulsar
@@ -25,24 +21,26 @@ testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, "data")
 
 psr_names = ['J1640+2224']
+
+
 @pytest.fixture
 def t2_psr(caplog):
     caplog.set_level(logging.CRITICAL)
     psr = Pulsar(datadir+f'/{psr_names[0]}_ng9yr_dmx_DE421.par',
-        datadir+f'/{psr_names[0]}_ng9yr_dmx_DE421.tim',
-        ephem='DE421', clk=None, drop_t2pulsar=False)
+                 datadir+f'/{psr_names[0]}_ng9yr_dmx_DE421.tim',
+                 ephem='DE421', clk=None, drop_t2pulsar=False)
 
     return psr
 
 
-def test_timing_block(t2_psr,caplog):
+def test_timing_block(t2_psr, caplog):
     nltm_params = []
     ltm_params = []
     tm_param_dict = {}
     for par in t2_psr.fitpars:
         if par == "Offset":
             ltm_params.append(par)
-        elif par in ['XDOT','PBDOT']:
+        elif par in ['XDOT', 'PBDOT']:
             par_val = np.double(t2_psr.t2pulsar.vals()[t2_psr.t2pulsar.pars().index(par)])
             par_sigma = np.double(t2_psr.t2pulsar.errs()[t2_psr.t2pulsar.pars().index(par)])
             if np.log10(par_sigma) > -10.0:
@@ -59,27 +57,26 @@ def test_timing_block(t2_psr,caplog):
         else:
             nltm_params.append(par)
 
-    s = tm.timing_block(
-        t2_psr,
-        tm_param_list=nltm_params,
-        ltm_list=ltm_params,
-        prior_type="uniform",
-        prior_sigma=2.0,
-        prior_lower_bound=-5.0,
-        prior_upper_bound=5.0,
-        tm_param_dict=tm_param_dict,
-        fit_remaining_pars=True,
-        wideband_kwargs={},
-    )
+    tm.timing_block(t2_psr,
+                    tm_param_list=nltm_params,
+                    ltm_list=ltm_params,
+                    prior_type="uniform",
+                    prior_sigma=2.0,
+                    prior_lower_bound=-5.0,
+                    prior_upper_bound=5.0,
+                    tm_param_dict=tm_param_dict,
+                    fit_remaining_pars=True,
+                    wideband_kwargs={},)
 
-def test_tm_delay(t2_psr,caplog):
+
+def test_tm_delay(t2_psr, caplog):
     nltm_params = []
     ltm_params = []
     tm_param_dict = {}
     for par in t2_psr.fitpars:
         if par == "Offset":
             ltm_params.append(par)
-        elif par in ['XDOT','PBDOT']:
+        elif par in ['XDOT', 'PBDOT']:
             par_val = np.double(t2_psr.t2pulsar.vals()[t2_psr.t2pulsar.pars().index(par)])
             par_sigma = np.double(t2_psr.t2pulsar.errs()[t2_psr.t2pulsar.pars().index(par)])
             if np.log10(par_sigma) > -10.0:
@@ -156,10 +153,3 @@ def test_tm_delay(t2_psr,caplog):
             os.remove('./outdir_tests/'+file)
 
         os.removedirs('./outdir_tests')
-
-
-
-
-
-
-

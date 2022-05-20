@@ -6,7 +6,6 @@ from enterprise.signals import (gp_signals, parameter, signal_base, utils,
                                 white_signals)
 
 
-
 class FeStat(object):
     """
     Class for the Fe-statistic.

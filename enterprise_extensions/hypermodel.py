@@ -11,7 +11,6 @@ from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
 
 
-
 class HyperModel(object):
     """
     Class to define hyper-model that is the concatenation of all models.

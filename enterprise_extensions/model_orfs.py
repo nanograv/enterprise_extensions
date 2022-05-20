@@ -258,7 +258,6 @@ def anis_orf(pos1, pos2, params, **kwargs):
     )
 
 
-
 @signal_base.function
 def gw_monopole_orf(pos1, pos2):
     """
@@ -272,7 +271,6 @@ def gw_monopole_orf(pos1, pos2):
         return 1 / 2
 
 
-
 @signal_base.function
 def gw_dipole_orf(pos1, pos2):
     """
@@ -283,7 +281,6 @@ def gw_dipole_orf(pos1, pos2):
         return 1
     else:
         return 1 / 2 * np.dot(pos1, pos2)
-
 
 
 @signal_base.function

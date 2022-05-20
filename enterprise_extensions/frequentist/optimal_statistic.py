@@ -14,7 +14,6 @@ def warning_on_one_line(message, category, filename, lineno, file=None, line=Non
     return "%s:%s: %s: %s\n" % (filename, lineno, category.__name__, message)
 
 
-
 # Override default format.
 warnings.formatwarning = warning_on_one_line
 

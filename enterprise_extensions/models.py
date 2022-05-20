@@ -23,6 +23,7 @@ from enterprise_extensions.timing import timing_block
 
 # from enterprise.signals.signal_base import LookupLikelihood
 
+
 def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           tm_param_list=[],
                           ltm_list=[],
@@ -222,9 +223,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             psr.tm_params_orig = OrderedDict.fromkeys(psr.t2pulsar.pars())
             for key in psr.tm_params_orig:
                 psr.tm_params_orig[key] = (psr.t2pulsar[key].val, psr.t2pulsar[key].err)
-            s = gp_signals.TimingModel(
-                use_svd=tm_svd, normed=tm_norm, coefficients=coefficients
-            )
+            s = gp_signals.TimingModel(use_svd=tm_svd, normed=tm_norm, coefficients=coefficients)
         else:
             s = timing_block(
                 psr,
@@ -678,7 +677,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         return pta
 
 
-def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
+def model_general(psrs, tm_var=False, tm_linear=False, tm_param_list=[], ltm_list=[],
+                  tm_param_dict={}, tm_prior="uniform", normalize_prior_bound=5.0, fit_remaining_pars=True,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, tnequad=False,

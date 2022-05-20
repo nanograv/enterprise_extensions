@@ -83,7 +83,6 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
     return sigma ** 2 * np.exp(-(tm ** 2) / 2 / lam) + d
 
 
-
 @signal_base.function
 def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     """Squared-exponential kernel for DM"""
@@ -144,7 +143,6 @@ def get_tf_quantization_matrix(toas, freqs, dt=30*86400, df=None, dm=False, dm_i
         U[:, idx] * weights[:, None],
         {"avetoas": avetoas[idx], "avefreqs": avefreqs[idx]},
     )
-
 
 
 @signal_base.function

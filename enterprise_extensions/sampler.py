@@ -980,7 +980,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        signal_name = "timing_model"
+        # signal_name = "timing_model"
 
         # draw parameter from signal model
         idxs = np.random.choice(self.tm_groups)
@@ -1267,7 +1267,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if timing:
         groups.extend(get_timing_groups(pta))
         groups.append(group_from_params(pta,
-                [x for x in pta.param_names if any(y in x for y in ["timing_model", "ecorr"])]))
+                      [x for x in pta.param_names if any(y in x for y in ["timing_model", "ecorr"])]))
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume, loglkwargs=loglkwargs,
@@ -1276,7 +1276,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir,timing=timing)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir, timing=timing)
     sampler.jp = jp
 
     # always add draw from prior

@@ -2,6 +2,7 @@
 
 import os
 import json
+import copy
 import numpy as np
 
 from collections import OrderedDict
@@ -14,6 +15,8 @@ from enterprise.signals import deterministic_signals
 from enterprise.signals import gp_signals
 
 from pint import fitter
+from pint.residuals import Residuals
+
 
 def BoundNormPrior(value, mu=0, sigma=1, pmin=-1, pmax=1):
     """Prior function for InvGamma parameters."""
@@ -124,8 +127,8 @@ def get_prior(
     """
     if prior_type == "bounded-normal":
         if mu < prior_lower_bound:
-            mu = np.mean([prior_lower_bound,prior_upper_bound])
-            prior_sigma = np.std([prior_lower_bound,prior_upper_bound])
+            mu = np.mean([prior_lower_bound, prior_upper_bound])
+            prior_sigma = np.std([prior_lower_bound, prior_upper_bound])
         return BoundedNormal(
             mu=mu,
             sigma=prior_sigma,
@@ -216,16 +219,17 @@ def tm_delay_pint(pintpulsar, tm_params_orig, **kwargs):
     # Sort residuals by toa to match with get_detres() call
     isort = np.argsort(pintpulsar.toas, kind="mergesort")
 
-    #FAKE FUNCTIONS
-    #New model?
-    pint_ftr = fitter(pintpulsar.toas,pintpulsar.model)
+    # FAKE FUNCTIONS
+    # New model?
+    pint_ftr = fitter(pintpulsar.toas, pintpulsar.model)
     pint_ftr.set_parameters(tm_params_rescaled)
-    new_res = np.longdouble(copy.copy(Residuals(pintpulsar.toas,pintpulsar.model).get_resids()))
+    new_res = np.longdouble(copy.copy(Residuals(pintpulsar.toas, pintpulsar.model).get_resids()))
 
     # Do we need to set parameters back with pint
 
     # Return the time-series for the pulsar
     return residuals[isort]-new_res[isort]
+
 
 @signal_base.function
 def tm_delay_t2(t2pulsar, tm_params_orig, **kwargs):
@@ -330,7 +334,7 @@ def timing_block(
     physical_tm_priors = get_default_physical_tm_priors()
 
     if timing_package.lower() == 'pint':
-        #Psuedo code for now!
+        # Psuedo code for now!
         raise NotImplementedError
 
         ptypes = ["normalized" for ii in range(len(psr.fitpars))]
@@ -340,8 +344,8 @@ def timing_block(
                 map(
                     list,
                     zip(
-                        np.longdouble(psr.model.get_values()), #FAKE CALLS
-                        np.longdouble(psr.model.get_errs()), #FAKE CALLS
+                        np.longdouble(psr.model.get_values()),  # FAKE CALLS
+                        np.longdouble(psr.model.get_errs()),  # FAKE CALLS
                         ptypes,
                     ),
                 ),
