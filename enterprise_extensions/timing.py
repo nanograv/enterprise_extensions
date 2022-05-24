@@ -14,7 +14,6 @@ from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
 from enterprise.signals import gp_signals
 
-from pint import fitter
 from pint.residuals import Residuals
 
 
@@ -161,20 +160,22 @@ def filter_Mmat(psr, ltm_list=[]):
 
 # timing model delay
 
+
 @signal_base.function
-def tm_delay_pint(pintpulsar, tm_params_orig, **kwargs):
+def tm_delay(psr,**kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
 
-    :param pintpulsar: pint pulsar object
-    :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
+    :param psr: enterprise pulsar object
 
     :return: difference between new and old residuals in seconds
     """
-
-    raise NotImplementedError
-
-    residuals = np.longdouble(pintpulsar.residuals().copy())
+    if hasattr(psr,'t2pulsar'):
+        # Sort residuals by toa to match with get_detres() call
+        residuals = np.longdouble(psr.t2pulsar.residuals())
+    else:
+        if not hasattr(psr,'model'):
+            raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
@@ -186,11 +187,11 @@ def tm_delay_pint(pintpulsar, tm_params_orig, **kwargs):
             tm_param = tm_scaled_key.split("_")[-1]
 
         if tm_param == "COSI":
-            orig_params["SINI"] = np.longdouble(tm_params_orig["SINI"][0])
+            orig_params["SINI"] = np.longdouble(psr.tm_params_orig["SINI"][0])
         else:
-            orig_params[tm_param] = np.longdouble(tm_params_orig[tm_param][0])
+            orig_params[tm_param] = np.longdouble(psr.tm_params_orig[tm_param][0])
 
-        if "physical" in tm_params_orig[tm_param]:
+        if "physical" in psr.tm_params_orig[tm_param]:
             # User defined priors are assumed to not be scaled
             if tm_param == "COSI":
                 # Switch for sampling in COSI, but using SINI in libstempo
@@ -203,96 +204,39 @@ def tm_delay_pint(pintpulsar, tm_params_orig, **kwargs):
             if tm_param == "COSI":
                 # Switch for sampling in COSI, but using SINI in libstempo
                 rescaled_COSI = np.longdouble(
-                    tm_scaled_val * tm_params_orig[tm_param][1]
-                    + tm_params_orig[tm_param][0]
+                    tm_scaled_val * psr.tm_params_orig[tm_param][1]
+                    + psr.tm_params_orig[tm_param][0]
                 )
                 tm_params_rescaled["SINI"] = np.longdouble(
                     np.sqrt(1 - rescaled_COSI ** 2)
                 )
             else:
                 tm_params_rescaled[tm_param] = np.longdouble(
-                    tm_scaled_val * tm_params_orig[tm_param][1]
-                    + tm_params_orig[tm_param][0]
+                    tm_scaled_val * psr.tm_params_orig[tm_param][1]
+                    + psr.tm_params_orig[tm_param][0]
                 )
 
-    # TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
-    # Sort residuals by toa to match with get_detres() call
-    isort = np.argsort(pintpulsar.toas, kind="mergesort")
-
-    # FAKE FUNCTIONS
-    # New model?
-    pint_ftr = fitter(pintpulsar.toas, pintpulsar.model)
-    pint_ftr.set_parameters(tm_params_rescaled)
-    new_res = np.longdouble(copy.copy(Residuals(pintpulsar.toas, pintpulsar.model).get_resids()))
-
-    # Do we need to set parameters back with pint
+    if hasattr(psr,'model'):
+        new_model = copy.deepcopy(psr.model)
+        # Set values to new sampled values
+        new_model.set_param_values(tm_params_rescaled)
+        # Get new residuals
+        new_res = np.longdouble(Residuals(psr.pint_toas, new_model).resids_value)
+        print(new_res)
+    elif hasattr(psr,'t2pulsar'):
+        # Set values to new sampled values
+        psr.t2pulsar.vals(tm_params_rescaled)
+        # Get new residuals
+        new_res = np.longdouble(psr.t2pulsar.residuals())
+        # Set values back to originals
+        psr.t2pulsar.vals(orig_params)
+        print(new_res)
+    else:
+        raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 
     # Return the time-series for the pulsar
-    return residuals[isort]-new_res[isort]
-
-
-@signal_base.function
-def tm_delay_t2(t2pulsar, tm_params_orig, **kwargs):
-    """
-    Compute difference in residuals due to perturbed timing model.
-
-    :param t2pulsar: libstempo pulsar object
-    :param tm_params_orig: dictionary of TM parameter tuples, (val, err)
-
-    :return: difference between new and old residuals in seconds
-    """
-    residuals = np.longdouble(t2pulsar.residuals().copy())
-
-    # grab original timing model parameters and errors in dictionary
-    orig_params = {}
-    tm_params_rescaled = {}
-    for tm_scaled_key, tm_scaled_val in kwargs.items():
-        if "DMX" in tm_scaled_key:
-            tm_param = "_".join(tm_scaled_key.split("_")[-2:])
-        else:
-            tm_param = tm_scaled_key.split("_")[-1]
-
-        if tm_param == "COSI":
-            orig_params["SINI"] = np.longdouble(tm_params_orig["SINI"][0])
-        else:
-            orig_params[tm_param] = np.longdouble(tm_params_orig[tm_param][0])
-
-        if "physical" in tm_params_orig[tm_param]:
-            # User defined priors are assumed to not be scaled
-            if tm_param == "COSI":
-                # Switch for sampling in COSI, but using SINI in libstempo
-                tm_params_rescaled["SINI"] = np.longdouble(
-                    np.sqrt(1 - tm_scaled_val ** 2)
-                )
-            else:
-                tm_params_rescaled[tm_param] = np.longdouble(tm_scaled_val)
-        else:
-            if tm_param == "COSI":
-                # Switch for sampling in COSI, but using SINI in libstempo
-                rescaled_COSI = np.longdouble(
-                    tm_scaled_val * tm_params_orig[tm_param][1]
-                    + tm_params_orig[tm_param][0]
-                )
-                tm_params_rescaled["SINI"] = np.longdouble(
-                    np.sqrt(1 - rescaled_COSI ** 2)
-                )
-            else:
-                tm_params_rescaled[tm_param] = np.longdouble(
-                    tm_scaled_val * tm_params_orig[tm_param][1]
-                    + tm_params_orig[tm_param][0]
-                )
-
-    # TODO: Find a way to not do this every likelihood call bc it doesn't change and it is in enterprise.psr._isort
     # Sort residuals by toa to match with get_detres() call
-    isort = np.argsort(t2pulsar.toas(), kind="mergesort")
-    t2pulsar.vals(tm_params_rescaled)
-    new_res = np.longdouble(t2pulsar.residuals().copy())
-
-    # remeber to set values back to originals
-    t2pulsar.vals(orig_params)
-
-    # Return the time-series for the pulsar
-    return residuals[isort]-new_res[isort]
+    return psr.residuals - new_res[psr.isort]
 
 # Model component building blocks #
 
@@ -309,7 +253,6 @@ def timing_block(
     tm_param_dict={},
     fit_remaining_pars=True,
     wideband_kwargs={},
-    timing_package='tempo2'
 ):
     """
     Returns the timing model block of the model
@@ -317,14 +260,13 @@ def timing_block(
     :param tm_param_list: a list of parameters to vary nonlinearly in the model
     :param ltm_list: a list of parameters to vary linearly in the model
     :param prior_type: the function used for the priors ['uniform','bounded-normal']
-    :param prior_mu: the mean/central vlaue for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_mu: the mean/central value for the prior if ``prior_type`` is 'bounded-normal'
     :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
     :param prior_lower_bound: the lower bound for the prior
     :param prior_upper_bound: the upper bound for the prior
     :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
     :param fit_remaining_pars: fits any timing model parameter in the linear regime if not in ``tm_param_list`` or ``tm_param_dict``
     :param wideband_kwargs: extra kwargs for ``gp_signals.WidebandTimingModel``
-    :param timing_package: determines which timing package functionality is used ['tempo2','pint']
     """
     # If param in tm_param_dict not in tm_param_list, add it
     for key in tm_param_dict.keys():
@@ -333,25 +275,15 @@ def timing_block(
 
     physical_tm_priors = get_default_physical_tm_priors()
 
-    if timing_package.lower() == 'pint':
-        # Psuedo code for now!
-        raise NotImplementedError
-
-        ptypes = ["normalized" for ii in range(len(psr.fitpars))]
-        psr.tm_params_orig = OrderedDict(
-            zip(
-                psr.fitpars,
-                map(
-                    list,
-                    zip(
-                        np.longdouble(psr.model.get_values()),  # FAKE CALLS
-                        np.longdouble(psr.model.get_errs()),  # FAKE CALLS
-                        ptypes,
-                    ),
-                ),
-            )
-        )
-    elif timing_package.lower() == 'tempo2':
+    if hasattr(psr,'model'):
+        # Get values and errors as initialized by pint.
+        psr.tm_params_orig = OrderedDict()
+        for par in psr.fitpars:
+            if hasattr(psr.model,par):
+                psr.tm_params_orig[par]=[getattr(psr.model,par).value,
+                                         getattr(psr.model,par).uncertainty_value,
+                                         "normalized"]
+    elif hasattr(psr,'t2pulsar'):
         # Get values and errors as pulled by libstempo from par file.
         ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
         psr.tm_params_orig = OrderedDict(
@@ -385,7 +317,7 @@ def timing_block(
         psr.t2pulsar.vals(orig_vals)
         psr.t2pulsar.errs(orig_errs)
     else:
-        raise ValueError('timing_package must be either pint or tempo2')
+        raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 
     tm_delay_kwargs = {}
     default_prior_params = [
@@ -514,10 +446,7 @@ def timing_block(
         )
 
     # timing model
-    if timing_package.lower() == 'pint':
-        tm_func = tm_delay_pint(**tm_delay_kwargs)
-    elif timing_package.lower() == 'tempo2':
-        tm_func = tm_delay_t2(**tm_delay_kwargs)
+    tm_func = tm_delay(**tm_delay_kwargs)
 
     tm = deterministic_signals.Deterministic(tm_func, name="timing_model")
 
