@@ -32,6 +32,7 @@ def t2_psr(caplog):
 
     return psr
 
+
 @pytest.fixture
 def pint_psr(caplog):
     caplog.set_level(logging.CRITICAL)

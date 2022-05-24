@@ -162,7 +162,7 @@ def filter_Mmat(psr, ltm_list=[]):
 
 
 @signal_base.function
-def tm_delay(psr,**kwargs):
+def tm_delay(psr, **kwargs):
     """
     Compute difference in residuals due to perturbed timing model.
 
@@ -170,12 +170,6 @@ def tm_delay(psr,**kwargs):
 
     :return: difference between new and old residuals in seconds
     """
-    if hasattr(psr,'t2pulsar'):
-        # Sort residuals by toa to match with get_detres() call
-        residuals = np.longdouble(psr.t2pulsar.residuals())
-    else:
-        if not hasattr(psr,'model'):
-            raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 
     # grab original timing model parameters and errors in dictionary
     orig_params = {}
@@ -216,14 +210,14 @@ def tm_delay(psr,**kwargs):
                     + psr.tm_params_orig[tm_param][0]
                 )
 
-    if hasattr(psr,'model'):
+    if hasattr(psr, 'model'):
         new_model = copy.deepcopy(psr.model)
         # Set values to new sampled values
         new_model.set_param_values(tm_params_rescaled)
         # Get new residuals
         new_res = np.longdouble(Residuals(psr.pint_toas, new_model).resids_value)
         print(new_res)
-    elif hasattr(psr,'t2pulsar'):
+    elif hasattr(psr, 't2pulsar'):
         # Set values to new sampled values
         psr.t2pulsar.vals(tm_params_rescaled)
         # Get new residuals
@@ -275,15 +269,15 @@ def timing_block(
 
     physical_tm_priors = get_default_physical_tm_priors()
 
-    if hasattr(psr,'model'):
+    if hasattr(psr, 'model'):
         # Get values and errors as initialized by pint.
         psr.tm_params_orig = OrderedDict()
         for par in psr.fitpars:
-            if hasattr(psr.model,par):
-                psr.tm_params_orig[par]=[getattr(psr.model,par).value,
-                                         getattr(psr.model,par).uncertainty_value,
+            if hasattr(psr.model, par):
+                psr.tm_params_orig[par]=[getattr(psr.model, par).value,
+                                         getattr(psr.model, par).uncertainty_value,
                                          "normalized"]
-    elif hasattr(psr,'t2pulsar'):
+    elif hasattr(psr, 't2pulsar'):
         # Get values and errors as pulled by libstempo from par file.
         ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
         psr.tm_params_orig = OrderedDict(
