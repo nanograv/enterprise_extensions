@@ -216,7 +216,6 @@ def tm_delay(psr, **kwargs):
         new_model.set_param_values(tm_params_rescaled)
         # Get new residuals
         new_res = np.longdouble(Residuals(psr.pint_toas, new_model).resids_value)
-        print(new_res)
     elif hasattr(psr, 't2pulsar'):
         # Set values to new sampled values
         psr.t2pulsar.vals(tm_params_rescaled)
@@ -224,7 +223,6 @@ def tm_delay(psr, **kwargs):
         new_res = np.longdouble(psr.t2pulsar.residuals())
         # Set values back to originals
         psr.t2pulsar.vals(orig_params)
-        print(new_res)
     else:
         raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 

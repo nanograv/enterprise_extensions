@@ -79,6 +79,7 @@ def test_timing_block(t2_psr, caplog):
                     wideband_kwargs={},)
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_tm_delay_t2(t2_psr, caplog):
     nltm_params = []
     ltm_params = []
@@ -152,7 +153,7 @@ def test_tm_delay_t2(t2_psr, caplog):
 
     psampler.sample(
         x0,
-        1000,
+        100,
         SCAMweight=30,
         AMweight=15,
         DEweight=30,
@@ -165,6 +166,7 @@ def test_tm_delay_t2(t2_psr, caplog):
         os.removedirs('./outdir_tests')
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_tm_delay_pint(pint_psr, caplog):
     nltm_params = []
     ltm_params = []
@@ -214,7 +216,7 @@ def test_tm_delay_pint(pint_psr, caplog):
 
     psampler.sample(
         x0,
-        1000,
+        100,
         SCAMweight=30,
         AMweight=15,
         DEweight=30,

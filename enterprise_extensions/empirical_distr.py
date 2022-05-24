@@ -19,16 +19,14 @@ class EmpiricalDistribution1D(object):
     """
     Class used to define a 1D empirical distribution
     based on posterior from another MCMC.
-
     :param samples: samples for hist
     :param bins: edges to use for hist (left and right) make sure bins
         cover whole prior!
-
     """
     def __init__(self, param_name, samples, bins):
         self.ndim = 1
         self.param_name = param_name
-        self._Nbins = len(bins) - 1
+        self._Nbins = len(bins)-1
         hist, x_bins = np.histogram(samples, bins=bins)
 
         self._edges = x_bins
@@ -37,7 +35,7 @@ class EmpiricalDistribution1D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / float(counts) / self._wids
-        self._cdf = np.cumsum((self._pdf * self._wids).ravel())
+        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -99,16 +97,14 @@ class EmpiricalDistribution2D(object):
     """
     Class used to define a 1D empirical distribution
     based on posterior from another MCMC.
-
     :param samples: samples for hist
     :param bins: edges to use for hist (left and right)
         make sure bins cover whole prior!
-
     """
     def __init__(self, param_names, samples, bins):
         self.ndim = 2
         self.param_names = param_names
-        self._Nbins = [len(b) - 1 for b in bins]
+        self._Nbins = [len(b)-1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
         self._edges = np.array([x_bins, y_bins])
@@ -118,7 +114,7 @@ class EmpiricalDistribution2D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / counts / area
-        self._cdf = np.cumsum((self._pdf * area).ravel())
+        self._cdf = np.cumsum((self._pdf*area).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -126,10 +122,8 @@ class EmpiricalDistribution2D(object):
         draw = np.random.rand()
         draw_bin = np.searchsorted(self._cdf, draw)
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [
-            self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]] * np.random.rand()
-            for ii in range(2)
-        ]
+        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
+                for ii in range(2)]
         return np.array(samp)
 
     def prob(self, params):
@@ -147,11 +141,8 @@ class EmpiricalDistribution2DKDE(object):
     def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1, nbins=40):
         """
         Minvals and maxvals should specify priors for these. Should make these required.
-
         :param param_names: 2-element list of parameter names
         :param samples: samples, with dimension (2 x Nsamples)
-
-
         :return distr: list of empirical distributions
         """
         self.ndim = 2
@@ -276,16 +267,13 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
                                      save_dists=True):
     """
         Utility function to construct empirical distributions.
-
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param params: list of all parameter names for the MCMC chain
         :param chain: MCMC chain from a previous run, has dimensions Nsamples x Nparams
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
-
         :return distr: list of empirical distributions
-
         """
 
     distr = []
