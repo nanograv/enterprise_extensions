@@ -254,6 +254,16 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
+        if 'gp_sw' in jp.snames:
+            print('Adding Solar Wind DM GP prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
+
+        # Chromatic GP noise prior draw
+        if 'chrom_gp' in self.snames:
+            print('Adding Chromatic GP noise prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
+
+        # SW prior draw
         if "gp_sw" in jp.snames:
             print("Adding Solar Wind DM GP prior draws...\n")
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)

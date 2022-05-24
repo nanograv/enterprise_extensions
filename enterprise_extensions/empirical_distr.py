@@ -203,16 +203,13 @@ def make_empirical_distributions(pta, paramlist, params, chain,
                                  save_dists=True):
     """
         Utility function to construct empirical distributions.
-
         :param pta: the pta object used to generate the posteriors
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param chain: MCMC chain from a previous run
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
-
         :return distr: list of empirical distributions
-
         """
 
     distr = []
@@ -253,9 +250,7 @@ def make_empirical_distributions(pta, paramlist, params, chain,
             distr.append(new_distr)
 
         else:
-            msg = (
-                "WARNING: only 1D and 2D empirical distributions are currently allowed."
-            )
+            msg = 'WARNING: only 1D and 2D empirical distributions are currently allowed.'
             logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file

@@ -345,6 +345,11 @@ class JumpProposal(object):
                 if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
                     q, lqxy = self.draw_from_prior(x, iter, beta)
 
+                dist = self.empirical_distr[distr_idx]
+                # if we fall outside the emp distr support, pull from prior instead
+                if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
+                    q, lqxy = self.draw_from_prior(x, iter, beta)
+
             else:
                 dist = self.empirical_distr[distr_idx]
                 oldsample = [x[self.pnames.index(p)] for p in dist.param_names]

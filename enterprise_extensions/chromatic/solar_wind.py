@@ -277,11 +277,9 @@ def dm_solar(n_earth, theta, r_earth):
     ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 2007 for more details.
     """
-    return np.where(
-        np.pi - theta >= 1e-5,
-        _dm_solar(n_earth, theta, r_earth),
-        _dm_solar_close(n_earth, r_earth),
-    )
+    return np.where(np.pi - theta >= 1e-5,
+                    _dm_solar(n_earth, theta, r_earth),
+                    _dm_solar_close(n_earth, r_earth))
 
 
 def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
