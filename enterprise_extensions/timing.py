@@ -267,49 +267,50 @@ def timing_block(
 
     physical_tm_priors = get_default_physical_tm_priors()
 
-    if hasattr(psr, 'model'):
-        # Get values and errors as initialized by pint.
-        psr.tm_params_orig = OrderedDict()
-        for par in psr.fitpars:
-            if hasattr(psr.model, par):
-                psr.tm_params_orig[par]=[getattr(psr.model, par).value,
-                                         getattr(psr.model, par).uncertainty_value,
-                                         "normalized"]
-    elif hasattr(psr, 't2pulsar'):
-        # Get values and errors as pulled by libstempo from par file.
-        ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
-        psr.tm_params_orig = OrderedDict(
-            zip(
-                psr.t2pulsar.pars(),
-                map(
-                    list,
-                    zip(
-                        np.longdouble(psr.t2pulsar.vals()),
-                        np.longdouble(psr.t2pulsar.errs()),
-                        ptypes,
+    if not hasattr(psr, 'tm_params_orig'):
+        if hasattr(psr, 'model'):
+            # Get values and errors as initialized by pint.
+            psr.tm_params_orig = OrderedDict()
+            for par in psr.fitpars:
+                if hasattr(psr.model, par):
+                    psr.tm_params_orig[par]=[getattr(psr.model, par).value,
+                                             getattr(psr.model, par).uncertainty_value,
+                                             "normalized"]
+        elif hasattr(psr, 't2pulsar'):
+            # Get values and errors as pulled by libstempo from par file.
+            ptypes = ["normalized" for ii in range(len(psr.t2pulsar.pars()))]
+            psr.tm_params_orig = OrderedDict(
+                zip(
+                    psr.t2pulsar.pars(),
+                    map(
+                        list,
+                        zip(
+                            np.longdouble(psr.t2pulsar.vals()),
+                            np.longdouble(psr.t2pulsar.errs()),
+                            ptypes,
+                        ),
                     ),
-                ),
+                )
             )
-        )
-        # Check to see if nan or inf in pulsar parameter errors.
-        # The refit will populate the incorrect errors, but sometimes
-        # changes the values by too much, which is why it is done in this order.
-        orig_vals = {p: v for p, v in zip(psr.t2pulsar.pars(), psr.t2pulsar.vals())}
-        orig_errs = {p: e for p, e in zip(psr.t2pulsar.pars(), psr.t2pulsar.errs())}
-        if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
-            [err == 0.0 for err in psr.t2pulsar.errs()]
-        ):
-            eidxs = np.where(
-                np.logical_or(np.isnan(psr.t2pulsar.errs()), psr.t2pulsar.errs() == 0.0)
-            )[0]
-            psr.t2pulsar.fit()
-            for idx in eidxs:
-                par = psr.t2pulsar.pars()[idx]
-                psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
-        psr.t2pulsar.vals(orig_vals)
-        psr.t2pulsar.errs(orig_errs)
-    else:
-        raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
+            # Check to see if nan or inf in pulsar parameter errors.
+            # The refit will populate the incorrect errors, but sometimes
+            # changes the values by too much, which is why it is done in this order.
+            orig_vals = {p: v for p, v in zip(psr.t2pulsar.pars(), psr.t2pulsar.vals())}
+            orig_errs = {p: e for p, e in zip(psr.t2pulsar.pars(), psr.t2pulsar.errs())}
+            if np.any(np.isnan(psr.t2pulsar.errs())) or np.any(
+                [err == 0.0 for err in psr.t2pulsar.errs()]
+            ):
+                eidxs = np.where(
+                    np.logical_or(np.isnan(psr.t2pulsar.errs()), psr.t2pulsar.errs() == 0.0)
+                )[0]
+                psr.t2pulsar.fit()
+                for idx in eidxs:
+                    par = psr.t2pulsar.pars()[idx]
+                    psr.tm_params_orig[par][1] = np.longdouble(psr.t2pulsar.errs()[idx])
+            psr.t2pulsar.vals(orig_vals)
+            psr.t2pulsar.errs(orig_errs)
+        else:
+            raise ValueError('Enterprise pulsar must keep either pint or t2pulsar. Use either drop_t2pulsar=False or drop_pintpsr=False when initializing the enterprise pulsar.')
 
     tm_delay_kwargs = {}
     default_prior_params = [
@@ -330,7 +331,7 @@ def timing_block(
                 psr.tm_params_orig[par][-1] = "physical"
                 val, err, _ = psr.tm_params_orig[par]
             elif "COSI" in par and "SINI" in psr.tm_params_orig.keys():
-                print("COSI added to tm_params_orig for to work with tm_delay.")
+                print("COSI added to tm_params_orig to work with tm_delay.")
                 sin_val, sin_err, _ = psr.tm_params_orig["SINI"]
                 val = np.longdouble(np.sqrt(1 - sin_val ** 2))
                 err = np.longdouble(

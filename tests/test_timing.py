@@ -153,7 +153,7 @@ def test_tm_delay_t2(t2_psr, caplog):
 
     psampler.sample(
         x0,
-        100,
+        300,
         SCAMweight=30,
         AMweight=15,
         DEweight=30,
@@ -216,7 +216,7 @@ def test_tm_delay_pint(pint_psr, caplog):
 
     psampler.sample(
         x0,
-        100,
+        300,
         SCAMweight=30,
         AMweight=15,
         DEweight=30,
