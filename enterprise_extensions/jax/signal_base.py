@@ -14,6 +14,7 @@ import numpy as np
 import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
+from jax import jit
 
 from enterprise_extensions.jax.unsubclass import add_matrices, inv_matrix
 
@@ -349,11 +350,32 @@ class JAXPTA(object):
 
         return ret
 
-    def get_phiinv(self, params, logdet=False, method="cliques"):
+    def get_phiinv(self, params, logdet=False, method="dense"):
         if method == "cliques":
             return self.get_phiinv_byfreq_cliques(params, logdet)
+        elif method == "dense":
+            return self.get_phiinv_dense(params, logdet)
         else:
             raise NotImplementedError
+
+    def get_phiinv_dense(self, params, logdet=False):
+        phi = self.get_phi(params)
+
+        if isinstance(phi, list):
+            return [None if phivec is None else inv_matrix(phivec) for phivec in phi]
+        else:
+            # phisparse = sps.csc_matrix(phi)
+            # cf = cholesky(phisparse)
+            cf = sl.cho_factor(phi)
+            ld = 2.0 * jnp.sum(np.log(np.diag(cf[0])))
+
+            phiinv = sl.cho_solve(cf, jnp.eye(phi.shape[0]))
+
+            if logdet:
+                return (phiinv, ld)
+            else:
+                return phiinv
+
 
     def get_phiinv_byfreq_cliques(self, params, logdet=False, cholesky=False):
         phi = self.get_phi(params, cliques=True)
@@ -471,7 +493,7 @@ class JAXPTA(object):
         if self._commonsignals:
             if np.any([phi.ndim == 2 for phi in phis if phi is not None]):
                 # if we have any dense matrices,
-                Phi = sl.block_diag(*[np.diag(phi) if phi.ndim == 1 else phi for phi in phis if phi is not None])
+                Phi = jsl.block_diag(*[jnp.diag(phi) if phi.ndim == 1 else phi for phi in phis if phi is not None])
             else:
                 Phi = jnp.diag(jnp.concatenate([phi for phi in phis if phi is not None]))
 
@@ -500,15 +522,15 @@ class JAXPTA(object):
 
                     block1, idx1 = slices[csc1], csc1._idx[cs1]
                     block2, idx2 = slices[csc2], csc2._idx[cs2]
-                    block1 = np.arange(block1.start, block1.stop)
-                    block2 = np.arange(block2.start, block2.stop)
+                    block1 = jnp.arange(block1.start, block1.stop)
+                    block2 = jnp.arange(block2.start, block2.stop)
 
                     if crossdiag.ndim == 1:
                         Phi = Phi.at[block1[idx1], block2[idx2]].add(crossdiag)
                         Phi = Phi.at[block2[idx2], block1[idx1]].add(crossdiag)
                     else:
-                        Phi[block1, block2][np.ix_(idx1, idx2)] += crossdiag
-                        Phi[block2, block1][np.ix_(idx2, idx1)] += crossdiag
+                        Phi[block1, block2][jnp.ix_(idx1, idx2)] += crossdiag
+                        Phi[block2, block1][jnp.ix_(idx2, idx1)] += crossdiag
 
             return Phi
         else:
