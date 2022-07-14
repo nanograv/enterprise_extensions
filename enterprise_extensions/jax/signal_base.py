@@ -14,7 +14,7 @@ import numpy as np
 import scipy.linalg as sl
 import jax.numpy as jnp
 import jax.scipy.linalg as jsl
-from jax import jit
+from jax import tree_map
 
 from enterprise_extensions.jax.unsubclass import add_matrices, inv_matrix
 
@@ -486,7 +486,8 @@ class JAXPTA(object):
                             raise
 
     def get_phi(self, params, cliques=False):
-        phis = [signalcollection.get_phi(params) for signalcollection in self._signalcollections]
+        phis = tree_map(lambda obj: obj.get_phi(params), self._signalcollections)
+        # phis = [signalcollection.get_phi(params) for signalcollection in self._signalcollections]
 
         # if we found common signals, we'll return a big phivec matrix,
         # otherwise a list of phivec vectors (some of which possibly None)
