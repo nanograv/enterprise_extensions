@@ -8,7 +8,7 @@ import scipy.linalg as sl
 from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
-from .sampler import JumpProposal, get_parameter_groups, save_runtime_info
+from .sampler import JumpProposal, get_parameter_groups, save_runtime_info, get_timing_groups, group_from_params
 
 
 class HyperModel(object):
@@ -74,6 +74,24 @@ class HyperModel(object):
             ].tolist()
         #########
 
+        #########
+        # Timing Model
+        self.tm_groups = []
+        self.special_idxs = []
+        for i, x in enumerate(self.params):
+            if "timing_model" in str(x):
+                self.tm_groups.append(i)
+                if "Uniform" in str(x):
+                    pmin = float(
+                        str(x).split("Uniform")[-1].split("pmin=")[1].split(",")[0]
+                    )
+                    pmax = float(
+                        str(x).split("Uniform")[-1].split("pmax=")[-1].split(")")[0]
+                    )
+                    if pmin + pmax != 0.0:
+                        self.special_idxs.append(i)
+        #########
+
     def get_lnlikelihood(self, x):
 
         # find model index variable
@@ -117,19 +135,63 @@ class HyperModel(object):
 
         groups = []
         for p in self.models.values():
-            groups.extend(get_parameter_groups(p))
-        list(np.unique(groups))
-
-        groups.extend([[len(self.param_names)-1]])  # nmodel
+            pta_groups = []
+            pta_groups.extend(get_parameter_groups(p))
+            if self.tm_groups:
+                pta_groups.extend(get_timing_groups(p))
+                pta_groups.append(
+                    group_from_params(
+                        p,
+                        [
+                            x
+                            for x in p.param_names
+                            if any(y in x for y in ["timing_model", "ecorr"])
+                        ],
+                    )
+                )
+            for grp in pta_groups:
+                if not isinstance(grp, (int, np.int64)):
+                    groups.append(
+                        [
+                            list(self.param_names).index(p.param_names[subgrp])
+                            for subgrp in grp
+                        ]
+                    )
+                else:
+                    groups.append(self.param_names[grp])
+        groups = list(np.unique(groups))
+        groups.extend([[len(self.param_names) - 1]])  # nmodel
 
         return groups
 
-    def initial_sample(self):
+    def initial_sample(self, tm_params_orig=None, tm_param_dict=None, zero_start=True):
         """
         Draw an initial sample from within the hyper-model prior space.
+        :param tm_params_orig: dictionary of timing model parameter tuples, (val, err)
+        :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
+        :param zero_start: start all timing parameters at their parfile value (in tm_params_orig), or their refit values (tm_param_dict)
         """
 
-        x0 = [np.array(p.sample()).ravel().tolist() for p in self.models[0].params]
+        if zero_start and tm_params_orig:
+            x0 = []
+            for p in self.models[0].params:
+                if "timing" in p.name:
+                    if "DMX" in p.name:
+                        p_name = ("_").join(p.name.split("_")[-2:])
+                    else:
+                        p_name = p.name.split("_")[-1]
+                    if tm_params_orig[p_name][-1] == "normalized":
+                        x0.append([np.double(0.0)])
+                    else:
+                        if p_name in tm_param_dict.keys():
+                            x0.append([np.double(tm_param_dict[p_name]["prior_mu"])])
+                        else:
+                            x0.append([np.double(tm_params_orig[p_name][0])])
+                else:
+                    x0.append(np.array(p.sample()).ravel().tolist())
+        else:
+            x0 = [np.array(p.sample()).ravel().tolist() for p in self.models[0].params]
+
         uniq_params = [str(p) for p in self.models[0].params]
 
         for model in self.models.values():
@@ -163,7 +225,7 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None, human=None,
+                      empirical_distr=None, groups=None, timing=False, human=None,
                       loglkwargs={}, logpkwargs={}):
         """
         Sets up an instance of PTMCMC sampler.
@@ -207,7 +269,7 @@ class HyperModel(object):
         save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing)
         sampler.jp = jp
 
         # always add draw from prior
@@ -317,6 +379,14 @@ class HyperModel(object):
                 par_names=[str(p).split(':')[0] for
                            p in list(self.params)
                            if 'gw' in str(p)]), 10)
+
+        # Non Linear Timing Draws
+        if "timing_model" in jp.snames:
+            print("Adding timing model jump proposal...\n")
+            sampler.addProposalToCycle(jp.draw_from_timing_model, 30)
+        if "timing_model" in jp.snames:
+            print("Adding timing model prior draw...\n")
+            sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
 
         # Model index distribution draw
         if sample_nmodel:

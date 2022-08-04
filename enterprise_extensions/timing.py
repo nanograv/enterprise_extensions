@@ -124,7 +124,7 @@ def get_prior(
     :param mu: Sets the mean/central value of prior if bounded normal is selected
     :param num_params: number of timing parameters assigned to prior. Default is None (ie. only one)
     """
-    if prior_type == "bounded-normal":
+    if prior_type.lower() == "bounded-normal":
         if mu < prior_lower_bound:
             mu = np.mean([prior_lower_bound, prior_upper_bound])
             prior_sigma = np.std([prior_lower_bound, prior_upper_bound])
@@ -135,9 +135,9 @@ def get_prior(
             pmax=prior_upper_bound,
             size=num_params,
         )
-    elif prior_type == "uniform":
+    elif prior_type.lower() == "uniform":
         return parameter.Uniform(prior_lower_bound, prior_upper_bound, size=num_params)
-    elif prior_type == "dm_dist_px_prior":
+    elif prior_type.lower() == "dm_dist_px_prior":
         return NE2001DMDist_Parameter(size=num_params)
     else:
         raise ValueError(

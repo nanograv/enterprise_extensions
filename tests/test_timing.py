@@ -19,6 +19,7 @@ from enterprise_extensions.blocks import white_noise_block
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, "data")
+outdir = os.path.join(testdir, 'test_out')
 
 psr_names = ['J1640+2224']
 
@@ -50,7 +51,10 @@ def test_timing_block(t2_psr, caplog):
     for par in t2_psr.fitpars:
         if par == "Offset":
             ltm_params.append(par)
-        elif par in ['XDOT', 'PBDOT']:
+        else:
+            nltm_params.append(par)
+
+        if par in ['XDOT', 'PBDOT']:
             par_val = np.double(t2_psr.t2pulsar.vals()[t2_psr.t2pulsar.pars().index(par)])
             par_sigma = np.double(t2_psr.t2pulsar.errs()[t2_psr.t2pulsar.pars().index(par)])
             if np.log10(par_sigma) > -10.0:
@@ -64,8 +68,6 @@ def test_timing_block(t2_psr, caplog):
                     "prior_lower_bound": lower,
                     "prior_upper_bound": upper,
                 }
-        else:
-            nltm_params.append(par)
 
     tm.timing_block(t2_psr,
                     tm_param_list=nltm_params,
@@ -87,7 +89,18 @@ def test_tm_delay_t2(t2_psr, caplog):
     for par in t2_psr.fitpars:
         if par == "Offset":
             ltm_params.append(par)
-        elif par in ['XDOT', 'PBDOT']:
+        elif "DMX" in par:
+            ltm_params.append(par)
+        elif "JUMP" in par:
+            ltm_params.append(par)
+        elif "FD" in par:
+            ltm_params.append(par)
+        elif par == "SINI":
+            nltm_params.append("COSI")
+        else:
+            nltm_params.append(par)
+
+        if par in ['XDOT', 'PBDOT']:
             par_val = np.double(t2_psr.t2pulsar.vals()[t2_psr.t2pulsar.pars().index(par)])
             par_sigma = np.double(t2_psr.t2pulsar.errs()[t2_psr.t2pulsar.pars().index(par)])
             if np.log10(par_sigma) > -10.0:
@@ -110,8 +123,6 @@ def test_tm_delay_t2(t2_psr, caplog):
                 ),
                 "prior_type": "dm_dist_px_prior",
             }
-        else:
-            nltm_params.append(par)
 
     s = tm.timing_block(
         t2_psr,
@@ -131,7 +142,7 @@ def test_tm_delay_t2(t2_psr, caplog):
     pta = signal_base.PTA(s(t2_psr))
 
     psampler = sampler.setup_sampler(
-        pta, outdir='./outdir_tests', resume=False, timing=True)
+        pta, outdir=outdir, resume=False, timing=True)
 
     x0_list = []
     for p in pta.params:
@@ -151,19 +162,48 @@ def test_tm_delay_t2(t2_psr, caplog):
             x0_list.append(p.sample())
     x0 = np.asarray(x0_list)
 
-    psampler.sample(
-        x0,
-        300,
-        SCAMweight=30,
-        AMweight=15,
-        DEweight=30,
-    )
+    try:
+        psampler.sample(
+            x0,
+            300,
+            SCAMweight=30,
+            AMweight=15,
+            DEweight=30,
+        )
+    except ValueError:
+        # Incase of a bad initial draw
+        x0_list = []
+        for p in pta.params:
+            if "timing" in p.name:
+                if "DMX" in p.name:
+                    p_name = ("_").join(p.name.split("_")[-2:])
+                else:
+                    p_name = p.name.split("_")[-1]
+                if t2_psr.tm_params_orig[p_name][-1] == "normalized":
+                    x0_list.append(np.double(0.0))
+                else:
+                    if p_name in tm_param_dict.keys():
+                        x0_list.append(np.double(tm_param_dict[p_name]["prior_mu"]))
+                    else:
+                        print(p_name)
+                        x0_list.append(np.double(t2_psr.tm_params_orig[p_name][0]))
+            else:
+                x0_list.append(p.sample())
+        x0 = np.asarray(x0_list)
 
-    if os.path.isdir('./outdir_tests'):
-        for file in os.listdir('./outdir_tests'):
-            os.remove('./outdir_tests/'+file)
+        psampler.sample(
+            x0,
+            300,
+            SCAMweight=30,
+            AMweight=15,
+            DEweight=30,
+        )
 
-        os.removedirs('./outdir_tests')
+    if os.path.isdir(outdir):
+        for file in os.listdir(outdir):
+            os.remove(f'{outdir}/'+file)
+
+        os.removedirs(outdir)
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
@@ -194,7 +234,7 @@ def test_tm_delay_pint(pint_psr, caplog):
     pta = signal_base.PTA(s(pint_psr))
 
     psampler = sampler.setup_sampler(
-        pta, outdir='./outdir_tests', resume=False, timing=True)
+        pta, outdir=outdir, resume=False, timing=True)
 
     x0_list = []
     for p in pta.params:
@@ -222,8 +262,8 @@ def test_tm_delay_pint(pint_psr, caplog):
         DEweight=30,
     )
 
-    if os.path.isdir('./outdir_tests'):
-        for file in os.listdir('./outdir_tests'):
-            os.remove('./outdir_tests/'+file)
+    if os.path.isdir(outdir):
+        for file in os.listdir(outdir):
+            os.remove(f'{outdir}/'+file)
 
-        os.removedirs('./outdir_tests')
+        os.removedirs(outdir)
