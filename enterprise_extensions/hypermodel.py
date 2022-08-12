@@ -287,6 +287,11 @@ class HyperModel(object):
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
 
+        # free spectrum prior draw
+        if np.any(['log10_rho' in par for par in self.param_names]):
+            print('Adding free spectrum prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
+
         # Prior distribution draw for parameters named GW
         if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
             print('Adding gw param prior draws...\n')
