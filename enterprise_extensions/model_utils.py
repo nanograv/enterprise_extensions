@@ -12,6 +12,7 @@ except ImportError:
     from emcee.autocorr import integrated_time as acor
 
 from enterprise_extensions import models
+from enterprise_extensions.empirical_distr import EmpiricalDistribution2D
 
 # Log-spaced frequncies
 
