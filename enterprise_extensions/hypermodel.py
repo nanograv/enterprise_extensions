@@ -225,7 +225,7 @@ class HyperModel(object):
         return q, float(lqxy)
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
-                      empirical_distr=None, groups=None, timing=False, human=None,
+                      empirical_distr=None, groups=None, timing=False, psr=None, human=None,
                       loglkwargs={}, logpkwargs={}):
         """
         Sets up an instance of PTMCMC sampler.
@@ -269,7 +269,7 @@ class HyperModel(object):
         save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing, psr=psr)
         sampler.jp = jp
 
         # always add draw from prior
