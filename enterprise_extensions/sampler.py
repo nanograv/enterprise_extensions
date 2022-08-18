@@ -126,7 +126,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains', timing=False):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains', timing=False, psr=None):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -251,17 +251,44 @@ class JumpProposal(object):
             self.fe = npzfile["fe"]
 
         if timing:
+            if not psr:
+                raise ValueError("Must include a pulsar object in JumpProposal.")
             tm_groups = get_timing_groups(pta)
             tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
             tm_groups.extend(tm_idx)
             self.tm_groups = np.array(tm_groups, dtype=object)
+
+            mass_pars = ["A1", "M2", "PB", "SINI", "COSI"]
+            self.inclination_flag = "SINI"
+            mass_dict = {}
+            for par, ii in self.pimap.items():
+                if np.any([sp in par for sp in mass_pars]):
+                    mass_dict[par] = ii
+                if "COSI" in par:
+                    self.inclination_flag = "COSI"
+            self.mass_idxs = []
+            self.unscaled_mass_values = []
+            for m_p in mass_pars:
+                self.unscaled_mass_values.append((psr.tm_params_orig[m_p][0], psr.tm_params_orig[m_p][1]))
+                for mass_key, mass_idx in mass_dict.items():
+                    if m_p in mass_key:
+                        self.mass_idxs.append(mass_idx)
+
             # special_pars = ["PX", "SINI", "COSI", "ECC"]
             # Any parameter not centered around zero is considered a "special parameter" that does not draw from a zero-centered Gaussian
             special_pars = []
-            for x in [str(y) for y in pta.params if "Uniform" in str(y) and "timing_model" in str(y)]:
-                pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
-                pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
-                if pmin + pmax != 0.0:
+            for x in [str(y) for y in pta.params if "timing_model" in str(y)]:
+                if "Uniform" in x:
+                    pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
+                    pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
+                    if pmin + pmax != 0.0:
+                        special_pars.append(x.split(":")[0])
+                elif "BoundedNormal" in x:
+                    pmin = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[0])
+                    pmax = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[1].split(']')[0])
+                    if pmin + pmax != 0.0:
+                        special_pars.append(x.split(":")[0])
+                else:
                     special_pars.append(x.split(":")[0])
             self.special_idxs = [
                 ii
@@ -999,13 +1026,22 @@ class JumpProposal(object):
             if idxs in self.special_idxs:
                 pidxs = [idxs]
 
-        q[idxs] = np.random.randn(L)
-
-        if len(pidxs) == 0:
-            pass
-        else:
-            for pidx in pidxs:
-                q[pidx] = self.params[pidx].sample()
+        accepted = False
+        emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+        while not accepted and emergency_iter < 10:
+            if emergency_iter > 0:
+                # draw different parameter from mass groups model
+                idxs = self.mass_idxs
+                L = len(idxs)
+                pidxs = [idx for idx in idxs if idx in self.special_idxs]
+            q[idxs] = np.random.randn(L)
+            if len(pidxs) == 0:
+                pass
+            else:
+                for pidx in pidxs:
+                    q[pidx] = self.params[pidx].sample()
+            accepted = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs)
+            emergency_iter += 1
 
         # forward-backward jump probability
         lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
@@ -1021,15 +1057,24 @@ class JumpProposal(object):
 
         signal_name = "timing_model"
 
-        # draw parameter from signal model
-        param = np.random.choice(self.snames[signal_name])
-        if param.size:
-            idx2 = np.random.randint(0, param.size)
-            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+        accepted = False
+        emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+        while not accepted and emergency_iter < 10:
+            if emergency_iter > 0:
+                # draw different parameter from mass groups model
+                param = np.random.choice([x for x in self.snames[signal_name] if str(x).split(":")[0].split('_')[-1] in ["A1", "M2", "PB", "SINI", "COSI"]])
+            else:
+                # draw parameter from signal model
+                param = np.random.choice(self.snames[signal_name])
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
 
-        # scalar parameter
-        else:
-            q[self.pmap[str(param)]] = param.sample()
+            # scalar parameter
+            else:
+                q[self.pmap[str(param)]] = param.sample()
+            accepted = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs)
+            emergency_iter += 1
 
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
@@ -1111,6 +1156,7 @@ def get_timing_groups(pta):
     """
     pos_pars = ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]
     spin_pars = ["F", "F0", "F1", "F2", "P", "P1", "Offset"]
+    mass_pars = ["PB", "A1", "SINI", "COSI", "M2"]
     kep_pars = [
         "PB",
         "T0",
@@ -1127,6 +1173,7 @@ def get_timing_groups(pta):
         "COSI",
         "MTOT",
         "M2",
+        "A1DOT",
         "XDOT",
         "X2DOT",
         "EDOT",
@@ -1158,7 +1205,7 @@ def get_timing_groups(pta):
     ]
 
     groups = []
-    for pars in [pos_pars, spin_pars, kep_pars, gr_pars, pm_pars]:
+    for pars in [pos_pars, spin_pars, kep_pars, gr_pars, pm_pars, mass_pars]:
         group = []
         for p in pars:
             for q in pta.param_names:
@@ -1191,6 +1238,55 @@ def group_from_params(pta, params):
     return gr
 
 
+def check_pulsar_mass(new_draw, mass_idxs, inclination_flag, unscaled_mass_values, special_idxs):
+    """
+    Computes the companion mass from the Keplerian mass function,
+    given projected size and orbital period. This function uses a
+    Newton-Raphson method since the equation is transcendental.
+
+    :param new_draw: array of newly drawn parameters
+    :param mass_idxs: idices of relevant mass parameters in order:
+        A1: projected semimajor axis [lt-s], M2: companion mass [solar mass],
+        PB: orbital period [days], sin_or_cos_inclination: sine or cosine of the inclination angle [lt-s]
+    :param inclination_flag: reflects whether sin_or_cos_inclination is sine or cosine
+    :param unscaled_mass_values: Since timing pars that aren't in special_idxs are sampled
+        in a scaled space, we need the original values and errors
+    :param special_idxs: list of par indices that aren't scaled
+    """
+
+    for i, mass_idx in enumerate(mass_idxs):
+        if mass_idx in special_idxs:
+            value = new_draw[mass_idx]
+        else:
+            value = unscaled_mass_values[i][0] + unscaled_mass_values[i][1] * new_draw[mass_idx]
+
+        if i == 0:
+            A1 = value
+        elif i == 1:
+            M2 = value
+        elif i == 2:
+            PB = value
+        elif i == 3:
+            if inclination_flag == "SINI":
+                SINI = value
+            elif inclination_flag == "COSI":
+                SINI = np.sqrt(1-value**2)
+            else:
+                raise ValueError("inclination_flag can only be SINI or COSI")
+
+    T_sun = 4.925490947e-6  # conversion from solar masses to seconds
+    nb = 2 * np.pi / PB / 86400
+    mf = nb**2 * A1**3 / T_sun
+
+    mp = np.sqrt((M2 * SINI) ** 3 / mf) - M2
+
+    # If newly sampled pulsar mass < 3 solar masses, accept it
+    if mp < 0. or mp > 3.:
+        return False
+    else:
+        return True
+
+
 def save_runtime_info(pta, outdir='chains', human=None):
     """save system info, enterprise PTA.summary, and other metadata to file
     """
@@ -1220,7 +1316,8 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
 def setup_sampler(pta, outdir='chains', resume=False,
                   empirical_distr=None, groups=None, human=None,
-                  save_ext_dists=False, timing=False, loglkwargs={}, logpkwargs={}):
+                  save_ext_dists=False, timing=False, psr=None,
+                  loglkwargs={}, logpkwargs={}):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -1281,7 +1378,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir, timing=timing)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir, timing=timing, psr=psr)
     sampler.jp = jp
 
     # always add draw from prior
