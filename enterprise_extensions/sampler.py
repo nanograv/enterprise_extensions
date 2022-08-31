@@ -290,6 +290,7 @@ class JumpProposal(object):
                         special_pars.append(x.split(":")[0])
                 else:
                     special_pars.append(x.split(":")[0])
+
             self.special_idxs = [
                 ii
                 for par, ii in self.pimap.items()
@@ -756,7 +757,8 @@ class JumpProposal(object):
 
         q = x.copy()
         lqxy = 0
-        std = ['linear timing model',
+        std = ['timing_model',
+               'linear timing model',
                'red noise',
                'phys_ephem',
                'gw',
@@ -770,6 +772,7 @@ class JumpProposal(object):
                'equad',
                ]
         non_std = [nm for nm in self.snames.keys() if nm not in std]
+        
         # draw parameter from signal model
         signal_name = np.random.choice(non_std)
         param = np.random.choice(self.snames[signal_name])
@@ -1028,7 +1031,8 @@ class JumpProposal(object):
 
         accepted = False
         emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-        while not accepted and emergency_iter < 10:
+        max_emergency_iter = 100 # Prevents infinite loop and from sample taking too long
+        while not accepted and emergency_iter < max_emergency_iter:
             if emergency_iter > 0:
                 # draw different parameter from mass groups model
                 idxs = self.mass_idxs
@@ -1042,6 +1046,11 @@ class JumpProposal(object):
                     q[pidx] = self.params[pidx].sample()
             accepted = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs)
             emergency_iter += 1
+
+        if emergency_iter > 20:
+            print(emergency_iter)
+            _ = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs,
+                print_mp=True)
 
         # forward-backward jump probability
         lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
@@ -1059,7 +1068,8 @@ class JumpProposal(object):
 
         accepted = False
         emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-        while not accepted and emergency_iter < 10:
+        max_emergency_iter = 100 # Prevents infinite loop and from sample taking too long
+        while not accepted and emergency_iter < max_emergency_iter:
             if emergency_iter > 0:
                 # draw different parameter from mass groups model
                 param = np.random.choice([x for x in self.snames[signal_name] if str(x).split(":")[0].split('_')[-1] in ["A1", "M2", "PB", "SINI", "COSI"]])
@@ -1076,6 +1086,10 @@ class JumpProposal(object):
             accepted = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs)
             emergency_iter += 1
 
+        if emergency_iter > 20:
+            print(emergency_iter)
+            _ = check_pulsar_mass(q, self.mass_idxs, self.inclination_flag, self.unscaled_mass_values, self.special_idxs,
+                print_mp=True)
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
             q[self.pmap[str(param)]]
@@ -1238,7 +1252,8 @@ def group_from_params(pta, params):
     return gr
 
 
-def check_pulsar_mass(new_draw, mass_idxs, inclination_flag, unscaled_mass_values, special_idxs):
+def check_pulsar_mass(new_draw, mass_idxs, inclination_flag, unscaled_mass_values, special_idxs,
+                        print_mp=False):
     """
     Computes the companion mass from the Keplerian mass function,
     given projected size and orbital period. This function uses a
@@ -1279,6 +1294,9 @@ def check_pulsar_mass(new_draw, mass_idxs, inclination_flag, unscaled_mass_value
     mf = nb**2 * A1**3 / T_sun
 
     mp = np.sqrt((M2 * SINI) ** 3 / mf) - M2
+
+    if print_mp:
+        print(mp)
 
     # If newly sampled pulsar mass < 3 solar masses, accept it
     if mp < 0. or mp > 3.:
