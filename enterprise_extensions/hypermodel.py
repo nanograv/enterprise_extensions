@@ -82,13 +82,13 @@ class HyperModel(object):
             if "timing_model" in str(x):
                 self.tm_groups.append(i)
                 if "Uniform" in str(x):
-                    pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
-                    pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
+                    pmin = float(str(x).split("Uniform")[-1].split("pmin=")[1].split(",")[0])
+                    pmax = float(str(x).split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
                     if pmin + pmax != 0.0:
                         self.special_idxs.append(i)
                 elif "BoundedNormal" in str(x):
-                    pmin = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[0])
-                    pmax = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[1].split(']')[0])
+                    pmin = float(str(x).split("BoundedNormal")[-1].split("[")[-1].split(",")[0])
+                    pmax = float(str(x).split("BoundedNormal")[-1].split("[")[-1].split(",")[1].split(']')[0])
                     if pmin + pmax != 0.0:
                         self.special_idxs.append(i)
                 else:
@@ -177,7 +177,7 @@ class HyperModel(object):
 
         if zero_start and tm_params_orig:
             x0 = []
-            for p in self.models[0].params:
+            for xx, p in enumerate(self.models[0].params):
                 if "timing" in p.name:
                     if "DMX" in p.name:
                         p_name = ("_").join(p.name.split("_")[-2:])
@@ -272,7 +272,7 @@ class HyperModel(object):
         save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing, psr=psr)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing, psr=psr, sampler=sampler)
         sampler.jp = jp
 
         # always add draw from prior
@@ -390,6 +390,20 @@ class HyperModel(object):
         if "timing_model" in jp.snames:
             print("Adding timing model prior draw...\n")
             sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
+
+        if timing:
+            # SCAM and AM Draws
+            # add SCAM
+            print("Adding SCAM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 30)
+
+            # add AM
+            print("Adding AM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 15)
+
+            # add DE
+            print("Adding DE Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.DEJump, 30)
 
         # Model index distribution draw
         if sample_nmodel:

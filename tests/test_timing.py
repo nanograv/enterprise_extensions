@@ -60,8 +60,6 @@ def test_timing_block(t2_psr, caplog):
             if np.log10(par_sigma) > -10.0:
                 lower = par_val - 50 * par_sigma * 1e-12
                 upper = par_val + 50 * par_sigma * 1e-12
-                # lower = pbdot - 5 * pbdot_sigma * 1e-12
-                # upper = pbdot + 5 * pbdot_sigma * 1e-12
                 tm_param_dict[par] = {
                     "prior_mu": par_val,
                     "prior_sigma": par_sigma * 1e-12,
@@ -106,8 +104,6 @@ def test_tm_delay_t2(t2_psr, caplog):
             if np.log10(par_sigma) > -10.0:
                 lower = par_val - 50 * par_sigma * 1e-12
                 upper = par_val + 50 * par_sigma * 1e-12
-                # lower = pbdot - 5 * pbdot_sigma * 1e-12
-                # upper = pbdot + 5 * pbdot_sigma * 1e-12
                 tm_param_dict[par] = {
                     "prior_mu": par_val,
                     "prior_sigma": par_sigma * 1e-12,
@@ -142,7 +138,7 @@ def test_tm_delay_t2(t2_psr, caplog):
     pta = signal_base.PTA(s(t2_psr))
 
     psampler = sampler.setup_sampler(
-        pta, outdir=outdir, resume=False, timing=True)
+        pta, outdir=outdir, resume=False, timing=True, psr=t2_psr)
 
     x0_list = []
     for p in pta.params:
@@ -172,24 +168,7 @@ def test_tm_delay_t2(t2_psr, caplog):
         )
     except ValueError:
         # Incase of a bad initial draw
-        x0_list = []
-        for p in pta.params:
-            if "timing" in p.name:
-                if "DMX" in p.name:
-                    p_name = ("_").join(p.name.split("_")[-2:])
-                else:
-                    p_name = p.name.split("_")[-1]
-                if t2_psr.tm_params_orig[p_name][-1] == "normalized":
-                    x0_list.append(np.double(0.0))
-                else:
-                    if p_name in tm_param_dict.keys():
-                        x0_list.append(np.double(tm_param_dict[p_name]["prior_mu"]))
-                    else:
-                        print(p_name)
-                        x0_list.append(np.double(t2_psr.tm_params_orig[p_name][0]))
-            else:
-                x0_list.append(p.sample())
-        x0 = np.asarray(x0_list)
+        x0 = np.hstack([p.sample() for p in pta.params])
 
         psampler.sample(
             x0,
@@ -234,7 +213,7 @@ def test_tm_delay_pint(pint_psr, caplog):
     pta = signal_base.PTA(s(pint_psr))
 
     psampler = sampler.setup_sampler(
-        pta, outdir=outdir, resume=False, timing=True)
+        pta, outdir=outdir, resume=False, timing=True, psr=pint_psr)
 
     x0_list = []
     for p in pta.params:
@@ -257,9 +236,9 @@ def test_tm_delay_pint(pint_psr, caplog):
     psampler.sample(
         x0,
         300,
-        SCAMweight=30,
-        AMweight=15,
-        DEweight=30,
+        SCAMweight=0,
+        AMweight=0,
+        DEweight=0,
     )
 
     if os.path.isdir(outdir):

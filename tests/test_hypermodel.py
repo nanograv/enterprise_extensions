@@ -144,7 +144,7 @@ def test_timing_hypermodel(caplog):
 
     ptas = {0: models.model_singlepsr_noise(t2_psr, **model_kwargs_1), 1: models.model_singlepsr_noise(t2_psr, **model_kwargs_2)}
     hm = hypermodel.HyperModel(ptas)
-    samp = hm.setup_sampler(outdir=outdir, human='tester', timing=True)
+    samp = hm.setup_sampler(outdir=outdir, human='tester', timing=True, psr=t2_psr)
     assert hasattr(samp, "sample")
     paramfile = os.path.join(outdir, "pars.txt")
     assert os.path.isfile(paramfile)
