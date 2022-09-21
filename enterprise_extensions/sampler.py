@@ -1813,20 +1813,20 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_timing_model, 25)
     if "timing_model" in jp.snames:
         print("Adding timing model prior draw...\n")
-        sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 10)
+        sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
 
     if timing:
         # SCAM and AM Draws
         # add SCAM
         print("Adding SCAM Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 30)
+        sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
 
         # add AM
         print("Adding AM Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 15)
+        sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
 
         # add DE
         print("Adding DE Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.DEJump, 30)
+        sampler.addProposalToCycle(jp.DEJump, 0)
 
     return sampler
