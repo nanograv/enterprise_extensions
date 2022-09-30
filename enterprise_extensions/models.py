@@ -58,7 +58,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
-                          select='backend', tm_marg=False, dense_like=False):
+                          select='backend', tm_marg=False, dense_like=False,
+                          vary_dm=True, vary_chrom=True):
     """
     Single pulsar noise model.
 
@@ -148,6 +149,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param vary_dm: Whether to vary the DM model or use constant values
+    :param vary_chrom: Whether to vary the chromatic model or use constant values
 
     :return s: single pulsar noise model
 
@@ -221,16 +224,18 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
                                     prior=amp_prior, components=components,
                                     gamma_val=gamma_dm_val,
-                                    coefficients=coefficients)
+                                    coefficients=coefficients,
+                                    vary=vary_dm)
             elif dmgp_kernel == 'nondiag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel,
                                     nondiag_kernel=dm_nondiag_kernel,
                                     dt=dm_dt, df=dm_df,
-                                    coefficients=coefficients)
+                                    coefficients=coefficients,
+                                    vary=vary_dm)
         elif dm_type == 'dmx':
-            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
+            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name],vary=vary_dm)
         if dm_annual:
-            s += chrom.dm_annual_signal()
+            s += chrom.dm_annual_signal(vary=vary_dm)
         if chrom_gp:
             s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
                                        psd=chrom_psd, idx=chrom_idx,
@@ -238,7 +243,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                        nondiag_kernel=chrom_kernel,
                                        dt=chrom_dt, df=chrom_df,
                                        include_quadratic=chrom_quad,
-                                       coefficients=coefficients)
+                                       coefficients=coefficients,
+                                       vary=vary_dm)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
@@ -263,7 +269,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 s += chrom.dm_exponential_dip(tmin=tmin[dd], tmax=tmax[dd],
                                               idx=dm_expdip_idx[dd],
                                               sign=dmexp_sign,
-                                              name=dmdipname_base[dd])
+                                              name=dmdipname_base[dd],
+                                              vary=vary_dm)
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = [psr.toas.min() / const.day for ii in range(num_dm_cusps)]
@@ -287,7 +294,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                                idx=dm_cusp_idx[dd-1],
                                                sign=dm_cusp_sign[dd-1],
                                                symmetric=dm_cusp_sym,
-                                               name=cusp_name_base+str(dd))
+                                               name=cusp_name_base+str(dd),
+                                               vary=vary_dm)
         if dm_dual_cusp:
             if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
                 tmin = psr.toas.min() / const.day
@@ -305,7 +313,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                             idx2=dm_dual_cusp_idx2,
                                             sign=dm_dual_cusp_sign,
                                             symmetric=dm_dual_cusp_sym,
-                                            name=dual_cusp_name_base+str(dd))
+                                            name=dual_cusp_name_base+str(dd),
+                                            vary=vary_dm)
         if dm_sw_deter:
             Tspan = psr.toas.max() - psr.toas.min()
             s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
