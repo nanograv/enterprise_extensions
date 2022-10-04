@@ -390,7 +390,7 @@ def dmx_signal(dmx_data, name='dmx_signal'):
     return dmx_sig
 
 
-def dm_annual_signal(idx=2, name='dm_s1yr'):
+def dm_annual_signal(idx=2, name='dm_s1yr', vary=True):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 
