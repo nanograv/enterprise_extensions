@@ -229,6 +229,7 @@ class HyperModel(object):
 
     def setup_sampler(self, outdir='chains', resume=False, sample_nmodel=True,
                       empirical_distr=None, groups=None, timing=False, psr=None, human=None,
+                      restrict_mass=True,
                       loglkwargs={}, logpkwargs={}):
         """
         Sets up an instance of PTMCMC sampler.
@@ -272,7 +273,9 @@ class HyperModel(object):
         save_runtime_info(self, sampler.outDir, human)
 
         # additional jump proposals
-        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr, timing=timing, psr=psr, sampler=sampler)
+        jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr,
+                          timing=timing, psr=psr, sampler=sampler,
+                          restrict_mass=restrict_mass)
         sampler.jp = jp
 
         # always add draw from prior
@@ -401,9 +404,7 @@ class HyperModel(object):
             print("Adding AM Jump Proposal...\n")
             sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
 
-            # add DE
-            print("Adding DE Jump Proposal...\n")
-            sampler.addProposalToCycle(jp.DEJump, 0)
+            # DE does not work well with restricting the pulsar mass
 
         # Model index distribution draw
         if sample_nmodel:

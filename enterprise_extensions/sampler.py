@@ -127,7 +127,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains', timing=False, psr=None, sampler=None):
+    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='chains', timing=False, psr=None, sampler=None, restrict_mass=True):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -252,6 +252,7 @@ class JumpProposal(object):
             self.fe = npzfile["fe"]
 
         if timing:
+            self.restrict_mass = restrict_mass
             self.max_emergency_iter = 1000  # Prevents infinite loop and from sample taking too long
             self.sampler = sampler
 
@@ -319,15 +320,32 @@ class JumpProposal(object):
         # randomly choose parameter
         param = np.random.choice(self.params)
 
-        # Used to check parameter will change pulsar mass
-        if "timing_model" in str(param).split(":")[0]:
-            accepted = False
-            emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-            while not accepted and emergency_iter < self.max_emergency_iter:
-                if emergency_iter > 0:
-                    # draw different parameter from mass groups model
-                    param = np.random.choice([x for x in self.snames["timing_model"] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
+        if self.restrict_mass:
+            # Used to check parameter will change pulsar mass
+            if "timing_model" in str(param).split(":")[0]:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        param = np.random.choice([x for x in self.snames["timing_model"] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
 
+                    if param.size:
+                        idx2 = np.random.randint(0, param.size)
+                        q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+                    # scalar parameter
+                    else:
+                        q[self.pmap[str(param)]] = param.sample()
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("draw_from_prior")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
+                # if vector parameter jump in random component
                 if param.size:
                     idx2 = np.random.randint(0, param.size)
                     q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
@@ -335,13 +353,6 @@ class JumpProposal(object):
                 # scalar parameter
                 else:
                     q[self.pmap[str(param)]] = param.sample()
-                accepted = self.check_pulsar_mass(q)
-                emergency_iter += 1
-
-            if emergency_iter > 500:
-                print("draw_from_prior")
-                print("Emergency iter:", emergency_iter)
-                _ = self.check_pulsar_mass(q, print_mp=True)
         else:
             # if vector parameter jump in random component
             if param.size:
@@ -1096,32 +1107,39 @@ class JumpProposal(object):
         neff = len(ind)
         cd = 2.4 / np.sqrt(2 * neff) * scale
 
-        # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
-        # Or if the drawn parameter will change the pulsar mass
-        if iter < 10 or mass_check:
-            accepted = False
-            emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-            while not accepted and emergency_iter < self.max_emergency_iter:
-                if emergency_iter > 0:
-                    q = x.copy()
-                    # choose mass group
-                    jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
-                    # draw different parameter from mass groups model
-                    ndim = len(self.sampler.groups[jumpind])
-                    # make correlated componentwise adaptive jump
-                    ind = np.unique(np.random.randint(0, ndim, 1))
-                    neff = len(ind)
-                    cd = 2.4 / np.sqrt(2 * neff) * scale
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        q = x.copy()
+                        # choose mass group
+                        jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                        # draw different parameter from mass groups model
+                        ndim = len(self.sampler.groups[jumpind])
+                        # make correlated componentwise adaptive jump
+                        ind = np.unique(np.random.randint(0, ndim, 1))
+                        neff = len(ind)
+                        cd = 2.4 / np.sqrt(2 * neff) * scale
 
-                q[self.sampler.groups[jumpind]] += (np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten())
+                    q[self.sampler.groups[jumpind]] += (np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten())
 
-                accepted = self.check_pulsar_mass(q)
-                emergency_iter += 1
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
 
-            if emergency_iter > 500:
-                print("covarianceJumpProposalSCAM")
-                print("Emergency iter:", emergency_iter)
-                _ = self.check_pulsar_mass(q, print_mp=True)
+                if emergency_iter > 500:
+                    print("covarianceJumpProposalSCAM")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
+                # y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
+                # q[self.covinds] = np.dot(self.U, y)
+                q[self.sampler.groups[jumpind]] += (
+                    np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten()
+                )
         else:
             # y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
             # q[self.covinds] = np.dot(self.U, y)
@@ -1187,35 +1205,38 @@ class JumpProposal(object):
 
         y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.sampler.S[jumpind][ind])
 
-        # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
-        # Or if the drawn parameter will change the pulsar mass
-        if iter < 10 or mass_check:
-            accepted = False
-            emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-            while not accepted and emergency_iter < self.max_emergency_iter:
-                if emergency_iter > 0:
-                    q = x.copy()
-                    # choose mass group
-                    jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
-                    # get mass parmeters in new diagonalized basis
-                    y = np.dot(self.sampler.U[jumpind].T, x[self.sampler.groups[jumpind]])
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        q = x.copy()
+                        # choose mass group
+                        jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                        # get mass parmeters in new diagonalized basis
+                        y = np.dot(self.sampler.U[jumpind].T, x[self.sampler.groups[jumpind]])
 
-                    # make correlated componentwise adaptive jump
-                    ind = np.arange(len(self.sampler.groups[jumpind]))
-                    neff = len(ind)
-                    cd = 2.4 / np.sqrt(2 * neff) * scale
+                        # make correlated componentwise adaptive jump
+                        ind = np.arange(len(self.sampler.groups[jumpind]))
+                        neff = len(ind)
+                        cd = 2.4 / np.sqrt(2 * neff) * scale
 
-                    y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.sampler.S[jumpind][ind])
+                        y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.sampler.S[jumpind][ind])
 
+                    q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
+
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("covarianceJumpProposalAM")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
                 q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
-
-                accepted = self.check_pulsar_mass(q)
-                emergency_iter += 1
-
-            if emergency_iter > 500:
-                print("covarianceJumpProposalAM")
-                print("Emergency iter:", emergency_iter)
-                _ = self.check_pulsar_mass(q, print_mp=True)
         else:
             q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
 
@@ -1269,39 +1290,48 @@ class JumpProposal(object):
             else:
                 scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
 
-            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
-            # Or if the drawn parameter will change the pulsar mass
-            if iter < 10 or mass_check:
-                accepted = False
-                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-                while not accepted and emergency_iter < self.max_emergency_iter:
-                    if emergency_iter > 0:
-                        q = x.copy()
-                        # choose mass group
-                        jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
-                        ndim = len(self.sampler.groups[jumpind])
+            if self.restrict_mass:
+                # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+                # Or if the drawn parameter will change the pulsar mass
+                if iter < 10 or mass_check:
+                    accepted = False
+                    emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                    while not accepted and emergency_iter < self.max_emergency_iter:
+                        if emergency_iter > 0:
+                            q = x.copy()
+                            # choose mass group
+                            jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                            ndim = len(self.sampler.groups[jumpind])
 
-                        # get jump scale size
-                        prob = np.random.rand()
-                        # mode jump
-                        if prob > 0.5:
-                            scale = 1.0
-                        else:
-                            scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
+                            # get jump scale size
+                            prob = np.random.rand()
+                            # mode jump
+                            if prob > 0.5:
+                                scale = 1.0
+                            else:
+                                scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
 
+                        for ii in range(ndim):
+                            # jump size
+                            sigma = self.sampler._DEbuffer[mm, self.sampler.groups[jumpind][ii]] - self.sampler._DEbuffer[nn, self.sampler.groups[jumpind][ii]]
+                            # jump
+                            q[self.sampler.groups[jumpind][ii]] += scale * sigma
+
+                        accepted = self.check_pulsar_mass(q)
+                        emergency_iter += 1
+
+                    if emergency_iter > 500:
+                        print("DEJump")
+                        print("Emergency iter:", emergency_iter)
+                        _ = self.check_pulsar_mass(q, print_mp=True)
+                else:
                     for ii in range(ndim):
+
                         # jump size
                         sigma = self.sampler._DEbuffer[mm, self.sampler.groups[jumpind][ii]] - self.sampler._DEbuffer[nn, self.sampler.groups[jumpind][ii]]
+
                         # jump
                         q[self.sampler.groups[jumpind][ii]] += scale * sigma
-
-                    accepted = self.check_pulsar_mass(q)
-                    emergency_iter += 1
-
-                if emergency_iter > 500:
-                    print("DEJump")
-                    print("Emergency iter:", emergency_iter)
-                    _ = self.check_pulsar_mass(q, print_mp=True)
             else:
                 for ii in range(ndim):
 
@@ -1342,30 +1372,31 @@ class JumpProposal(object):
             q[idxs] = np.random.randn(L)
             mass_check = idxs in self.mass_idxs
 
-        # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
-        # Or if the drawn parameter will change the pulsar mass
-        if iter < 10 or mass_check:
-            accepted = False
-            emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
-            while not accepted and emergency_iter < self.max_emergency_iter:
-                if emergency_iter > 0:
-                    # draw different parameter from mass groups model
-                    idxs = self.mass_idxs
-                    L = len(idxs)
-                    pidxs = [idx for idx in idxs if idx in self.special_idxs]
-                q[idxs] = np.random.randn(L)
-                if len(pidxs) == 0:
-                    pass
-                else:
-                    for pidx in pidxs:
-                        q[pidx] = self.params[pidx].sample()
-                accepted = self.check_pulsar_mass(q)
-                emergency_iter += 1
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        idxs = self.mass_idxs
+                        L = len(idxs)
+                        pidxs = [idx for idx in idxs if idx in self.special_idxs]
+                    q[idxs] = np.random.randn(L)
+                    if len(pidxs) == 0:
+                        pass
+                    else:
+                        for pidx in pidxs:
+                            q[pidx] = self.params[pidx].sample()
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
 
-            if emergency_iter > 500:
-                print("draw_from_timing_model")
-                print("Emergency iter:", emergency_iter)
-                _ = self.check_pulsar_mass(q, print_mp=True)
+                if emergency_iter > 500:
+                    print("draw_from_timing_model")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
 
         # forward-backward jump probability
         lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
@@ -1391,26 +1422,27 @@ class JumpProposal(object):
         else:
             q[self.pmap[str(param)]] = param.sample()
 
-        # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
-        # Or if the drawn parameter will change the pulsar mass
-        if iter < 10 or str(param).split(":")[0].split('_')[-1] in self.mass_pars:
-            accepted = False
-            emergency_iter = 0
-            while not accepted and emergency_iter < self.max_emergency_iter:
-                if emergency_iter > 0:
-                    # draw different parameter from mass groups model
-                    param = np.random.choice([x for x in self.snames[signal_name] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or str(param).split(":")[0].split('_')[-1] in self.mass_pars:
+                accepted = False
+                emergency_iter = 0
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        param = np.random.choice([x for x in self.snames[signal_name] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
 
-                    # scalar parameter
-                    q[self.pmap[str(param)]] = param.sample()
+                        # scalar parameter
+                        q[self.pmap[str(param)]] = param.sample()
 
-                accepted = self.check_pulsar_mass(q)
-                emergency_iter += 1
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
 
-            if emergency_iter > 500:
-                print("draw_from_timing_model_prior")
-                print("Emergency iter:", emergency_iter)
-                _ = self.check_pulsar_mass(q, print_mp=True)
+                if emergency_iter > 500:
+                    print("draw_from_timing_model_prior")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
 
         # forward-backward jump probability
         lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
@@ -1661,6 +1693,7 @@ def save_runtime_info(pta, outdir='chains', human=None):
 def setup_sampler(pta, outdir='chains', resume=False,
                   empirical_distr=None, groups=None, human=None,
                   save_ext_dists=False, timing=False, psr=None,
+                  restrict_mass=True,
                   loglkwargs={}, logpkwargs={}):
     """
     Sets up an instance of PTMCMC sampler.
@@ -1722,7 +1755,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir, timing=timing, psr=psr, sampler=sampler)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir, timing=timing, psr=psr, sampler=sampler, restrict_mass=restrict_mass)
 
     sampler.jp = jp
 
@@ -1816,17 +1849,16 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
 
     if timing:
-        # SCAM and AM Draws
-        # add SCAM
-        print("Adding SCAM Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
+        if jp.restrict_mass:
+            # SCAM and AM Draws
+            # add SCAM
+            print("Adding SCAM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
 
-        # add AM
-        print("Adding AM Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
+            # add AM
+            print("Adding AM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
 
-        # add DE
-        print("Adding DE Jump Proposal...\n")
-        sampler.addProposalToCycle(jp.DEJump, 0)
+            # DE does not work well with restricting the pulsar mass
 
     return sampler
