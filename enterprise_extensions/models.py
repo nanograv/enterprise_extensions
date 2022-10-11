@@ -461,13 +461,13 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
-             n_rnfreqs=None, n_gwbfreqs=None, gamma_common=None,
-             delta_common=None, upper_limit=False, bayesephem=False,
-             be_type='setIII', white_vary=False, is_wideband=False,
-             use_dmdata=False, select='backend', tnequad=False,
-             pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False, tm_svd=False):
+def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: int=30,
+        n_rnfreqs: int=None, n_gwbfreqs: int=None, gamma_common: float=None,
+        delta_common: float=None, upper_limit: int=False, bayesephem: int=False,
+        be_type: str='setIII', white_vary: bool=False, is_wideband: bool=False,
+        use_dmdata: bool=False, select: str='backend', tnequad: bool=False,
+        pshift: bool=False, pseed: int=None, psr_models: bool=False,
+        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -1312,14 +1312,13 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     return pta
 
 
-def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, n_rnfreqs=None, n_gwbfreqs=None,
-             gamma_common=None, delta_common=None, upper_limit=False,
-             bayesephem=False, be_type='setIII', is_wideband=False,
-             use_dmdata=False, select='backend',
-             tnequad=False,
-             pshift=False, pseed=None, psr_models=False,
-             tm_marg=False, dense_like=False, tm_svd=False):
+def model_3a(psrs: list, psd: str='powerlaw', noisedict: dict=None, white_vary: bool=False,
+        components: int=30, n_rnfreqs: int=None, n_gwbfreqs: int=None,
+        gamma_common: float=None, delta_common: float=None, upper_limit: bool=False,
+        bayesephem: bool=False, be_type: str='setIII', is_wideband: bool=False,
+        use_dmdata: bool=False, select: str='backend', tnequad: bool=False,
+        pshift: bool=False, pseed: int=None, psr_models: bool=False,
+        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 3A from the analysis paper:
