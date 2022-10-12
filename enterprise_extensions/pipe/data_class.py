@@ -5,16 +5,22 @@ from enterprise_extensions import models
 import collections.abc
 import pickle, json
 
-def get_default_args_from_function(func):
+def get_default_args_types_from_function(func):
     """
     code taken from: https://stackoverflow.com/questions/12627118/get-a-function-arguments-default-value
     """
     signature = inspect.signature(func)
-    return {
+    defaults = {
         k: v.default
         for k, v in signature.parameters.items()
         if v.default is not inspect.Parameter.empty
     }
+    types = {
+        k: v.annotation
+        for k, v in signature.parameters.items()
+        if v.annotation is not inspect.Parameter.empty
+    }
+    return defaults, types
 
 def update_dictionary_with_subdictionary(d, u):
     """
@@ -62,11 +68,13 @@ class RunSettings:
                     Get default values for models held in enterprise_extensions
                     """
                     model_function = getattr(models, section)
-                    self.enterprise_model_params[section] = get_default_args_from_function(model_function)
+                    self.enterprise_model_params[section], types = get_default_args_types_from_function(model_function)
                     # Update default args with those held inside of path
+                    config_items = dict(config.items(section))
+                    config_items = {k: types[k](config_items[k]) for k in config_items}
                     self.enterprise_model_params[section] = \
                         update_dictionary_with_subdictionary(self.enterprise_model_params[section],
-                                                             dict(config.items(section)))
+                                                             config_items)
                     self.enterprise_model_functions[section] = model_function
                 except AttributeError as e:
                     print(e)
