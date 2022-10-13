@@ -227,6 +227,7 @@ def make_empirical_distributions(pta, paramlist, params, chain,
 
         if len(pl) == 1:
             idx = pta.param_names.index(pl[0])
+
             prior_min = pta.params[idx].prior._defaults['pmin']
             prior_max = pta.params[idx].prior._defaults['pmax']
 
