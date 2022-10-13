@@ -434,7 +434,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
                 log10_ell = parameter.Uniform(0, 5)
-                log10_p = parameter.Uniform(-2, 1)
+                log10_p = parameter.Uniform(-2, 3)
                 log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
@@ -454,7 +454,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                 log10_ell = parameter.Uniform(0, 5)
                 log10_ell2 = parameter.Uniform(0, 7)
                 log10_alpha_wgt = parameter.Uniform(-4, 3)
-                log10_p = parameter.Uniform(-2, 1)
+                log10_p = parameter.Uniform(-2, 3)
                 log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
@@ -603,7 +603,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
                 log10_ell = parameter.Uniform(0, 5)
-                log10_p = parameter.Uniform(-2, 1)
+                log10_p = parameter.Uniform(-2, 3)
                 log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
@@ -624,7 +624,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 log10_ell = parameter.Uniform(0, 5)
                 log10_ell2 = parameter.Uniform(0, 7)
                 log10_alpha_wgt = parameter.Uniform(-4, 3)
-                log10_p = parameter.Uniform(-2, 1)
+                log10_p = parameter.Uniform(-2, 3)
                 log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
