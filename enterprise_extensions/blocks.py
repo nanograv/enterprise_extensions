@@ -433,9 +433,9 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # Periodic GP kernel for DM
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
+                log10_ell = parameter.Uniform(0, 5)
                 log10_p = parameter.Uniform(-2, 1)
-                log10_gam_p = parameter.Uniform(-3, 2)
+                log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -451,11 +451,11 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # Periodic GP kernel for DM with RQ radio-frequency dependence
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
-                log10_ell2 = parameter.Uniform(2, 7)
-                log10_alpha_wgt = parameter.Uniform(-4, 1)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
                 log10_p = parameter.Uniform(-2, 1)
-                log10_gam_p = parameter.Uniform(-3, 2)
+                log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -475,7 +475,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # squared-exponential GP kernel for DM
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
+                log10_ell = parameter.Uniform(0, 5)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -487,9 +487,9 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
-                log10_ell2 = parameter.Uniform(2, 7)
-                log10_alpha_wgt = parameter.Uniform(-4, 1)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
             else:
                 log10_sigma = parameter.Consant()
                 log10_ell = parameter.Consant()
@@ -602,9 +602,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             # Periodic GP kernel for DM
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
+                log10_ell = parameter.Uniform(0, 5)
                 log10_p = parameter.Uniform(-2, 1)
-                log10_gam_p = parameter.Uniform(-3, 2)
+                log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -621,11 +621,11 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             # Periodic GP kernel for DM with RQ radio-frequency dependence
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
-                log10_ell2 = parameter.Uniform(2, 7)
-                log10_alpha_wgt = parameter.Uniform(-4, 1)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
                 log10_p = parameter.Uniform(-2, 1)
-                log10_gam_p = parameter.Uniform(-3, 2)
+                log10_gam_p = parameter.Uniform(-4, 4)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -647,7 +647,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             # squared-exponential kernel for DM
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
+                log10_ell = parameter.Uniform(0, 5)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
@@ -659,9 +659,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             # Sq-Exp GP kernel for Chrom with RQ radio-frequency dependence
             if vary:
                 log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(1, 4)
-                log10_ell2 = parameter.Uniform(2, 7)
-                log10_alpha_wgt = parameter.Uniform(-4, 1)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
             else:
                 log10_sigma = parameter.Constant()
                 log10_ell = parameter.Constant()
