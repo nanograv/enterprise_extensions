@@ -23,6 +23,7 @@ requirements = [
     "scikit-learn>=0.24",
     "emcee",
     "ptmcmcsampler",
+    "importlib"
 ]
 
 test_requirements = []
@@ -60,6 +61,7 @@ setup(
         "enterprise_extensions",
         "enterprise_extensions.frequentist",
         "enterprise_extensions.chromatic",
+        "enterprise_extensions.pipe"
     ],
     package_data={
         "enterprise_extensions.chromatic": [
