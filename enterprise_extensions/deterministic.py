@@ -234,12 +234,20 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 @signal_base.function
 def cw_delay(toas, pos, pdist,
-             cos_gwtheta=0, gwphi=0, cos_inc=0,
-             log10_mc=9, log10_fgw=-8, log10_dist=None, log10_h=None,
-             phase0=0, psi=0,
-             psrTerm=False, p_dist=1, p_phase=None,
-             evolve=False, phase_approx=False, check=False,
-             tref=0):
+             cos_gwtheta:float=0, gwphi:float=0, cos_inc:float=0,
+             log10_mc:float=9, log10_fgw:float=-8, log10_dist:float=None, log10_h:float=None,
+             phase0:float=0, psi:float=0,
+             psrTerm:bool=False, p_dist:float=1, p_phase:float=None,
+             evolve:bool=False, phase_approx:bool=False, check:bool=False,
+             tref:float=0):
+    # cos_gwtheta: parameter.Parameter = 0, gwphi:parameter.Parameter = 0,
+    # cos_inc: parameter.Parameter = 0,
+    # log10_mc: parameter.Parameter = 9, log10_fgw:parameter.Parameter = -8,
+    # log10_dist: parameter.Parameter = None, log10_h:parameter.Parameter = None,
+    # phase0: parameter.Parameter = 0, psi:parameter.Parameter = 0,
+    # psrTerm: bool = False, p_dist:parameter.Parameter = 1, p_phase:parameter.Parameter = None,
+    # evolve: bool = False, phase_approx:bool = False, check:bool = False,
+    # tref: float = 0):
     """
     Function to create GW incuced residuals from a SMBMB as
     defined in Ellis et. al 2012,2013.

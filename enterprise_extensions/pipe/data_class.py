@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass, field
 import configparser
 import inspect
+import enterprise.signals.parameter # this is used but only implicitly
 import enterprise_extensions.models
 import collections.abc
 import pickle, json
@@ -51,6 +52,7 @@ class RunSettings:
     pta_creating_functions = {}
 
     custom_classes = {}
+    custom_function_returns = {}
 
     psrs = None
     noise_dict = None
@@ -95,10 +97,15 @@ class RunSettings:
                 function_parameters, types = get_default_args_types_from_function(custom_function)
                 function_parameters_from_file = self.apply_types(config_file_items, types,
                                                             exclude_keys=['module', 'function'])
-                self.pta_creating_functions[section] = custom_function
-                self.pta_creating_function_parameters[section] = update_dictionary_with_subdictionary(
-                                                                            function_parameters,
-                                                                           function_parameters_from_file)
+
+                if 'returns' in config_file_items.keys():
+                    self.custom_function_returns[config_file_items['returns']] = custom_function(function_parameters_from_file)
+                else:
+                    # TODO not sure what to do if function is not PTA creating...
+                    self.pta_creating_functions[section] = custom_function
+                    self.pta_creating_function_parameters[section] = update_dictionary_with_subdictionary(
+                                                                                function_parameters,
+                                                                               function_parameters_from_file)
             else:
                 try:
                     """
@@ -133,6 +140,10 @@ class RunSettings:
             if 'CUSTOM_CLASS:' in value:
                 # Apply custom class instance stored in custom_classes
                 out_dictionary[key] = self.custom_classes[value.replace('CUSTOM_CLASS:', '')]
+                continue
+            if 'FUNCTION_CALL:' in value:
+                function_call = value.replace('FUNCTION_CALL:', '')
+                out_dictionary[key] = eval(function_call)
                 continue
             if key not in type_dictionary.keys():
                 print(f"WARNING! {key} is not within type dictionary!")
@@ -185,7 +196,7 @@ class RunSettings:
                 self.pta_creating_function_parameters[key]['noisedict'] = self.noise_dict
 
     def create_pta_object_from_signals(self):
-
+        raise NotImplementedError
 
     def create_pta_object(self):
         """
