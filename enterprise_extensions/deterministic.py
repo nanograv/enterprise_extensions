@@ -48,9 +48,9 @@ def fdm_block(Tmin, Tmax, amp_prior='log-uniform', name='fdm',
         log10_f_fdm = parameter.Uniform(freq_lower, freq_upper)(freq_name)
 
     phase_e_name = '{}_phase_e'.format(name)
-    phase_e_fdm = parameter.Uniform(0, 2*np.pi)(phase_e_name)
+    phase_e_fdm = parameter.Uniform(0, 2 * np.pi)(phase_e_name)
 
-    phase_p = parameter.Uniform(0, 2*np.pi)
+    phase_p = parameter.Uniform(0, 2 * np.pi)
 
     fdm_wf = fdm_delay(log10_A=log10_A_fdm, log10_f=log10_f_fdm,
                        phase_e=phase_e_fdm, phase_p=phase_p)
@@ -113,7 +113,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
     # orbital inclination angle [radians]
     cosinc = parameter.Uniform(-1.0, 1.0)('{}_cosinc'.format(name))
     # initial GW phase [radians]
-    phase0 = parameter.Uniform(0.0, 2*np.pi)('{}_phase0'.format(name))
+    phase0 = parameter.Uniform(0.0, 2 * np.pi)('{}_phase0'.format(name))
 
     # polarization
     psi_name = '{}_psi'.format(name)
@@ -124,7 +124,7 @@ def cw_block_circ(amp_prior='log-uniform', dist_prior=None,
     phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
-        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+        phi = parameter.Uniform(0, 2 * np.pi)(phi_name)
     else:
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
@@ -201,7 +201,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
         e_0 = parameter.Constant(ecc)('{}_e0'.format(name))
 
     # initial mean anomaly [radians]
-    l_0 = parameter.Uniform(0.0, 2.0*np.pi)('{}_l0'.format(name))
+    l_0 = parameter.Uniform(0.0, 2.0 * np.pi)('{}_l0'.format(name))
     # mass ratio = M_2/M_1
     q = parameter.Constant(1.0)('{}_q'.format(name))
 
@@ -214,7 +214,7 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
     phi_name = '{}_phi'.format(name)
     if skyloc is None:
         costh = parameter.Uniform(-1, 1)(costh_name)
-        phi = parameter.Uniform(0, 2*np.pi)(phi_name)
+        phi = parameter.Uniform(0, 2 * np.pi)(phi_name)
     else:
         costh = parameter.Constant(skyloc[0])(costh_name)
         phi = parameter.Constant(skyloc[1])(phi_name)
@@ -234,12 +234,12 @@ def cw_block_ecc(amp_prior='log-uniform', skyloc=None, log10_F=None,
 
 @signal_base.function
 def cw_delay(toas, pos, pdist,
-             cos_gwtheta:float=0, gwphi:float=0, cos_inc:float=0,
-             log10_mc:float=9, log10_fgw:float=-8, log10_dist:float=None, log10_h:float=None,
-             phase0:float=0, psi:float=0,
-             psrTerm:bool=False, p_dist:float=1, p_phase:float=None,
-             evolve:bool=False, phase_approx:bool=False, check:bool=False,
-             tref:float=0):
+             cos_gwtheta: float = 0, gwphi: float = 0, cos_inc: float = 0,
+             log10_mc: float = 9, log10_fgw: float = -8, log10_dist: float = None, log10_h: float = None,
+             phase0: float = 0, psi: float = 0,
+             psrTerm: bool = False, p_dist: float = 1, p_phase: float = None,
+             evolve: bool = False, phase_approx: bool = False, check: bool = False,
+             tref: float = 0):
     # cos_gwtheta: parameter.Parameter = 0, gwphi:parameter.Parameter = 0,
     # cos_inc: parameter.Parameter = 0,
     # log10_mc: parameter.Parameter = 9, log10_fgw:parameter.Parameter = -8,
@@ -299,30 +299,30 @@ def cw_delay(toas, pos, pdist,
     """
 
     # convert units to time
-    mc = 10**log10_mc * const.Tsun
-    fgw = 10**log10_fgw
+    mc = 10 ** log10_mc * const.Tsun
+    fgw = 10 ** log10_fgw
     gwtheta = np.arccos(cos_gwtheta)
     inc = np.arccos(cos_inc)
-    p_dist = (pdist[0] + pdist[1]*p_dist)*const.kpc/const.c
+    p_dist = (pdist[0] + pdist[1] * p_dist) * const.kpc / const.c
 
     if log10_h is None and log10_dist is None:
         raise ValueError("one of log10_dist or log10_h must be non-None")
     elif log10_h is not None and log10_dist is not None:
         raise ValueError("only one of log10_dist or log10_h can be non-None")
     elif log10_h is None:
-        dist = 10**log10_dist * const.Mpc / const.c
+        dist = 10 ** log10_dist * const.Mpc / const.c
     else:
-        dist = 2 * mc**(5/3) * (np.pi*fgw)**(2/3) / 10**log10_h
+        dist = 2 * mc ** (5 / 3) * (np.pi * fgw) ** (2 / 3) / 10 ** log10_h
 
     if check:
         # check that frequency is not evolving significantly over obs. time
-        fstart = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[0])**(-3/8)
-        fend = fgw * (1 - 256/5 * mc**(5/3) * fgw**(8/3) * toas[-1])**(-3/8)
+        fstart = fgw * (1 - 256 / 5 * mc ** (5 / 3) * fgw ** (8 / 3) * toas[0]) ** (-3 / 8)
+        fend = fgw * (1 - 256 / 5 * mc ** (5 / 3) * fgw ** (8 / 3) * toas[-1]) ** (-3 / 8)
         df = fend - fstart
 
         # observation time
-        Tobs = toas.max()-toas.min()
-        fbin = 1/Tobs
+        Tobs = toas.max() - toas.min()
+        fbin = 1 / Tobs
 
         if np.abs(df) > fbin:
             print('WARNING: Frequency is evolving over more than one '
@@ -337,7 +337,7 @@ def cw_delay(toas, pos, pdist,
     # get pulsar time
     toas -= tref
     if p_dist > 0:
-        tp = toas-p_dist*(1-cosMu)
+        tp = toas - p_dist * (1 - cosMu)
     else:
         tp = toas
 
@@ -349,45 +349,45 @@ def cw_delay(toas, pos, pdist,
     # evolution
     if evolve:
         # calculate time dependent frequency at earth and pulsar
-        omega = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * toas)**(-3/8)
-        omega_p = w0 * (1 - 256/5 * mc**(5/3) * w0**(8/3) * tp)**(-3/8)
+        omega = w0 * (1 - 256 / 5 * mc ** (5 / 3) * w0 ** (8 / 3) * toas) ** (-3 / 8)
+        omega_p = w0 * (1 - 256 / 5 * mc ** (5 / 3) * w0 ** (8 / 3) * tp) ** (-3 / 8)
 
         if p_dist > 0:
-            omega_p0 = w0 * (1 + 256/5
-                             * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+            omega_p0 = w0 * (1 + 256 / 5
+                             * mc ** (5 / 3) * w0 ** (8 / 3) * p_dist * (1 - cosMu)) ** (-3 / 8)
         else:
             omega_p0 = w0
 
         # calculate time dependent phase
-        phase = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega**(-5/3))
+        phase = phase0 + 1 / 32 / mc ** (5 / 3) * (w0 ** (-5 / 3) - omega ** (-5 / 3))
 
         if p_phase is None:
-            phase_p = phase0 + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3))
+            phase_p = phase0 + 1 / 32 / mc ** (5 / 3) * (w0 ** (-5 / 3) - omega_p ** (-5 / 3))
         else:
             phase_p = (phase0 + p_phase
-                       + 1/32*mc**(-5/3) * (omega_p0**(-5/3) - omega_p**(-5/3)))
+                       + 1 / 32 * mc ** (-5 / 3) * (omega_p0 ** (-5 / 3) - omega_p ** (-5 / 3)))
 
     elif phase_approx:
         # monochromatic
         omega = w0
         if p_dist > 0:
-            omega_p = w0 * (1 + 256/5
-                            * mc**(5/3) * w0**(8/3) * p_dist*(1-cosMu))**(-3/8)
+            omega_p = w0 * (1 + 256 / 5
+                            * mc ** (5 / 3) * w0 ** (8 / 3) * p_dist * (1 - cosMu)) ** (-3 / 8)
         else:
             omega_p = w0
 
         # phases
         phase = phase0 + omega * toas
         if p_phase is not None:
-            phase_p = phase0 + p_phase + omega_p*toas
+            phase_p = phase0 + p_phase + omega_p * toas
         else:
-            phase_p = (phase0 + omega_p*toas
-                       + 1/32/mc**(5/3) * (w0**(-5/3) - omega_p**(-5/3)))
+            phase_p = (phase0 + omega_p * toas
+                       + 1 / 32 / mc ** (5 / 3) * (w0 ** (-5 / 3) - omega_p ** (-5 / 3)))
 
     # no evolution
     else:
         # monochromatic
-        omega = np.pi*fgw
+        omega = np.pi * fgw
         omega_p = omega
 
         # phases
@@ -395,26 +395,26 @@ def cw_delay(toas, pos, pdist,
         phase_p = phase0 + omega * tp
 
     # define time dependent coefficients
-    At = -0.5*np.sin(2*phase)*(3+np.cos(2*inc))
-    Bt = 2*np.cos(2*phase)*np.cos(inc)
-    At_p = -0.5*np.sin(2*phase_p)*(3+np.cos(2*inc))
-    Bt_p = 2*np.cos(2*phase_p)*np.cos(inc)
+    At = -0.5 * np.sin(2 * phase) * (3 + np.cos(2 * inc))
+    Bt = 2 * np.cos(2 * phase) * np.cos(inc)
+    At_p = -0.5 * np.sin(2 * phase_p) * (3 + np.cos(2 * inc))
+    Bt_p = 2 * np.cos(2 * phase_p) * np.cos(inc)
 
     # now define time dependent amplitudes
-    alpha = mc**(5./3.)/(dist*omega**(1./3.))
-    alpha_p = mc**(5./3.)/(dist*omega_p**(1./3.))
+    alpha = mc ** (5. / 3.) / (dist * omega ** (1. / 3.))
+    alpha_p = mc ** (5. / 3.) / (dist * omega_p ** (1. / 3.))
 
     # define rplus and rcross
-    rplus = alpha*(-At*np.cos(2*psi)+Bt*np.sin(2*psi))
-    rcross = alpha*(At*np.sin(2*psi)+Bt*np.cos(2*psi))
-    rplus_p = alpha_p*(-At_p*np.cos(2*psi)+Bt_p*np.sin(2*psi))
-    rcross_p = alpha_p*(At_p*np.sin(2*psi)+Bt_p*np.cos(2*psi))
+    rplus = alpha * (-At * np.cos(2 * psi) + Bt * np.sin(2 * psi))
+    rcross = alpha * (At * np.sin(2 * psi) + Bt * np.cos(2 * psi))
+    rplus_p = alpha_p * (-At_p * np.cos(2 * psi) + Bt_p * np.sin(2 * psi))
+    rcross_p = alpha_p * (At_p * np.sin(2 * psi) + Bt_p * np.cos(2 * psi))
 
     # residuals
     if psrTerm:
-        res = fplus*(rplus_p-rplus)+fcross*(rcross_p-rcross)
+        res = fplus * (rplus_p - rplus) + fcross * (rcross_p - rcross)
     else:
-        res = -fplus*rplus - fcross*rcross
+        res = -fplus * rplus - fcross * rcross
 
     return res
 
@@ -528,11 +528,11 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     """
 
     # convert from sampling
-    F = 10.0**log10_F
-    mc = 10.0**log10_mc
-    dist = 10.0**log10_dist
+    F = 10.0 ** log10_F
+    mc = 10.0 ** log10_mc
+    dist = 10.0 ** log10_dist
     if log10_h is not None:
-        h0 = 10.0**log10_h
+        h0 = 10.0 ** log10_h
     else:
         h0 = None
     inc = np.arccos(cos_inc)
@@ -541,19 +541,19 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
     # define variable for later use
     cosgwtheta, cosgwphi = np.cos(gwtheta), np.cos(gwphi)
     singwtheta, singwphi = np.sin(gwtheta), np.sin(gwphi)
-    sin2psi, cos2psi = np.sin(2*psi), np.cos(2*psi)
+    sin2psi, cos2psi = np.sin(2 * psi), np.cos(2 * psi)
 
     # unit vectors to GW source
     m = np.array([singwphi, -cosgwphi, 0.0])
-    n = np.array([-cosgwtheta*cosgwphi, -cosgwtheta*singwphi, singwtheta])
-    omhat = np.array([-singwtheta*cosgwphi, -singwtheta*singwphi, -cosgwtheta])
+    n = np.array([-cosgwtheta * cosgwphi, -cosgwtheta * singwphi, singwtheta])
+    omhat = np.array([-singwtheta * cosgwphi, -singwtheta * singwphi, -cosgwtheta])
 
     # pulsar position vector
-    phat = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi),
+    phat = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi),
                      np.cos(theta)])
 
-    fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
-    fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
+    fplus = 0.5 * (np.dot(m, phat) ** 2 - np.dot(n, phat) ** 2) / (1 + np.dot(omhat, phat))
+    fcross = (np.dot(m, phat) * np.dot(n, phat)) / (1 + np.dot(omhat, phat))
     cosMu = -np.dot(omhat, phat)
 
     # get values from pulsar object
@@ -569,11 +569,11 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
         Fc1, ec1, gc1, phic1 = y[-1, :]
 
         # observation time
-        Tobs = 1/(toas.max()-toas.min())
+        Tobs = 1 / (toas.max() - toas.min())
 
-        if np.abs(Fc0-Fc1) > 1/Tobs:
+        if np.abs(Fc0 - Fc1) > 1 / Tobs:
             print('WARNING: Frequency is evolving over more than one frequency bin.')
-            print('F0 = {0}, F1 = {1}, delta f = {2}'.format(Fc0, Fc1, 1/Tobs))
+            print('F0 = {0}, F1 = {1}, delta f = {2}'.format(Fc0, Fc1, 1 / Tobs))
             return np.ones(len(toas)) * np.nan
 
     # get gammadot for earth term
@@ -608,7 +608,7 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
         pd *= const.kpc / const.c
 
         # get pulsar time
-        tp = toas.copy() - pd * (1-cosMu)
+        tp = toas.copy() - pd * (1 - cosMu)
 
         # solve coupled system of equations to get pulsar term values
         y = utils.solve_coupled_ecc_solution(F, e0, gamma0, l0, mc,
@@ -654,21 +654,20 @@ def compute_eccentric_residuals(toas, theta, phi, cos_gwtheta, gwphi,
                                                            gammadot=gammadotp,
                                                            inc=inc)
 
-            rr = (fplus*cos2psi - fcross*sin2psi) * (splusp - splus) + \
-                (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
+            rr = (fplus * cos2psi - fcross * sin2psi) * (splusp - splus) + \
+                 (fplus * sin2psi + fcross * cos2psi) * (scrossp - scross)
 
         else:
             rr = np.ones(len(toas)) * np.nan
 
     else:
-        rr = - (fplus*cos2psi - fcross*sin2psi) * splus - \
-            (fplus*sin2psi + fcross*cos2psi) * scross
+        rr = - (fplus * cos2psi - fcross * sin2psi) * splus - \
+             (fplus * sin2psi + fcross * cos2psi) * scross
 
     return rr
 
 
-def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
-
+def CWSignal(cw_wf, ecc: bool = False, psrTerm: bool = False, name: str = 'cw'):
     BaseClass = deterministic_signals.Deterministic(cw_wf, name=name)
 
     class CWSignal(BaseClass):
@@ -677,9 +676,9 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
             super(CWSignal, self).__init__(psr)
             self._wf[''].add_kwarg(psrTerm=psrTerm)
             if ecc:
-                pgam = parameter.Uniform(0, 2*np.pi)('_'.join([psr.name,
-                                                               'pgam',
-                                                               name]))
+                pgam = parameter.Uniform(0, 2 * np.pi)('_'.join([psr.name,
+                                                                 'pgam',
+                                                                 name]))
                 self._params['pgam'] = pgam
                 self._wf['']._params['pgam'] = pgam
 
@@ -689,7 +688,7 @@ def CWSignal(cw_wf, ecc=False, psrTerm=False, name='cw'):
 @signal_base.function
 def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
                           log10_A_vl=-15, log10_A_sl=-15,
-                          kappa=10/3, p_dist=1.0):
+                          kappa=10 / 3, p_dist=1.0):
     """
     PSD for a generalized mixture of scalar+vector dipole radiation
     and tensorial quadrupole radiation from SMBHBs.
@@ -699,24 +698,24 @@ def generalized_gwpol_psd(f, log10_A_tt=-15, log10_A_st=-15,
     euler_e = 0.5772156649
     pdist = p_dist * const.kpc / const.c
 
-    orf_aa_tt = (2/3) * np.ones(len(f))
-    orf_aa_st = (2/3) * np.ones(len(f))
-    orf_aa_vl = 2*np.log(4*np.pi*f*pdist) - 14/3 + 2*euler_e
-    orf_aa_sl = np.pi**2*f*pdist/4 - \
-        np.log(4*np.pi*f*pdist) + 37/24 - euler_e
+    orf_aa_tt = (2 / 3) * np.ones(len(f))
+    orf_aa_st = (2 / 3) * np.ones(len(f))
+    orf_aa_vl = 2 * np.log(4 * np.pi * f * pdist) - 14 / 3 + 2 * euler_e
+    orf_aa_sl = np.pi ** 2 * f * pdist / 4 - \
+                np.log(4 * np.pi * f * pdist) + 37 / 24 - euler_e
 
-    prefactor = (1 + kappa**2) / (1 + kappa**2 * (f / const.fyr)**(-2/3))
-    gwpol_amps = 10**(2*np.array([log10_A_tt, log10_A_st,
-                                  log10_A_vl, log10_A_sl]))
-    gwpol_factors = np.array([orf_aa_tt*gwpol_amps[0],
-                              orf_aa_st*gwpol_amps[1],
-                              orf_aa_vl*gwpol_amps[2],
-                              orf_aa_sl*gwpol_amps[3]])
+    prefactor = (1 + kappa ** 2) / (1 + kappa ** 2 * (f / const.fyr) ** (-2 / 3))
+    gwpol_amps = 10 ** (2 * np.array([log10_A_tt, log10_A_st,
+                                      log10_A_vl, log10_A_sl]))
+    gwpol_factors = np.array([orf_aa_tt * gwpol_amps[0],
+                              orf_aa_st * gwpol_amps[1],
+                              orf_aa_vl * gwpol_amps[2],
+                              orf_aa_sl * gwpol_amps[3]])
 
-    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr)**(-4/3) +
+    S_psd = prefactor * (gwpol_factors[0, :] * (f / const.fyr) ** (-4 / 3) +
                          np.sum(gwpol_factors[1:, :], axis=0) *
-                         (f / const.fyr)**(-2)) / \
-        (8*np.pi**2*f**3)
+                         (f / const.fyr) ** (-2)) / \
+            (8 * np.pi ** 2 * f ** 3)
 
     return S_psd * np.repeat(df, 2)
 
