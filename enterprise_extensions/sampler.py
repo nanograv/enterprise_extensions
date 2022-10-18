@@ -307,6 +307,8 @@ class JumpProposal(object):
                 for par, ii in self.pimap.items()
                 if np.any([sp in par for sp in special_pars])
             ]
+        else:
+            self.restrict_mass = False
 
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
