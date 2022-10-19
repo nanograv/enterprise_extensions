@@ -467,7 +467,7 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
         be_type: str='setIII', white_vary: bool=False, is_wideband: bool=False,
         use_dmdata: bool=False, select: str='backend', tnequad: bool=False,
         pshift: bool=False, pseed: int=None, psr_models: bool=False,
-        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False):
+        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False, gp_ecorr:bool=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -526,6 +526,9 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
     :param tm_svd: boolean for svd-stabilised timing model design matrix
+    :param gp_ecorr:
+        whether to use the Gaussian process model for ECORR
+
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
@@ -580,11 +583,11 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
     models = []
     for p in psrs:
         if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, gp_ecorr=gp_ecorr,
                                        tnequad=tnequad, select=select)
             models.append(s2(p))
         else:
-            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
+            s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, gp_ecorr=gp_ecorr,
                                        tnequad=tnequad, select=select)
             models.append(s3(p))
 
