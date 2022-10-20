@@ -467,7 +467,8 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
         be_type: str='setIII', white_vary: bool=False, is_wideband: bool=False,
         use_dmdata: bool=False, select: str='backend', tnequad: bool=False,
         pshift: bool=False, pseed: int=None, psr_models: bool=False,
-        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False, gp_ecorr:bool=False):
+        tm_marg: bool=False, dense_like: bool=False, tm_svd: bool=False,
+        gp_ecorr:bool=False, individual_Tspan_for_red_noise: bool=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with model 2A from the analysis paper:
@@ -528,12 +529,17 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
     :param tm_svd: boolean for svd-stabilised timing model design matrix
     :param gp_ecorr:
         whether to use the Gaussian process model for ECORR
-
+    :param individual_Tspan_for_red_noise:
+        each pulsar has frequencies defined by 1/Tspan_pulsar for the red noise
     """
 
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
 
     # find the maximum time span to set GW frequency sampling
+    if individual_Tspan_for_red_noise:
+        Tspan_red_noise = None
+    else:
+        Tspan_red_noise = model_utils.get_tspan(psrs)
     Tspan = model_utils.get_tspan(psrs)
 
     if n_gwbfreqs is None:
@@ -566,7 +572,7 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
             s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
+    s += red_noise_block(prior=amp_prior, Tspan=Tspan_red_noise, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
