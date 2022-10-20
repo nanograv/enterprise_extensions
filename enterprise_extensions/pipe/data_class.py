@@ -42,7 +42,7 @@ def update_dictionary_with_subdictionary(d, u):
     return d
 
 
-@dataclass
+@dataclass()
 class RunSettings:
     """
     Class for keeping track of enterprise model run settings
@@ -53,17 +53,19 @@ class RunSettings:
     noise_dict_json: str = None
 
     # dictionary of functions that create signals
-    signal_creating_functions = {}
-    signal_creating_function_parameters = {}
+    signal_creating_functions: dict = field(default_factory=dict)
+    signal_creating_function_parameters: dict = field(default_factory=dict)
     # dictionary of functions that create pta objects
-    pta_creating_function_parameters = {}
-    pta_creating_functions = {}
+    pta_creating_function_parameters: dict = field(default_factory=dict)
+    pta_creating_functions: dict = field(default_factory=dict)
 
-    custom_classes = {}
-    custom_function_return = {}
+    custom_classes: dict = field(default_factory=dict)
+    custom_function_return: dict = field(default_factory=dict)
 
-    psrs = None
-    noise_dict = None
+    psrs: list = field(default_factory=list)
+    noise_dict: dict = field(default_factory=dict)
+    sections: dict = field(default_factory=dict)
+    typed_sections: dict = field(default_factory=dict)
 
     def update_from_file(self, config_file: str) -> None:
         """
@@ -76,7 +78,7 @@ class RunSettings:
         exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return', 'custom_return']
         for section in config.sections():
             config_file_items = dict(config.items(section))
-
+            self.sections[section] = config_file_items
             if section == 'input' or section == 'output' or section == 'DEFAULT':
                 # read in input / output files
                 for item in config_file_items.copy():
@@ -99,6 +101,7 @@ class RunSettings:
                                                               exclude_keys=exclude_keys)
                 class_parameters = update_dictionary_with_subdictionary(class_parameters, class_parameters_from_file)
                 self.custom_classes[section] = custom_class(**class_parameters)
+                self.typed_sections[section] = class_parameters
 
             elif 'function' in config_file_items.keys():
                 # import a module defined elsewhere
@@ -113,6 +116,7 @@ class RunSettings:
                     # custom_return means that this function is just being called to return something else
                     self.custom_function_return[config_file_items['custom_return']] = \
                         custom_function(**function_parameters_from_file)
+                    self.typed_sections[section] = function_parameters_from_file
                     continue
                 elif 'signal_return' in config_file_items.keys():
                     self.signal_creating_functions[section] = custom_function
@@ -230,6 +234,7 @@ class RunSettings:
         Using both signals from pta objects and signals from self.signal_creating_functions
         Create a pta object
         """
+
         pta_list = self.get_pta_objects()
         signal_collections = [self.get_signal_collection_from_pta_object(pta) for pta in pta_list]
         for key, func in self.signal_creating_functions.items():
@@ -260,7 +265,8 @@ class RunSettings:
         Using pta creating functions specified in config, get list of pta objects
         """
         pta_list = []
-        if self.psrs is None:
+        if len(self.psrs) == 0:
+            print("Loading pulsars")
             self.load_pickled_pulsars()
 
         for key in self.pta_creating_function_parameters.keys():
