@@ -48,7 +48,6 @@ class RunSettings:
     Class for keeping track of enterprise model run settings
     TODO: link to examples of how to use
     """
-    config_file: str = None
     pulsar_pickle: str = None
     noise_dict_json: str = None
 
@@ -60,12 +59,16 @@ class RunSettings:
     pta_creating_functions: dict = field(default_factory=dict)
 
     custom_classes: dict = field(default_factory=dict)
+    custom_class_parameters: dict = field(default_factory=dict)
+
+    function_parameters: dict = field(default_factory=dict)
+    functions: dict = field(default_factory=dict)
     custom_function_return: dict = field(default_factory=dict)
 
     psrs: list = field(default_factory=list)
     noise_dict: dict = field(default_factory=dict)
-    sections: dict = field(default_factory=dict)
-    typed_sections: dict = field(default_factory=dict)
+    # stores config file as dictionary
+    config_file_items: dict = field(default_factory=dict)
 
     def update_from_file(self, config_file: str) -> None:
         """
@@ -78,15 +81,9 @@ class RunSettings:
         exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return', 'custom_return']
         for section in config.sections():
             config_file_items = dict(config.items(section))
-            self.sections[section] = config_file_items
-            if section == 'input' or section == 'output' or section == 'DEFAULT':
-                # read in input / output files
-                for item in config_file_items.copy():
-                    if not config_file_items[item]:
-                        config_file_items.pop(item)
-                self.update_from_dict(**config_file_items)
+            self.config_file_items[section] = config_file_items
 
-            elif 'class' in config_file_items.keys():
+            if 'class' in config_file_items.keys():
                 """
                 Initialize a class given in a config file 
                 """
@@ -96,62 +93,51 @@ class RunSettings:
                 # import a class from a module
                 custom_class = getattr(module, config_file_items['class'])
 
-                class_parameters, types = get_default_args_types_from_function(custom_class.__init__)
+                default_class_parameters, types = get_default_args_types_from_function(custom_class.__init__)
                 class_parameters_from_file = self.apply_types(config_file_items, types,
                                                               exclude_keys=exclude_keys)
-                class_parameters = update_dictionary_with_subdictionary(class_parameters, class_parameters_from_file)
+                class_parameters = update_dictionary_with_subdictionary(default_class_parameters,
+                                                                        class_parameters_from_file)
                 self.custom_classes[section] = custom_class(**class_parameters)
-                self.typed_sections[section] = class_parameters
+                self.custom_class_parameters[section] = class_parameters
 
             elif 'function' in config_file_items.keys():
                 # import a module defined elsewhere
                 module = importlib.import_module(config_file_items['module'])
                 # import a function from a module
                 custom_function = getattr(module, config_file_items['function'])
-                function_parameters, types = get_default_args_types_from_function(custom_function)
+                default_function_parameters, types = get_default_args_types_from_function(custom_function)
                 function_parameters_from_file = self.apply_types(config_file_items, types,
                                                                  exclude_keys=exclude_keys)
 
+                self.functions[section] = custom_function
+                self.function_parameters[section] = update_dictionary_with_subdictionary(
+                        default_function_parameters,
+                        function_parameters_from_file)
+
                 if 'custom_return' in config_file_items.keys():
-                    # custom_return means that this function is just being called to return something else
+                    # custom_return means to store the return value of this function in self.custom_function_return
                     self.custom_function_return[config_file_items['custom_return']] = \
-                        custom_function(**function_parameters_from_file)
-                    self.typed_sections[section] = function_parameters_from_file
-                    continue
+                        self.functions[section](**self.function_parameters[section])
                 elif 'signal_return' in config_file_items.keys():
-                    self.signal_creating_functions[section] = custom_function
-                    self.signal_creating_function_parameters[section] = update_dictionary_with_subdictionary(
-                        function_parameters,
-                        function_parameters_from_file)
+                    # label this function as something that returns signal models
+                    self.signal_creating_functions[section] = self.functions[section]
+                    self.signal_creating_function_parameters[section] = self.function_parameters[section]
                 elif 'pta_return' in config_file_items.keys():
-                    self.pta_creating_functions[section] = custom_function
-                    self.pta_creating_function_parameters[section] = update_dictionary_with_subdictionary(
-                        function_parameters,
-                        function_parameters_from_file)
-                else:
-                    raise (AttributeError((
-                        "'function' needs one of 'custom_return=SOMETHING' "
-                        "'signal_function=True' 'pta_function=True' "
-                        "in .ini file")))
+                    # label this function as something that returns ptas
+                    self.pta_creating_functions[section] = self.functions[section]
+                    self.pta_creating_function_parameters[section] = self.function_parameters[section]
+
             else:
-                try:
-                    """
-                    Get default values for models held in enterprise_extensions
-                    """
-                    model_function = getattr(enterprise_extensions.models, section)
-                    self.pta_creating_function_parameters[section], types = get_default_args_types_from_function(
-                        model_function)
-                    # Update default args with those held inside of path
-                    function_parameters_from_file = self.apply_types(config_file_items, types)
-                    self.pta_creating_function_parameters[section] = \
-                        update_dictionary_with_subdictionary(self.pta_creating_function_parameters[section],
-                                                             function_parameters_from_file)
-                    self.pta_creating_functions[section] = model_function
-                except AttributeError as e:
-                    # TODO this should probably exit
-                    print(e)
-                    print(f"WARNING! there is no {section} in enterprise_extensions.models")
-                    raise AttributeError
+                #if section == 'input' or section == 'output' or section == 'DEFAULT':
+                # If not a class or function
+                # it must be something specified in the RunSettings class
+                # now read those in from the file
+                for item in config_file_items.copy():
+                    if not config_file_items[item]:
+                        config_file_items.pop(item)
+                self.update_from_dict(**config_file_items)
+
 
     def apply_types(self, dictionary, type_dictionary, exclude_keys=[]):
         """
@@ -177,14 +163,14 @@ class RunSettings:
                 # Apply custom class instance stored in custom_classes
                 out_dictionary[key] = self.custom_classes[value.replace('CUSTOM_CLASS:', '')]
                 continue
-            if 'FUNCTION_CALL:' in value:
-                function_call = value.replace('FUNCTION_CALL:', '')
+            if 'EVAL:' in value:
+                function_call = value.replace('EVAL:', '')
                 out_dictionary[key] = eval(function_call)
                 continue
             if key not in type_dictionary.keys():
-                print(f"WARNING! {key} is not within type dictionary!")
+                print(f"WARNING! apply_types: {key} is not within type dictionary!")
                 print(f"Object value is {value} and type is {type(value)}")
-                print(f"Continuing")
+                print("Continuing")
                 continue
             # special comprehension for (1d) numpy arrays
             if type_dictionary[key] == np.ndarray:
@@ -206,6 +192,7 @@ class RunSettings:
                 except TypeError:
                     pass
                 setattr(self, name, kwargs[name])
+        print(f'WARNING: {set(kwargs.keys()) - set(ann.keys())} arguments are getting ignored!')
 
     def load_pickled_pulsars(self):
         """
@@ -257,8 +244,6 @@ class RunSettings:
         get signal collection from this pta object
         """
         return type(pta.pulsarmodels[0])
-
-
 
     def get_pta_objects(self):
         """
