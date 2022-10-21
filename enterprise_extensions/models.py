@@ -619,7 +619,7 @@ def model_2a(psrs: list, psd: str='powerlaw', noisedict: dict=None, components: 
             noisedict = noisedict
             pta.set_default_params(noisedict)
 
-        return pta
+    return pta
 
 
 def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
