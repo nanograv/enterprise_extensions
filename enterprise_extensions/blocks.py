@@ -36,8 +36,8 @@ def channelized_backends(backend_flags):
     return {flagval: backend_flags == flagval for flagval in flagvals}
 
 
-def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', tnequad=False, name=None):
+def white_noise_block(vary:bool=False, inc_ecorr:bool=False, gp_ecorr:bool=False,
+                      efac1:bool=False, select:str='backend', tnequad:bool=False, name:str=None):
     """
     Returns the white noise block of the model:
 

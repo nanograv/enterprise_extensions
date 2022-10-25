@@ -349,10 +349,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
         return pta
 
 
-def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-            components=30, upper_limit=False, bayesephem=False, tnequad=False,
-            be_type='orbel', is_wideband=False, use_dmdata=False,
-            select='backend', tm_marg=False, dense_like=False, tm_svd=False):
+def model_1(psrs:list, psd:str='powerlaw', noisedict:dict=None, white_vary:bool=False,
+            components:int=30, upper_limit:bool=False, bayesephem:bool=False, tnequad:bool=False,
+            be_type:str='orbel', is_wideband:bool=False, use_dmdata:bool=False,
+            select:str='backend', tm_marg:bool=False, dense_like:bool=False, tm_svd:bool=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
     instantiated with only white and red noise:
