@@ -92,7 +92,7 @@ class RunSettings:
             self.config_file_items[section] = config_file_items
             if section == 'modules':
                 load_module_globally(config_file_items)
-            if 'class' in config_file_items.keys():
+            elif 'class' in config_file_items.keys():
                 """
                 Initialize a class given in a config file 
                 """
@@ -159,7 +159,7 @@ class RunSettings:
 
         if CUSTOM_CLASS:your_class is in dictionary[key],
             instead of applying type it assigns from self.custom_classes
-        if CUSTOM_RETURN:whatever is in dictionary[key]
+        if CUSTOM_FUNCTION_RETURN:whatever is in dictionary[key]
             instead of applying type it assigns from self.custom_returns[whatever]
         if EVAL:whatever
             will call eval("whatever") and assign that
@@ -244,6 +244,7 @@ class RunSettings:
         Using both signals from pta objects and signals from self.signal_creating_functions
         Create a pta object
         """
+        self.load_pickled_pulsars()
 
         pta_list = self.get_pta_objects()
         signal_collections = [self.get_signal_collection_from_pta_object(pta) for pta in pta_list]
