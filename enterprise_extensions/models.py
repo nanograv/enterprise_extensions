@@ -327,7 +327,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                   tnequad=tnequad, select=select)
+                                   tnequad=tnequad, select=select, ng_twg_setup = ng_twg_setup, wb_efac_sigma = wb_efac_sigma)
         model = s3(psr)
         if psr_model:
             Model = s3
