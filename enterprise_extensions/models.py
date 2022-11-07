@@ -58,7 +58,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
-                          select='backend', tm_marg=False, dense_like=False):
+                          select='backend', tm_marg=False, dense_like=False, ng_twg_setup = False, wb_efac_sigma = 0.25):
     """
     Single pulsar noise model.
 
@@ -162,7 +162,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             else:
                 dmjump = parameter.Constant()
             if white_vary:
-                dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+                if ng_twg_setup:
+                    dmefac = parameter.Normal(1.0, wb_efac_sigma)
+                else:
+                    dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
                 log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
                 # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
             else:
