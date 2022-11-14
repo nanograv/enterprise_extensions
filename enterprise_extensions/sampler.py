@@ -34,11 +34,11 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
-                    if not(emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
+                    if not (emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
                         prior_ok = False
                         continue
                 elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
-                    if not(emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
+                    if not (emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
                         prior_ok=False
                         continue
             if prior_ok:
