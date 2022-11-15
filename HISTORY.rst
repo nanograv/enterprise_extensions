@@ -1,6 +1,9 @@
 =======
 History
 =======
+2.4.1 (2022-02-10)
+Add support for new noise definitions in WidebandTimingModel.
+
 2.4.0 (2022-02-10)
 Use Timing Package (Tempo,Tempo2,Pint) definition of EQUAD. Enterprise has
 broken backwards compatibility, and here we use the `tnequad` flag to switch on
