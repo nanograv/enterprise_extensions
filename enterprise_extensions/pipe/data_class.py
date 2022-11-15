@@ -162,7 +162,7 @@ class RunSettings:
             instead of applying type it assigns from self.custom_classes
         if CUSTOM_FUNCTION_RETURN:whatever is in dictionary[key]
             instead of applying type it assigns from self.custom_returns[whatever]
-        if EVAL:whatever
+        if EVAL:whatever is in dictionary[key]
             will call eval("whatever") and assign that
         """
         out_dictionary = {}
