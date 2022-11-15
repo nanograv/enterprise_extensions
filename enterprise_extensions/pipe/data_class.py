@@ -7,6 +7,7 @@ import collections.abc
 import pickle, json
 import importlib
 import numpy as np
+import re
 from enterprise.signals import signal_base
 
 
@@ -237,6 +238,15 @@ class RunSettings:
     def get_noise_dict(self):
         if len(self.noise_dict.keys()) == 0:
             self.noise_dict = json.load(open(self.noise_dict_json))
+
+            for par in list(self.noise_dict.keys()):
+                if 'log10_equad' in par:
+                    efac = re.sub('log10_equad', 'efac', par)
+                    equad = re.sub('log10_equad', 'log10_t2equad', par)
+                    self.noise_dict[equad] = np.log10(10 ** self.noise_dict[par] / self.noise_dict[efac])
+                elif 'log10_ecorr' in par and 'basis_ecorr' not in par:
+                    ecorr = par.split('_')[0] + '_basis_ecorr_' + '_'.join(par.split('_')[1:])
+                    self.noise_dict[ecorr] = self.noise_dict[par]
         return self.noise_dict
 
     def create_pta_object_from_signals(self):
