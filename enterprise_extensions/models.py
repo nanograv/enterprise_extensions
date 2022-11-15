@@ -58,7 +58,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
-                          select='backend', tm_marg=False, dense_like=False, ng_twg_setup = False, wb_efac_sigma = 0.25):
+                          select='backend', tm_marg=False, dense_like=False, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Single pulsar noise model.
 
@@ -325,7 +325,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                   tnequad=tnequad, select=select, ng_twg_setup = ng_twg_setup, wb_efac_sigma = wb_efac_sigma)
+                                   tnequad=tnequad, select=select, ng_twg_setup=ng_twg_setup, wb_efac_sigma=wb_efac_sigma)
         model = s3(psr)
         if psr_model:
             Model = s3

@@ -37,7 +37,7 @@ def channelized_backends(backend_flags):
 
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup = False, wb_efac_sigma = 0.25):
+                      efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Returns the white noise block of the model:
 
