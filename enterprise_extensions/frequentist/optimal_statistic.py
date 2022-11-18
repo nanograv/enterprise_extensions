@@ -149,7 +149,6 @@ class OptimalStatistic(object):
 
                 if psd == 'powerlaw':
                     if self.gamma_common is None and 'gw_gamma' in params.keys():
-                        print('{0:1.2}'.format(params['gw_gamma']))
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
                                                gamma=params['gw_gamma'])
                     else:
