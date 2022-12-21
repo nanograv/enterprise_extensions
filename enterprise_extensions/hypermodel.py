@@ -180,8 +180,18 @@ class HyperModel(object):
         ndim = len(self.param_names)
 
         # initial jump covariance matrix
-        if os.path.exists(outdir+'/cov.npy'):
+        if os.path.exists(outdir+'/cov.npy') and resume:
             cov = np.load(outdir+'/cov.npy')
+
+            # check that the one we load is the same shape as our data
+            cov_new = np.diag(np.ones(ndim) * 1.0**2)
+            if cov.shape != cov_new.shape:
+                msg = 'The covariance matrix (cov.npy) in the output folder is '
+                msg += 'the wrong shape for the parameters given. '
+                msg += 'Start with a different output directory or '
+                msg += 'change resume to False to overwrite the run that exists.'
+
+                raise ValueError(msg)
         else:
             cov = np.diag(np.ones(ndim) * 1.0**2)  # used to be 0.1
 
