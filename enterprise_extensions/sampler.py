@@ -34,11 +34,11 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
-                    if not(emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
+                    if not (emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
                         prior_ok = False
                         continue
                 elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
-                    if not(emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
+                    if not (emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
                         prior_ok=False
                         continue
             if prior_ok:
@@ -1053,8 +1053,18 @@ def setup_sampler(pta, outdir='chains', resume=False,
     ndim = len(params)
 
     # initial jump covariance matrix
-    if os.path.exists(outdir+'/cov.npy'):
+    if os.path.exists(outdir+'/cov.npy') and resume:
         cov = np.load(outdir+'/cov.npy')
+
+        # check that the one we load is the same shape as our data
+        cov_new = np.diag(np.ones(ndim) * 0.1**2)
+        if cov.shape != cov_new.shape:
+            msg = 'The covariance matrix (cov.npy) in the output folder is '
+            msg += 'the wrong shape for the parameters given. '
+            msg += 'Start with a different output directory or '
+            msg += 'change resume to False to overwrite the run that exists.'
+
+            raise ValueError(msg)
     else:
         cov = np.diag(np.ones(ndim) * 0.1**2)
 

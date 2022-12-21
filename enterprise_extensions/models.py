@@ -58,7 +58,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
-                          select='backend', tm_marg=False, dense_like=False):
+                          select='backend', tm_marg=False, dense_like=False, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Single pulsar noise model.
 
@@ -162,7 +162,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             else:
                 dmjump = parameter.Constant()
             if white_vary:
-                dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+                if ng_twg_setup:
+                    dmefac = parameter.Normal(1.0, wb_efac_sigma)
+                else:
+                    dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
                 log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
                 # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
             else:
@@ -171,9 +174,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 # dmjump = parameter.Constant()
             s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                                log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                               dmefac_selection=selections.Selection(
-                                                   selections.by_backend),
-                                               log10_dmequad_selection=selections.Selection(
+                                               selection=selections.Selection(
                                                    selections.by_backend),
                                                dmjump_selection=selections.Selection(
                                                    selections.by_frontend))
@@ -324,7 +325,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                   tnequad=tnequad, select=select)
+                                   tnequad=tnequad, select=select, ng_twg_setup=ng_twg_setup, wb_efac_sigma=wb_efac_sigma)
         model = s3(psr)
         if psr_model:
             Model = s3
@@ -416,9 +417,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -558,9 +557,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -806,9 +803,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         # create new attribute for enterprise pulsar object
@@ -1011,9 +1006,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1143,9 +1136,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1282,9 +1273,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1429,9 +1418,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1565,9 +1552,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1703,9 +1688,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1843,9 +1826,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1970,9 +1951,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2089,9 +2068,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2241,9 +2218,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2818,9 +2793,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
