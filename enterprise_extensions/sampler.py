@@ -7,6 +7,7 @@ import platform
 
 import healpy as hp
 import numpy as np
+from PTMCMCSampler import __version__ as __vPTMCMC__
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
@@ -1041,6 +1042,7 @@ def save_runtime_info(pta, outdir='chains', human=None):
             fout.write(field + " : " + data + "\n")
         fout.write("\n")
         fout.write("enterprise_extensions v" + __version__ +"\n")
+        fout.write("PTMCMCSampler v" + __vPTMCMC__ +"\n")
         fout.write(pta.summary())
 
     # save paramter list

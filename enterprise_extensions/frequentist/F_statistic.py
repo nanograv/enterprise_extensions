@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import scipy.linalg as sl
 import scipy.special
 from enterprise.signals import deterministic_signals, gp_signals, signal_base
 
 from enterprise_extensions import blocks, deterministic
+
+
+def get_xCy(Nvec, T, sigmainv, x, y):
+    """Get x^T C^{-1} y"""
+    TNx = Nvec.solve(x, left_array=T)
+    TNy = Nvec.solve(y, left_array=T)
+    xNy = Nvec.solve(y, left_array=x)
+    return xNy - TNx @ sigmainv @ TNy
+
+
+def get_TCy(Nvec, T, y, sigmainv, TNT):
+    """Get T^T C^{-1} y"""
+    TNy = Nvec.solve(y, left_array=T)
+    return TNy - TNT @ sigmainv @ TNy
+
+
+def innerprod(Nvec, T, sigmainv, TNT, x, y):
+    """Get the inner product between x and y"""
+    xCy = get_xCy(Nvec, T, sigmainv, x, y)
+    TCy = get_TCy(Nvec, T, y, sigmainv, TNT)
+    TCx = get_TCy(Nvec, T, x, sigmainv, TNT)
+    return xCy - TCx.T @ sigmainv @ TCy
 
 
 class FpStat(object):
@@ -18,7 +39,7 @@ class FpStat(object):
     :param bayesephem: Include BayesEphem model. Default=True
     """
 
-    def __init__(self, psrs, params=None,
+    def __init__(self, psrs, noisedict=None,
                  psrTerm=True, bayesephem=True, pta=None, tnequad=False):
 
         if pta is None:
@@ -31,10 +52,9 @@ class FpStat(object):
             tmin = np.min([p.toas.min() for p in psrs])
             tmax = np.max([p.toas.max() for p in psrs])
             Tspan = tmax - tmin
-
-            s = deterministic.cw_block_circ(amp_prior='log-uniform',
-                                            psrTerm=psrTerm, tref=tmin, name='cw')
-            s += gp_signals.TimingModel()
+            s = gp_signals.TimingModel(use_svd=True)
+            s += deterministic.cw_block_circ(amp_prior='log-uniform',
+                                             psrTerm=psrTerm, tref=tmin, name='cw')
             s += blocks.red_noise_block(prior='log-uniform', psd='powerlaw',
                                         Tspan=Tspan, components=30)
 
@@ -55,36 +75,28 @@ class FpStat(object):
             pta = signal_base.PTA(models)
 
             # set white noise parameters
-            if params is None:
+            if noisedict is None:
                 print('No noise dictionary provided!')
             else:
-                pta.set_default_params(params)
+                pta.set_default_params(noisedict)
 
             self.pta = pta
 
         else:
-
             # user can specify their own pta object
             # if ECORR is included, use the implementation in gp_signals
             self.pta = pta
 
         self.psrs = psrs
-        self.params = params
+        self.noisedict = noisedict
 
-        self.Nmats = self.get_Nmats()
-
-    def get_Nmats(self):
-        '''Makes the Nmatrix used in the fstatistic'''
-        TNTs = self.pta.get_TNT(self.params)
-        phiinvs = self.pta.get_phiinv(self.params, logdet=False, method='partition')
-        # Get noise parameters for pta toaerr**2
-        Nvecs = self.pta.get_ndiag(self.params)
-        # Get the basis matrix
-        Ts = self.pta.get_basis(self.params)
-
-        Nmats = [make_Nmat(phiinv, TNT, Nvec, T) for phiinv, TNT, Nvec, T in zip(phiinvs, TNTs, Nvecs, Ts)]
-
-        return Nmats
+        # precompute important bits:
+        self.phiinvs = self.pta.get_phiinv(noisedict)
+        self.TNTs = self.pta.get_TNT(noisedict)
+        self.Nvecs = self.pta.get_ndiag(noisedict)
+        self.Ts = self.pta.get_basis(noisedict)
+        # self.cf_TNT = [sl.cho_factor(TNT + np.diag(phiinv)) for TNT, phiinv in zip(self.TNTs, self.phiinvs)]
+        self.sigmainvs = [np.linalg.pinv(TNT + np.diag(phiinv)) for TNT, phiinv in zip(self.TNTs, self.phiinvs)]
 
     def compute_Fp(self, fgw):
         """
@@ -96,19 +108,10 @@ class FpStat(object):
             fstat: value of the Fp-statistic at the given frequency
 
         """
-
-        phiinvs = self.pta.get_phiinv(self.params, logdet=False)
-        TNTs = self.pta.get_TNT(self.params)
-        Ts = self.pta.get_basis()
-
         N = np.zeros(2)
         M = np.zeros((2, 2))
         fstat = 0
-
-        for psr, Nmat, TNT, phiinv, T in zip(self.psrs, self.Nmats,
-                                             TNTs, phiinvs, Ts):
-
-            Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+        for psr, Nvec, TNT, T, sigmainv in zip(self.psrs, self.Nvecs, self.TNTs, self.Ts, self.sigmainvs):
 
             ntoa = len(psr.toas)
 
@@ -116,14 +119,16 @@ class FpStat(object):
             A[0, :] = 1 / fgw ** (1 / 3) * np.sin(2 * np.pi * fgw * psr.toas)
             A[1, :] = 1 / fgw ** (1 / 3) * np.cos(2 * np.pi * fgw * psr.toas)
 
-            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma)
-            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma)
+            ip1 = innerprod(Nvec, T, sigmainv, TNT, A[0, :], psr.residuals)
+            # logger.info(ip1)
+            ip2 = innerprod(Nvec, T, sigmainv, TNT, A[1, :], psr.residuals)
+            # logger.info(ip2)
             N = np.array([ip1, ip2])
 
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(2):
                 for kk in range(2):
-                    M[jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma)
+                    M[jj, kk] = innerprod(Nvec, T, sigmainv, TNT, A[jj, :], A[kk, :])
 
             # take inverse of M
             Minv = np.linalg.pinv(M)
@@ -150,54 +155,3 @@ class FpStat(object):
         n = np.arange(0, N)
 
         return np.sum(np.exp(n*np.log(fp0)-fp0-np.log(scipy.special.gamma(n+1))))
-
-
-def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None):
-    r"""
-        Compute inner product using rank-reduced
-        approximations for red noise/jitter
-        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
-
-        :param x: vector timeseries 1
-        :param y: vector timeseries 2
-        :param Nmat: white noise matrix
-        :param Tmat: Modified design matrix including red noise/jitter
-        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
-        :return: inner product (x|y)
-        """
-
-    # white noise term
-    Ni = Nmat
-    xNy = np.dot(np.dot(x, Ni), y)
-    Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
-
-    if TNx is None and TNy is None:
-        TNx = np.dot(Tmat.T, Nx)
-        TNy = np.dot(Tmat.T, Ny)
-
-    cf = sl.cho_factor(Sigma)
-    SigmaTNy = sl.cho_solve(cf, TNy)
-
-    ret = xNy - np.dot(TNx, SigmaTNy)
-
-    return ret
-
-
-def make_Nmat(phiinv, TNT, Nvec, T):
-
-    Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
-    cf = sl.cho_factor(Sigma)
-    # Nshape = np.shape(T)[0] # Not currently used in code
-
-    TtN = np.multiply((1/Nvec)[:, None], T).T
-
-    # Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = np.diag(1/Nvec)
-
-    expval2 = sl.cho_solve(cf, TtN)
-    # TtNt = np.transpose(TtN) # Not currently used in code
-
-    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T, expval2)
