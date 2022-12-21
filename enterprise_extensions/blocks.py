@@ -772,23 +772,23 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
-        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients, combine=combine,
                                         components=components, Tspan=Tspan,
                                         name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         if orf == 'crn':
-            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients, combine=combine,
                                             components=components, Tspan=Tspan,
                                             name=name, pshift=pshift, pseed=pseed)
         else:
             crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                                  components=components,
+                                                  components=components, combine=combine,
                                                   Tspan=Tspan,
                                                   name=name, pshift=pshift,
                                                   pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
-                                              components=components,
+                                              components=components, combine=combine,
                                               Tspan=Tspan,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
