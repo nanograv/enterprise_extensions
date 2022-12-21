@@ -2,30 +2,30 @@
 max-line-length = 120
 max-complexity = 45
 ignore =
-  E203
+  E203,
   # missing whitespace around operator
-  E225
+  E225,
   # missing whitespace around arithmetic operator
-  E226
+  E226,
   # line break before binary operator; conflicts with black
-  W503
+  W503,
   # Don't want to change with code frozen...
-  W504
+  W504,
   # bare except ok
-  E722
+  E722,
   # lambda expressions ok
-  E731
+  E731,
   # block comments
-  E266
+  E266,
   # ambiguous variable names
-  E741
+  E741,
   # lines
   E501
 exclude =
-    .git
-    .tox
-    __pycache__
-    build
-    dist
-    docs/*
+    .git,
+    .tox,
+    __pycache__,
+    build,
+    dist,
+    docs/*,
     .enterprise_extensions/*
