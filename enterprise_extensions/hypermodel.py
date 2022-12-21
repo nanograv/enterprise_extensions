@@ -112,14 +112,20 @@ class HyperModel(object):
 
     def get_parameter_groups(self):
 
-        groups = []
+        unique_groups = []
         for p in self.models.values():
-            groups.extend(get_parameter_groups(p))
-        list(np.unique(groups))
-
-        groups.extend([[len(self.param_names)-1]])  # nmodel
-
-        return groups
+            groups = get_parameter_groups(p)
+            # check for any duplicate groups
+            # e.g. the GWB may have different indices in model 1 and model 2
+            for group in groups:
+                check_group = []
+                for idx in group:
+                    param_name = p.param_names[idx]
+                    check_group.append(self.param_names.index(param_name))
+                if check_group not in unique_groups:
+                    unique_groups.append(check_group)
+        unique_groups.extend([[len(self.param_names) - 1]])
+        return unique_groups
 
     def initial_sample(self):
         """
