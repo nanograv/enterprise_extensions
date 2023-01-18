@@ -17,11 +17,10 @@ logger = logging.getLogger(__name__)
 
 class EmpiricalDistribution1D(object):
     """
-    Class used to define a 1D empirical distribution
-    based on posterior from another MCMC.
+    Class used to define a 1D empirical distribution based on posterior from another MCMC.
+
     :param samples: samples for hist
-    :param bins: edges to use for hist (left and right) make sure bins
-        cover whole prior!
+    :param bins: edges to use for hist (left and right) make sure bins cover whole prior!
     """
     def __init__(self, param_name, samples, bins):
         self.ndim = 1
@@ -97,6 +96,7 @@ class EmpiricalDistribution2D(object):
     """
     Class used to define a 1D empirical distribution
     based on posterior from another MCMC.
+
     :param samples: samples for hist
     :param bins: edges to use for hist (left and right)
         make sure bins cover whole prior!
@@ -141,8 +141,10 @@ class EmpiricalDistribution2DKDE(object):
     def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1, nbins=40):
         """
         Minvals and maxvals should specify priors for these. Should make these required.
+
         :param param_names: 2-element list of parameter names
         :param samples: samples, with dimension (2 x Nsamples)
+
         :return distr: list of empirical distributions
         """
         self.ndim = 2
@@ -194,12 +196,14 @@ def make_empirical_distributions(pta, paramlist, params, chain,
                                  save_dists=True):
     """
         Utility function to construct empirical distributions.
+
         :param pta: the pta object used to generate the posteriors
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param chain: MCMC chain from a previous run
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
+
         :return distr: list of empirical distributions
         """
 
@@ -267,12 +271,14 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
                                      save_dists=True):
     """
         Utility function to construct empirical distributions.
+
         :param paramlist: a list of parameter names,
                           either single parameters or pairs of parameters
         :param params: list of all parameter names for the MCMC chain
         :param chain: MCMC chain from a previous run, has dimensions Nsamples x Nparams
         :param burn: desired number of initial samples to discard
         :param nbins: number of bins to use for the empirical distributions
+
         :return distr: list of empirical distributions
         """
 
