@@ -1,6 +1,9 @@
 =======
 History
 =======
+2.4.2 (2022-28-12)
+Fix HyperModel to support newer versions of numpy.
+
 2.4.1 (2022-02-10)
 Add support for new noise definitions in WidebandTimingModel.
 
@@ -22,7 +25,7 @@ Fix bug in HyperModel when using save_runtime_info.
 Fix bugs associated with recent function additions. Added linting and mild PEP8
 rules. Also removed older Python functionality which is no longer supported.
 
-2.3.0 (2021-09-15)*
+2.3.0 (2021-09-15)
 Functionality added for NANOGrav 15yr dataset analyses.
 Outlier analysis software moved into separate package.
 
