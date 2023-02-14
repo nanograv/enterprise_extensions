@@ -19,14 +19,16 @@ def get_default_args_types_from_function(func):
     signature = inspect.signature(func)
     defaults = {}
     types = {}
-    for k, v in signature.parameters.items():
-        if v.default is not inspect.Parameter.empty:
-            defaults[k] = v.default
+    for key, value in signature.parameters.items():
+        # get default kwarg value from function
+        if value.default is not inspect.Parameter.empty:
+            defaults[key] = value.default
 
-        if v.annotation is inspect.Parameter.empty:
-            print(f"Warning! in {func} {v} does not have an associated type annotation")
+        # get type annotation from function
+        if value.annotation is inspect.Parameter.empty:
+            print(f"Warning! in {func} {value} does not have an associated type annotation")
         else:
-            types[k] = v.annotation
+            types[key] = value.annotation
     return defaults, types
 
 
@@ -45,7 +47,7 @@ def update_dictionary_with_subdictionary(d, u):
 
 def load_module_globally(package_dict):
     # import modules globablly from dictionary import key as item
-    for package_name, import_as in package_dict.items():
+    for import_as, package_name in package_dict.items():
         mod = importlib.import_module(package_name)
         globals()[import_as] = mod
     return
@@ -72,7 +74,7 @@ class RunSettings:
 
     function_parameters: dict = field(default_factory=dict)
     functions: dict = field(default_factory=dict)
-    custom_function_return: dict = field(default_factory=dict)
+    custom_return: dict = field(default_factory=dict)
 
     psrs: list = field(default_factory=list)
     noise_dict: dict = field(default_factory=dict)
@@ -82,6 +84,8 @@ class RunSettings:
     def update_from_file(self, config_file: str) -> None:
         """
         Set defaults for functions from file
+
+        [modules]: example numpy=np will load numpy as np globally
         """
         config = configparser.ConfigParser(comment_prefixes=';',
                                            interpolation=configparser.ExtendedInterpolation())
@@ -133,7 +137,7 @@ class RunSettings:
 
                 if 'custom_return' in config_file_items.keys():
                     # custom_return means to store the return value of this function in self.custom_function_return
-                    self.custom_function_return[config_file_items['custom_return']] = \
+                    self.custom_return[config_file_items['custom_return']] = \
                         self.functions[section](**self.function_parameters[section])
                 elif 'signal_return' in config_file_items.keys():
                     # label this function as something that returns signal models
@@ -143,7 +147,6 @@ class RunSettings:
                     # label this function as something that returns ptas
                     self.pta_creating_functions[section] = self.functions[section]
                     self.pta_creating_function_parameters[section] = self.function_parameters[section]
-
             else:
                 # If not a class or function or module
                 # it must be something specified in the RunSettings class
@@ -169,10 +172,13 @@ class RunSettings:
         for key, value in dictionary.items():
             if key in exclude_keys:
                 continue
-            if 'CUSTOM_FUNCTION_RETURN:' in value:
-                # Apply custom class instance stored in custom_classes
-                out_dictionary[key] = self.custom_function_return[value.replace('CUSTOM_FUNCTION_RETURN:', '')]
+            if 'CUSTOM_FUNCTION_RETURN:' in value or 'CUSTOM_RETURN' in value:
+                if 'CUSTOM_FUNCTION_RETURN:' in value:
+                    value = value.replace('CUSTOM_FUNCTION_RETURN', 'CUSTOM_RETURN')
+                    print("CUSTOM_FUNCTION_RETURN has been renamed CUSTOM_RETURN, please use that instead")
+                out_dictionary[key] = self.custom_return[value.replace('CUSTOM_RETURN:', '')]
                 continue
+            # Apply custom class instance stored in custom_classes
             if 'CUSTOM_CLASS:' in value:
                 # Apply custom class instance stored in custom_classes
                 out_dictionary[key] = self.custom_classes[value.replace('CUSTOM_CLASS:', '')]
