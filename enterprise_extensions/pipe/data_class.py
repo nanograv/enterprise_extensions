@@ -1,14 +1,16 @@
-from dataclasses import asdict, dataclass, field
+import collections.abc
 import configparser
+import importlib
 import inspect
+import json
+import pickle
+import re
+from dataclasses import dataclass, field
+
+import numpy as np
+from enterprise.signals import signal_base
 import enterprise.signals.parameter  # this is used but only implicitly
 import enterprise_extensions.models
-import collections.abc
-import pickle, json
-import importlib
-import numpy as np
-import re
-from enterprise.signals import signal_base
 
 
 def get_default_args_types_from_function(func):
@@ -37,6 +39,8 @@ def update_dictionary_with_subdictionary(d, u):
     Updates dictionary d with preference for contents of dictionary u
     code taken from: https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
     """
+    if d is None:
+        return u
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):
             d[k] = update_dictionary_with_subdictionary(d.get(k, {}), v)
@@ -63,11 +67,13 @@ class RunSettings:
     noise_dict_json: str = None
 
     # dictionary of functions that create signals
-    signal_creating_functions: dict = field(default_factory=dict)
-    signal_creating_function_parameters: dict = field(default_factory=dict)
+    signal_creating_function_keys: list = field(default_factory=list)
+
+    # dictionary of functions that create signals depending on parameters of each pulsar
+    per_pulsar_signal_creating_function_keys: list = field(default_factory=list)
+
     # dictionary of functions that create pta objects
-    pta_creating_function_parameters: dict = field(default_factory=dict)
-    pta_creating_functions: dict = field(default_factory=dict)
+    pta_creating_function_keys: list = field(default_factory=list)
 
     custom_classes: dict = field(default_factory=dict)
     custom_class_parameters: dict = field(default_factory=dict)
@@ -91,7 +97,8 @@ class RunSettings:
                                            interpolation=configparser.ExtendedInterpolation())
         config.optionxform = str
         config.read(config_file)
-        exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return', 'custom_return']
+        exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return',
+                        'custom_return', 'per_pulsar_signal']
         for section in config.sections():
             config_file_items = dict(config.items(section))
             self.config_file_items[section] = config_file_items
@@ -126,10 +133,13 @@ class RunSettings:
                     # or if class module has already been imported, do this!
                     custom_function = eval(config_file_items['function'])
 
-                default_function_parameters, types = get_default_args_types_from_function(custom_function)
+                try:
+                    default_function_parameters, types = get_default_args_types_from_function(custom_function)
+                except ValueError:
+                    # builtin functions like dictionary and list don't have default types
+                    default_function_parameters, types = {}, {}
                 function_parameters_from_file = self.apply_types(config_file_items, types,
                                                                  exclude_keys=exclude_keys)
-
                 self.functions[section] = custom_function
                 self.function_parameters[section] = update_dictionary_with_subdictionary(
                     default_function_parameters,
@@ -141,12 +151,12 @@ class RunSettings:
                         self.functions[section](**self.function_parameters[section])
                 elif 'signal_return' in config_file_items.keys():
                     # label this function as something that returns signal models
-                    self.signal_creating_functions[section] = self.functions[section]
-                    self.signal_creating_function_parameters[section] = self.function_parameters[section]
+                    self.signal_creating_function_keys.append(section)
+                elif 'per_pulsar_signal' in config_file_items.keys():
+                    self.per_pulsar_signal_creating_function_keys.append(section)
                 elif 'pta_return' in config_file_items.keys():
                     # label this function as something that returns ptas
-                    self.pta_creating_functions[section] = self.functions[section]
-                    self.pta_creating_function_parameters[section] = self.function_parameters[section]
+                    self.pta_creating_function_keys.append(section)
             else:
                 # If not a class or function or module
                 # it must be something specified in the RunSettings class
@@ -156,7 +166,7 @@ class RunSettings:
                         config_file_items.pop(item)
                 self.update_from_dict(**config_file_items)
 
-    def apply_types(self, dictionary, type_dictionary, exclude_keys=[]):
+    def apply_types(self, dictionary, type_dictionary, exclude_keys=None):
         """
         Given dictionary (usually created from config_file) and dictionary containing types
         apply type to dictionary
@@ -168,6 +178,8 @@ class RunSettings:
         if EVAL:whatever is in dictionary[key]
             will call eval("whatever") and assign that
         """
+        if exclude_keys is None:
+            exclude_keys = []
         out_dictionary = {}
         for key, value in dictionary.items():
             if key in exclude_keys:
@@ -189,8 +201,8 @@ class RunSettings:
                 continue
             if key not in type_dictionary.keys():
                 print(f"WARNING! apply_types: {key} is not within type dictionary!")
-                print(f"Object value is {value} and type is {type(value)}")
-                print("Continuing")
+                print(f"\tObject value is {value} and type is {type(value)}")
+                print("\tIgnoring value and continuing")
                 continue
             # special comprehension for (1d) numpy arrays
             if type_dictionary[key] == np.ndarray:
@@ -232,9 +244,9 @@ class RunSettings:
                 self.noise_dict[ecorr] = self.noise_dict[par]
 
         # assign noisedict to all enterprise models
-        for key in self.pta_creating_function_parameters.keys():
-            if 'noisedict' in self.pta_creating_function_parameters[key].keys():
-                self.pta_creating_function_parameters[key]['noisedict'] = self.noise_dict
+        for key in self.pta_creating_function_keys:
+            if 'noisedict' in self.function_parameters[key].keys():
+                self.function_parameters[key]['noisedict'] = self.noise_dict
 
     def get_pulsars(self):
         if len(self.psrs) == 0:
@@ -264,12 +276,21 @@ class RunSettings:
 
         pta_list = self.get_pta_objects()
         signal_collections = [self.get_signal_collection_from_pta_object(pta) for pta in pta_list]
-        for key, func in self.signal_creating_functions.items():
-            signal_collections.append(func(**self.signal_creating_function_parameters[key]))
+        for key in self.signal_creating_function_keys:
+            func = self.functions[key]
+            signal_collections.append(func(**self.function_parameters[key]))
 
         signal_collection = sum(signal_collections[1:], signal_collections[0])
 
-        model_list = [signal_collection(psr) for psr in self.psrs]
+        model_list = []
+        for psr in self.psrs:
+            # This allows each pulsar to each have slightly different models
+            per_pulsar_signal = [self.functions[key](psr, **self.function_parameters[key])
+                                 for key in self.per_pulsar_signal_creating_function_keys]
+
+            # just sums to signal_collection if additional_models is empty
+            model_list.append(sum(per_pulsar_signal, signal_collection)(psr))
+
         pta = signal_base.PTA(model_list)
 
         # apply noise dictionary to pta
@@ -294,7 +315,6 @@ class RunSettings:
             print("Loading pulsars")
             self.load_pickled_pulsars()
 
-        for key in self.pta_creating_function_parameters.keys():
-            pta_list.append(self.pta_creating_functions[key](psrs=self.psrs,
-                                                             **self.pta_creating_function_parameters[key]))
+        for key in self.pta_creating_function_keys:
+            pta_list.append(self.functions[key](psrs=self.psrs, **self.function_parameters[key]))
         return pta_list
