@@ -98,7 +98,7 @@ class RunSettings:
         config.optionxform = str
         config.read(config_file)
         exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return',
-                        'custom_return', 'per_pulsar_signal', 'singular_pulsar_signal']
+                        'custom_return', 'per_pulsar_signal']
         for section in config.sections():
             config_file_items = dict(config.items(section))
             self.config_file_items[section] = config_file_items
