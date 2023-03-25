@@ -70,7 +70,7 @@ class RunSettings:
     signal_creating_function_keys: list = field(default_factory=list)
 
     # dictionary of functions that create signals depending on parameters of each pulsar
-    per_pulsar_signal_creating_function_keys: list = field(default_factory=list)
+    per_pulsar_signal_creating_function_keys: dict = field(default_factory=dict)
 
     # dictionary of functions that create pta objects
     pta_creating_function_keys: list = field(default_factory=list)
@@ -91,14 +91,14 @@ class RunSettings:
         """
         Set defaults for functions from file
 
-        [modules]: example numpy=np will load numpy as np globally
+        [modules]: example np=numpy will load numpy as np globally
         """
         config = configparser.ConfigParser(comment_prefixes=';',
                                            interpolation=configparser.ExtendedInterpolation())
         config.optionxform = str
         config.read(config_file)
         exclude_keys = ['function', 'module', 'class', 'signal_return', 'pta_return',
-                        'custom_return', 'per_pulsar_signal']
+                        'custom_return', 'per_pulsar_signal', 'singular_pulsar_signal']
         for section in config.sections():
             config_file_items = dict(config.items(section))
             self.config_file_items[section] = config_file_items
@@ -153,10 +153,34 @@ class RunSettings:
                     # label this function as something that returns signal models
                     self.signal_creating_function_keys.append(section)
                 elif 'per_pulsar_signal' in config_file_items.keys():
-                    self.per_pulsar_signal_creating_function_keys.append(section)
+                    # Per pulsar can either be used as a function applied to every pulsar, or specify one by name
+                    if (config_file_items['per_pulsar_signal'] == 'EACH_PULSAR') \
+                            or (config_file_items['per_pulsar_signal'] == 'True'):
+                        try:
+                            self.per_pulsar_signal_creating_function_keys['EACH_PULSAR']
+                        except KeyError:
+                            self.per_pulsar_signal_creating_function_keys['EACH_PULSAR'] = []
+                        self.per_pulsar_signal_creating_function_keys['EACH_PULSAR'].append(section)
+                    else:
+                        pulsar_name = config_file_items['per_pulsar_signal']
+                        try:
+                            self.per_pulsar_signal_creating_function_keys[pulsar_name]
+                        except KeyError:
+                            self.per_pulsar_signal_creating_function_keys[pulsar_name] = []
+                        self.per_pulsar_signal_creating_function_keys[pulsar_name].append(section)
+
                 elif 'pta_return' in config_file_items.keys():
                     # label this function as something that returns ptas
                     self.pta_creating_function_keys.append(section)
+                if 'singular_pulsar' in config_file_items.keys():
+                    # Only apply to given pulsar
+                    pulsar_name = config_file_items['singular_pulsar']
+                    try:
+                        self.singular_pulsar_function_keys[pulsar_name]
+                    except KeyError:
+                        self.singular_pulsar_function_keys[pulsar_name] = []
+                    self.singular_pulsar_function_keys[pulsar_name].append(section)
+
             else:
                 # If not a class or function or module
                 # it must be something specified in the RunSettings class
@@ -283,10 +307,30 @@ class RunSettings:
         signal_collection = sum(signal_collections[1:], signal_collections[0])
 
         model_list = []
+        # get list of functions to apply to each pulsar
+        try:
+            function_keys_for_every_pulsar = self.per_pulsar_signal_creating_function_keys['EVERY_PULSAR']
+        except KeyError:
+            function_keys_for_every_pulsar = []
+
         for psr in self.psrs:
-            # This allows each pulsar to each have slightly different models
-            per_pulsar_signal = [self.functions[key](psr, **self.function_parameters[key])
-                                 for key in self.per_pulsar_signal_creating_function_keys]
+            # get list of functions to only apply to this pulsar
+            try:
+                keys_for_this_pulsar = self.per_pulsar_signal_creating_function_keys[psr.name]
+            except KeyError:
+                keys_for_this_pulsar = []
+            print(psr.name, keys_for_this_pulsar)
+            keys_for_this_pulsar.extend(function_keys_for_every_pulsar)
+
+            per_pulsar_signal = []
+            for key in keys_for_this_pulsar:
+                # TODO this will only work if the parameter is named psr or pulsar
+                if 'psr' in self.function_parameters[key]:
+                    self.function_parameters[key]['psr'] = psr
+                if 'pulsar' in self.function_parameters[key]:
+                    self.function_parameters[key]['pulsar'] = psr
+                # this allows each pulsar to have signals applied to them
+                per_pulsar_signal.append(self.functions[key](**self.function_parameters[key]))
 
             # just sums to signal_collection if additional_models is empty
             model_list.append(sum(per_pulsar_signal, signal_collection)(psr))
