@@ -628,7 +628,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
                   upper_limit_dm=None, dm_annual=False, dm_chrom=False, dmchrom_psd='powerlaw',
                   dmchrom_idx=4, gequad=False, coefficients=False, pshift=False,
                   select='backend', tm_marg=False, dense_like=False,
-                  delta_common=None):
+                  delta_common=None, mdc1=False):
     """
     Reads in list of enterprise Pulsar instances and returns a PTA
     object instantiated with user-supplied options.
@@ -758,6 +758,9 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param mdc1: Flag to ensure white noise signal is set-up properly for IPTA
+                 MDC1 (found in enterprise.tests.data). If using MDC1, set to
+                 True (default: False)
 
     Default PTA object composition:
         1. fixed EFAC per backend/receiver system (per pulsar)
@@ -882,21 +885,28 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     models = []
 
     for p in psrs:
-        if 'NANOGrav' in p.flags['pta'] and not is_wideband:
-            s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                       tnequad=tnequad, select=select)
-            if gequad:
-                s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
-                                               selection=selections.Selection(selections.no_selection),
-                                               name='gequad')
-            if '1713' in p.name and dm_var:
-                tmin = p.toas.min() / const.day
-                tmax = p.toas.max() / const.day
-                s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                   sign=False, name='dmexp')
-                models.append(s3(p))
-            else:
-                models.append(s2(p))
+        if 'pta' in list(p.flags.keys()):
+            if 'NANOGrav' in p.flags['pta'] and not is_wideband:
+                s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+                                        tnequad=tnequad, select=select)
+                if gequad:
+                    s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
+                                                selection=selections.Selection(selections.no_selection),
+                                                name='gequad')
+                if '1713' in p.name and dm_var:
+                    tmin = p.toas.min() / const.day
+                    tmax = p.toas.max() / const.day
+                    s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
+                                                    sign=False, name='dmexp')
+                    models.append(s3(p))
+                else:
+                    models.append(s2(p))
+        elif mdc1:
+            # if mock data challenge, efac is constant and no other white noise
+            efac = parameter.Constant(1.0)
+            wn = white_signals.MeasurementNoise(efac=efac)
+            s2 = s + wn
+            models.append(s2(p))
         else:
             s4 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
                                        tnequad=tnequad, select=select)
@@ -920,7 +930,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         pta = signal_base.PTA(models)
 
     # set white noise parameters
-    if not white_vary or (is_wideband and use_dmdata):
+    if not mdc1 or white_vary or (is_wideband and use_dmdata):
         if noisedict is None:
             print('No noise dictionary provided!...')
         else:
