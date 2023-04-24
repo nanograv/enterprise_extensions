@@ -91,7 +91,7 @@ class RunSettings:
         """
         Set defaults for functions from file
 
-        [modules]: example np=numpy will load numpy as np globally
+        [modules]: example: np=numpy will load numpy as np globally
         """
         config = configparser.ConfigParser(comment_prefixes=';',
                                            interpolation=configparser.ExtendedInterpolation())
@@ -154,13 +154,13 @@ class RunSettings:
                     self.signal_creating_function_keys.append(section)
                 elif 'per_pulsar_signal' in config_file_items.keys():
                     # Per pulsar can either be used as a function applied to every pulsar, or specify one by name
-                    if (config_file_items['per_pulsar_signal'] == 'EACH_PULSAR') \
+                    if (config_file_items['per_pulsar_signal'] == 'EVERY_PULSAR') \
                             or (config_file_items['per_pulsar_signal'] == 'True'):
                         try:
-                            self.per_pulsar_signal_creating_function_keys['EACH_PULSAR']
+                            self.per_pulsar_signal_creating_function_keys['EVERY_PULSAR']
                         except KeyError:
-                            self.per_pulsar_signal_creating_function_keys['EACH_PULSAR'] = []
-                        self.per_pulsar_signal_creating_function_keys['EACH_PULSAR'].append(section)
+                            self.per_pulsar_signal_creating_function_keys['EVERY_PULSAR'] = []
+                        self.per_pulsar_signal_creating_function_keys['EVERY_PULSAR'].append(section)
                     else:
                         pulsar_name = config_file_items['per_pulsar_signal']
                         try:
@@ -240,6 +240,10 @@ class RunSettings:
         return out_dictionary
 
     def update_from_dict(self, **kwargs):
+        """
+        Given a dictionary, RunSettings attempts to update itself
+        Will apply dtypes taken from its own definition to those kwargs
+        """
         ann = getattr(self, "__annotations__", {})
         for name, dtype in ann.items():
             if name in kwargs:
@@ -319,18 +323,25 @@ class RunSettings:
                 keys_for_this_pulsar = self.per_pulsar_signal_creating_function_keys[psr.name]
             except KeyError:
                 keys_for_this_pulsar = []
-            print(psr.name, keys_for_this_pulsar)
             keys_for_this_pulsar.extend(function_keys_for_every_pulsar)
 
             per_pulsar_signal = []
             for key in keys_for_this_pulsar:
-                # TODO this will only work if the parameter is named psr or pulsar
+                # TODO this will only work if the parameter is named psr or pulsar,
+                # Todo maybe it should look for all caps ENTERPRISE_PULSAR string so we can make it more general?
                 if 'psr' in self.function_parameters[key]:
                     self.function_parameters[key]['psr'] = psr
                 if 'pulsar' in self.function_parameters[key]:
                     self.function_parameters[key]['pulsar'] = psr
-                # this allows each pulsar to have signals applied to them
-                per_pulsar_signal.append(self.functions[key](**self.function_parameters[key]))
+                if 'enterprise_pulsar' in self.function_parameters[key]:
+                    self.function_parameters[key]['enterprise_pulsar'] = psr
+                try:
+                    # this allows each pulsar to have signals applied to them
+                    per_pulsar_signal.append(self.functions[key](**self.function_parameters[key]))
+                except TypeError as e:
+                    print(e)
+                    raise TypeError("ERROR to use per_pulsar_signal to call functions depending on enterprise pulsar,"
+                          "\n\t that function must have arguments named one of 'psr', 'pulsar', or 'enterprise_pulsar'")
 
             # just sums to signal_collection if additional_models is empty
             model_list.append(sum(per_pulsar_signal, signal_collection)(psr))
