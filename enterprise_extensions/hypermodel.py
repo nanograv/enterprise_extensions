@@ -395,16 +395,17 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
 
         if timing:
-            # SCAM and AM Draws
-            # add SCAM
-            print("Adding SCAM Jump Proposal...\n")
-            sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
+            if jp.restrict_mass:
+                # SCAM and AM Draws
+                # add SCAM
+                print("Adding SCAM Jump Proposal...\n")
+                sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
 
-            # add AM
-            print("Adding AM Jump Proposal...\n")
-            sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
+                # add AM
+                print("Adding AM Jump Proposal...\n")
+                sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
 
-            # DE does not work well with restricting the pulsar mass
+                # DE does not work well with restricting the pulsar mass
 
         # Model index distribution draw
         if sample_nmodel:

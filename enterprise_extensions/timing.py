@@ -9,6 +9,7 @@ from collections import OrderedDict
 import scipy.stats as sps
 from scipy.stats import truncnorm
 
+import enterprise.constants as const
 from enterprise.signals import parameter
 from enterprise.signals import signal_base
 from enterprise.signals import deterministic_signals
@@ -110,8 +111,8 @@ def get_astrometric_priors(astrometric_px_file="../parallaxes.json"):
 def get_prior(
     prior_type,
     prior_sigma,
-    prior_lower_bound,
-    prior_upper_bound,
+    prior_lower_bound=-5.0,
+    prior_upper_bound=5.0,
     mu=0.0,
     num_params=None,
 ):
@@ -137,6 +138,8 @@ def get_prior(
         )
     elif prior_type.lower() == "uniform":
         return parameter.Uniform(prior_lower_bound, prior_upper_bound, size=num_params)
+    elif prior_type.lower() == "normal":
+        return parameter.Normal(mu=mu, sigma=prior_sigma, size=num_params)
     elif prior_type.lower() == "dm_dist_px_prior":
         return NE2001DMDist_Parameter(size=num_params)
     else:
@@ -158,9 +161,68 @@ def filter_Mmat(psr, ltm_list=[]):
     return psr
 
 
+# DM delay
+@signal_base.function
+def dm_delay(toas, freqs, dmpars=np.zeros(3), dmepoch=0, **kwargs):
+    """Delay in DMX model of DM variations
+    :param toas: Time-of-arrival measurements [s]
+    :param freqs: observing frequencies [Hz]
+    :param dmpars: list of dm enterprise parameters of the form
+        [constant DM offset, first DM derivative, second DM derivative]
+    :param dmepoch: the reference epoch for DM [days]
+    """
+    DMEPOCH = dmepoch*24*3600
+    dmN = dmpars[0] + dmpars[1]*(toas-DMEPOCH) + dmpars[2]*(toas-DMEPOCH)**2
+    return dmN * freqs**2 / const.DM_K / 1e12
+
+
+def dm_block(psr,
+             dmepoch=None,
+             prior_type="uniform",
+             prior_mu=0.0,
+             prior_sigma=2.0,
+             prior_lower_bound=-5.0,
+             prior_upper_bound=5.0,
+             ):
+    """
+    Returns the timing model block of the model
+    :param psr: a pulsar object on which to construct the timing model
+    :param tm_param_list: a list of parameters to vary nonlinearly in the model
+    :param ltm_list: a list of parameters to vary linearly in the model
+    :param prior_type: the function used for the priors ['uniform','bounded-normal']
+    :param prior_mu: the mean/central value for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_lower_bound: the lower bound for the prior
+    :param prior_upper_bound: the upper bound for the prior
+    :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
+    :param fit_remaining_pars: fits any timing model parameter in the linear regime if not in ``tm_param_list`` or ``tm_param_dict``
+    :param wideband_kwargs: extra kwargs for ``gp_signals.WidebandTimingModel``
+    """
+    dmpars = get_prior(prior_type, prior_sigma, mu=prior_mu,
+                       prior_lower_bound=prior_lower_bound, prior_upper_bound=prior_upper_bound,
+                       num_params=3)
+
+    if dmepoch is None:
+        if hasattr(psr, "model"):
+            if hasattr(psr.model, "DMEPOCH"):
+                dmepoch = psr.model['DMEPOCH'].value
+            elif hasattr(psr.model, "PEPOCH"):
+                dmepoch = psr.model['PEPOCH'].value
+            elif hasattr(psr.model, "POSEPOCH"):
+                dmepoch = psr.model['POSEPOCH'].value
+            else:
+                raise ValueError("dmepoch must be assigned.")
+        else:
+            raise ValueError("dmepoch must be assigned.")
+
+    # dm model
+    dm_func = dm_delay(psr.toas, psr.freqs, dmpars=dmpars, dmepoch=dmepoch)
+
+    dm = deterministic_signals.Deterministic(dm_func, name="dm_model")
+    return dm
+
+
 # timing model delay
-
-
 @signal_base.function
 def tm_delay(psr, **kwargs):
     """
