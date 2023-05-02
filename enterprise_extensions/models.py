@@ -19,7 +19,7 @@ from enterprise_extensions.blocks import (bwm_block, bwm_sglpsr_block,
                                           dm_noise_block, red_noise_block,
                                           white_noise_block)
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
-from enterprise_extensions.timing import timing_block
+from enterprise_extensions.timing import timing_block, dm_block
 
 # from enterprise.signals.signal_base import LookupLikelihood
 
@@ -29,8 +29,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           ltm_list=[],
                           tm_param_dict={},
                           tm_prior="uniform",
+                          tm_prior_sigma = 2.0,
                           normalize_prior_bound=5.0,
                           fit_remaining_pars=True,
+                          dm_quadfit_prior='normal', dm_quadfit_sigma=10.0,
+                          dm_quadfit_prior_bound=5.0, dmepoch=None,
                           red_var=True, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
                           white_vary=True, components=30, upper_limit=False,
@@ -73,9 +76,14 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param tm_param_list: an explicit list of timing model parameters to vary
     :param ltm_list: a list of parameters that will linearly varied, default is to vary anything not in tm_param_list
     :param tm_param_dict: a nested dictionary of parameters to vary in the model and their user defined values and priors
-    :param tm_prior: prior type on varied timing model parameters {'uniform','bounded-normal'}
+    :param tm_prior: prior type on varied timing model parameters {'uniform', 'normal', bounded-normal'}
     :param normalize_prior_bound: scaling value for parameter errors that sets the upper and lower bounds on the nonlinear timing model priors (e.g. Uniform(-5.,5.) as default)
     :param fit_remaining_pars: boolean to switch combined non-linear + linear timing models on, only works for tm_var True
+    :param dm_quadfit_prior: the function used for the priors ['uniform', 'normal', 'bounded-normal']
+    :param dm_quadfit_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
+    :param dm_quadfit_prior_bound: scaling value for parameter errors that sets the upper
+        and lower bounds on the quadratic DM model priors. Only used when ``dm_quadfit_prior`` is 'uniform' or 'bounded-normal', not used as default.
+    :param dmepoch: the reference epoch for DM [days]
     :param red var: include red noise in the model
     :param psd: red noise psd model
     :param noisedict: dictionary of noise parameters
@@ -231,7 +239,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 tm_param_list=tm_param_list,
                 ltm_list=ltm_list,
                 prior_type=tm_prior,
-                prior_sigma=2.0,
+                prior_sigma=tm_prior_sigma,
                 prior_lower_bound=-normalize_prior_bound,
                 prior_upper_bound=normalize_prior_bound,
                 tm_param_dict=tm_param_dict,
@@ -360,6 +368,11 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
                                   swgp_prior=swgp_prior, swgp_basis=swgp_basis,
                                   Tspan=Tspan)
+
+        if tm_var and not tm_linear:
+            s += dm_block(psr, dmepoch=dmepoch, prior_type=dm_quadfit_prior, prior_sigma=dm_quadfit_sigma,
+                          prior_lower_bound=dm_quadfit_prior_bound, prior_upper_bound=dm_quadfit_prior_bound,
+                          dmx_data=dmx_data)
 
     if extra_sigs is not None:
         s += extra_sigs

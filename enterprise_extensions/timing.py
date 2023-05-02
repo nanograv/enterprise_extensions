@@ -6,6 +6,7 @@ import copy
 import numpy as np
 
 from collections import OrderedDict
+import scipy
 import scipy.stats as sps
 from scipy.stats import truncnorm
 
@@ -144,7 +145,7 @@ def get_prior(
         return NE2001DMDist_Parameter(size=num_params)
     else:
         raise ValueError(
-            "prior_type can only be uniform, bounded-normal, or dm_dist_px_prior, not ",
+            "prior_type can only be uniform, normal, bounded-normal, or dm_dist_px_prior, not ",
             prior_type,
         )
 
@@ -161,47 +162,49 @@ def filter_Mmat(psr, ltm_list=[]):
     return psr
 
 
+def dm_funk(adjusted_dmx_epochs, dm0, dm1, dm2):
+    """Used to refit for DM0, DM1, and DM2.
+    :param adjusted_toas: (dmxepochs-dmepoch) measured dmx epochs - the reference epoch for DM [s]
+    :param dm0: dm enterprise parameters of the constant DM offset
+    :param dm1: dm enterprise parameters of the first DM derivative
+    :param dm2: dm enterprise parameters of the second DM derivative
+    """
+    # DM(t)=DM+DM1*(t-DMEPOCH)+DM2*(t-DMEPOCH)^2
+    return dm0 + dm1 * adjusted_dmx_epochs + dm2 * (adjusted_dmx_epochs ** 2)
+
+
 # DM delay
 @signal_base.function
-def dm_delay(toas, freqs, dmpars=np.zeros(3), dmepoch=0, **kwargs):
+def dm_delay(toas, freqs, dm0=0, dm1=0, dm2=0, dmepoch=0, **kwargs):
     """Delay in DMX model of DM variations
     :param toas: Time-of-arrival measurements [s]
     :param freqs: observing frequencies [Hz]
-    :param dmpars: list of dm enterprise parameters of the form
-        [constant DM offset, first DM derivative, second DM derivative]
-    :param dmepoch: the reference epoch for DM [days]
+    :param dm0: dm enterprise parameters of the constant DM offset
+    :param dm1: dm enterprise parameters of the first DM derivative
+    :param dm2: dm enterprise parameters of the second DM derivative
+    :param dmepoch: the reference epoch for DM [s]
     """
-    DMEPOCH = dmepoch*24*3600
-    dmN = dmpars[0] + dmpars[1]*(toas-DMEPOCH) + dmpars[2]*(toas-DMEPOCH)**2
+    dmN = dm0 + dm1*(toas-dmepoch) + dm2*(toas-dmepoch)**2
     return dmN * freqs**2 / const.DM_K / 1e12
 
 
 def dm_block(psr,
              dmepoch=None,
-             prior_type="uniform",
-             prior_mu=0.0,
+             prior_type="normal",
              prior_sigma=2.0,
              prior_lower_bound=-5.0,
              prior_upper_bound=5.0,
+             dmx_data=None
              ):
     """
-    Returns the timing model block of the model
+    Returns the quadratic dm model block of the model
     :param psr: a pulsar object on which to construct the timing model
-    :param tm_param_list: a list of parameters to vary nonlinearly in the model
-    :param ltm_list: a list of parameters to vary linearly in the model
-    :param prior_type: the function used for the priors ['uniform','bounded-normal']
-    :param prior_mu: the mean/central value for the prior if ``prior_type`` is 'bounded-normal'
+    :param dmepoch: the reference epoch for DM [days]
+    :param prior_type: the function used for the priors ['uniform', 'normal', 'bounded-normal']
     :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
     :param prior_lower_bound: the lower bound for the prior
     :param prior_upper_bound: the upper bound for the prior
-    :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
-    :param fit_remaining_pars: fits any timing model parameter in the linear regime if not in ``tm_param_list`` or ``tm_param_dict``
-    :param wideband_kwargs: extra kwargs for ``gp_signals.WidebandTimingModel``
     """
-    dmpars = get_prior(prior_type, prior_sigma, mu=prior_mu,
-                       prior_lower_bound=prior_lower_bound, prior_upper_bound=prior_upper_bound,
-                       num_params=3)
-
     if dmepoch is None:
         if hasattr(psr, "model"):
             if hasattr(psr.model, "DMEPOCH"):
@@ -214,9 +217,38 @@ def dm_block(psr,
                 raise ValueError("dmepoch must be assigned.")
         else:
             raise ValueError("dmepoch must be assigned.")
+    DMEPOCH = dmepoch*24*3600
+
+    # Make sure dmx_data is sorted
+    if all(dmx_data["DMXEP"] != sorted(dmx_data["DMXEP"])):
+        sorted_dmx_ep = np.asarray(sorted(dmx_data["DMXEP"]))
+        sorted_dmx_vals = []
+        for sx in sorted(dmx_data["DMXEP"]):
+            sorted_dmx_vals.append(dmx_data["DMX_value"][np.where(dmx_data["DMXEP"]==sx)][0])
+        sorted_dmx_vals = np.array(sorted_dmx_vals)
+    else:
+        sorted_dmx_ep = dmx_data["DMXEP"]
+        sorted_dmx_vals = dmx_data["DMX_value"]
+
+    #Get the dmx value nearest to the DMEPOCH
+    dmx_DMEPOCH = sorted_dmx_vals[(np.abs(sorted_dmx_ep - dmepoch)).argmin()]
+    #Fit a quadratic equation (given in dm_funk) to get central dm0, dm1, and dm2 values and their errors
+    #We make dmx(DMEPOCH) = 0
+    popt, pcov = scipy.optimize.curve_fit(dm_funk, sorted_dmx_ep*24*3600-DMEPOCH, sorted_dmx_vals-dmx_DMEPOCH)
+    perr = np.sqrt(np.diag(pcov))
+
+    dm0 = get_prior(prior_type, perr[0]*prior_sigma, mu=popt[0],
+                    prior_lower_bound=popt[0]-prior_lower_bound*perr[0],
+                    prior_upper_bound=popt[0]+prior_lower_bound*perr[0])
+    dm1 = get_prior(prior_type, perr[1]*prior_sigma, mu=popt[1],
+                    prior_lower_bound=popt[1]-prior_lower_bound*perr[1],
+                    prior_upper_bound=popt[1]+prior_lower_bound*perr[1])
+    dm2 = get_prior(prior_type, perr[2]*prior_sigma, mu=popt[2],
+                    prior_lower_bound=popt[2]-prior_lower_bound*perr[2],
+                    prior_upper_bound=popt[2]+prior_lower_bound*perr[2])
 
     # dm model
-    dm_func = dm_delay(psr.toas, psr.freqs, dmpars=dmpars, dmepoch=dmepoch)
+    dm_func = dm_delay(psr.toas, psr.freqs, dm0=dm0, dm1=dm1, dm2=dm2, dmepoch=DMEPOCH)
 
     dm = deterministic_signals.Deterministic(dm_func, name="dm_model")
     return dm
@@ -313,9 +345,9 @@ def timing_block(
     :param psr: a pulsar object on which to construct the timing model
     :param tm_param_list: a list of parameters to vary nonlinearly in the model
     :param ltm_list: a list of parameters to vary linearly in the model
-    :param prior_type: the function used for the priors ['uniform','bounded-normal']
-    :param prior_mu: the mean/central value for the prior if ``prior_type`` is 'bounded-normal'
-    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_type: the function used for the priors ['uniform', 'normal', 'bounded-normal']
+    :param prior_mu: the mean/central value for the prior if ``prior_type`` is 'normal' or 'bounded-normal'
+    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'normal' or 'bounded-normal'
     :param prior_lower_bound: the lower bound for the prior
     :param prior_upper_bound: the upper bound for the prior
     :param tm_param_dict: a dictionary of physical parameters for nonlinearly varied timing model parameters, used to sample in non-sigma-scaled parameter space
