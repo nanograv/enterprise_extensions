@@ -37,7 +37,7 @@ def channelized_backends(backend_flags):
 
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', tnequad=False, name=None):
+                      efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Returns the white noise block of the model:
 
@@ -74,6 +74,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     if vary:
         if efac1:
             efac = parameter.Normal(1.0, 0.1)
+        elif ng_twg_setup:
+            efac = parameter.Normal(1.0, wb_efac_sigma)
         else:
             efac = parameter.Uniform(0.01, 10.0)
         equad = parameter.Uniform(-8.5, -5)
@@ -772,23 +774,23 @@ def common_red_noise_block(psd='powerlaw', prior='log-uniform',
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
     if orf is None:
-        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+        crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients, combine=combine,
                                         components=components, Tspan=Tspan,
                                         name=name, pshift=pshift, pseed=pseed)
     elif orf in orfs.keys():
         if orf == 'crn':
-            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients,
+            crn = gp_signals.FourierBasisGP(cpl, coefficients=coefficients, combine=combine,
                                             components=components, Tspan=Tspan,
                                             name=name, pshift=pshift, pseed=pseed)
         else:
             crn = gp_signals.FourierBasisCommonGP(cpl, orfs[orf],
-                                                  components=components,
+                                                  components=components, combine=combine,
                                                   Tspan=Tspan,
                                                   name=name, pshift=pshift,
                                                   pseed=pseed)
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.FourierBasisCommonGP(cpl, orf,
-                                              components=components,
+                                              components=components, combine=combine,
                                               Tspan=Tspan,
                                               name=name, pshift=pshift,
                                               pseed=pseed)
