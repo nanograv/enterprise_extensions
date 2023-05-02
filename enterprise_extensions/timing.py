@@ -230,10 +230,10 @@ def dm_block(psr,
         sorted_dmx_ep = dmx_data["DMXEP"]
         sorted_dmx_vals = dmx_data["DMX_value"]
 
-    #Get the dmx value nearest to the DMEPOCH
+    # Get the dmx value nearest to the DMEPOCH
     dmx_DMEPOCH = sorted_dmx_vals[(np.abs(sorted_dmx_ep - dmepoch)).argmin()]
-    #Fit a quadratic equation (given in dm_funk) to get central dm0, dm1, and dm2 values and their errors
-    #We make dmx(DMEPOCH) = 0
+    # Fit a quadratic equation (given in dm_funk) to get central dm0, dm1, and dm2 values and their errors
+    # We make dmx(DMEPOCH) = 0
     popt, pcov = scipy.optimize.curve_fit(dm_funk, sorted_dmx_ep*24*3600-DMEPOCH, sorted_dmx_vals-dmx_DMEPOCH)
     perr = np.sqrt(np.diag(pcov))
 
