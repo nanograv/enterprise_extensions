@@ -63,7 +63,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           psr_model=False, factorized_like=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
-                          select='backend', tm_marg=False, dense_like=False):
+                          select='backend', tm_marg=False, dense_like=False, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Single pulsar noise model.
 
@@ -195,7 +195,10 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             else:
                 dmjump = parameter.Constant()
             if white_vary:
-                dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
+                if ng_twg_setup:
+                    dmefac = parameter.Normal(1.0, wb_efac_sigma)
+                else:
+                    dmefac = parameter.Uniform(pmin=0.1, pmax=10.0)
                 log10_dmequad = parameter.Uniform(pmin=-7.0, pmax=0.0)
                 # dmjump = parameter.Uniform(pmin=-0.005, pmax=0.005)
             else:
@@ -204,9 +207,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                 # dmjump = parameter.Constant()
             s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                                log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                               dmefac_selection=selections.Selection(
-                                                   selections.by_backend),
-                                               log10_dmequad_selection=selections.Selection(
+                                               selection=selections.Selection(
                                                    selections.by_backend),
                                                dmjump_selection=selections.Selection(
                                                    selections.by_frontend))
@@ -372,7 +373,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             Model = s2
     else:
         s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
-                                   tnequad=tnequad, select=select)
+                                   tnequad=tnequad, select=select, ng_twg_setup=ng_twg_setup, wb_efac_sigma=wb_efac_sigma)
         model = s3(psr)
         if psr_model:
             Model = s3
@@ -401,7 +402,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
 def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             components=30, upper_limit=False, bayesephem=False, tnequad=False,
-            be_type='orbel', is_wideband=False, use_dmdata=False,
+            be_type='orbel', is_wideband=False, use_dmdata=False, Tspan=None,
             select='backend', tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -439,6 +440,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -448,7 +451,8 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if is_wideband and use_dmdata:
@@ -464,9 +468,7 @@ def model_1(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -518,7 +520,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
              n_rnfreqs=None, n_gwbfreqs=None, gamma_common=None,
              delta_common=None, upper_limit=False, bayesephem=False,
              be_type='setIII', white_vary=False, is_wideband=False,
-             use_dmdata=False, select='backend', tnequad=False,
+             use_dmdata=False, Tspan=None, select='backend', tnequad=False,
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
     """
@@ -564,6 +566,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param psr_models:
         Return list of psr models rather than signal_base.PTA object.
     :param n_rnfreqs:
@@ -584,7 +588,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     if n_gwbfreqs is None:
         n_gwbfreqs = components
@@ -605,9 +610,7 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -865,9 +868,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tm_param_list=[], ltm_lis
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         # create new attribute for enterprise pulsar object
@@ -1029,7 +1030,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tm_param_list=[], ltm_lis
 
 def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              bayesephem=False, be_type='orbel', is_wideband=False, components=30,
-             use_dmdata=False, select='backend', pshift=False, tnequad=False,
+             use_dmdata=False, Tspan=None, select='backend', pshift=False, tnequad=False,
              tm_marg=False, dense_like=False, tm_svd=False, upper_limit=False,
              gamma_common=None):
     """
@@ -1075,6 +1076,8 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1084,7 +1087,8 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if is_wideband and use_dmdata:
@@ -1099,9 +1103,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1163,7 +1165,7 @@ def model_2b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1213,6 +1215,8 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1222,7 +1226,8 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1237,9 +1242,7 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1309,9 +1312,10 @@ def model_2c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 
 
 def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
-             components=30, gamma_common=None, upper_limit=False, tnequad=False,
+             components=30, n_rnfreqs=None, n_gwbfreqs=None,
+             gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', pshift=False,
+             use_dmdata=False, Tspan=None, select='backend', pshift=False,
              tm_marg=False, dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1356,6 +1360,8 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1365,7 +1371,14 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
+
+    if n_gwbfreqs is None:
+        n_gwbfreqs = components
+
+    if n_rnfreqs is None:
+        n_rnfreqs = components
 
     # timing model
     if is_wideband and use_dmdata:
@@ -1380,9 +1393,7 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1391,19 +1402,12 @@ def model_2d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=components)
+    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
 
     # monopole
-    s += common_red_noise_block(
-        psd=psd,
-        prior=amp_prior,
-        Tspan=Tspan,
-        components=components,
-        gamma_val=gamma_common,
-        orf="monopole",
-        name="monopole",
-        pshift=pshift,
-    )
+    s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
+                                components=n_gwbfreqs, gamma_val=gamma_common,
+                                orf='monopole', name='monopole', pshift=pshift)
 
     # ephemeris model
     if bayesephem:
@@ -1445,7 +1449,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, n_rnfreqs=None, n_gwbfreqs=None,
              gamma_common=None, delta_common=None, upper_limit=False,
              bayesephem=False, be_type='setIII', is_wideband=False,
-             use_dmdata=False, select='backend',
+             use_dmdata=False, Tspan=None, select='backend',
              tnequad=False,
              pshift=False, pseed=None, psr_models=False,
              tm_marg=False, dense_like=False, tm_svd=False):
@@ -1478,7 +1482,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     :param gamma_common:
         Fixed common red process spectral index value. By default we
         vary the spectral index over the range [0, 7].
-    :param gamma_common:
+    :param delta_common:
         Fixed common red process spectral index value for higher frequencies in
         broken power law model.
         By default we vary the spectral index over the range [0, 7].
@@ -1496,6 +1500,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param pshift:
         Option to use a random phase shift in design matrix. For testing the
         null hypothesis.
@@ -1512,7 +1518,8 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     if n_gwbfreqs is None:
         n_gwbfreqs = components
@@ -1533,9 +1540,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1544,7 +1549,9 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             s = gp_signals.TimingModel(use_svd=tm_svd)
 
     # red noise
-    s += red_noise_block(prior=amp_prior, Tspan=Tspan, components=n_rnfreqs)
+    s += red_noise_block(psd='powerlaw',
+                         prior=amp_prior,
+                         Tspan=Tspan, components=n_rnfreqs)
 
     # common red noise block
     s += common_red_noise_block(psd=psd, prior=amp_prior, Tspan=Tspan,
@@ -1594,7 +1601,7 @@ def model_3a(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='setIII', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1642,6 +1649,8 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1651,7 +1660,8 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if (is_wideband and use_dmdata):
@@ -1666,9 +1676,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1740,7 +1748,7 @@ def model_3b(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1791,6 +1799,8 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1800,7 +1810,8 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if is_wideband and use_dmdata:
@@ -1815,9 +1826,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -1900,7 +1909,7 @@ def model_3c(psrs, psd='powerlaw', noisedict=None, white_vary=False,
 def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
              components=30, gamma_common=None, upper_limit=False, tnequad=False,
              bayesephem=False, be_type='orbel', is_wideband=False,
-             use_dmdata=False, select='backend', tm_marg=False,
+             use_dmdata=False, Tspan=None, select='backend', tm_marg=False,
              dense_like=False, tm_svd=False):
     """
     Reads in list of enterprise Pulsar instance and returns a PTA
@@ -1948,6 +1957,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
         noise model.
     :param use_dmdata: whether to use DM data (WidebandTimingModel) if
         is_wideband.
+    :param Tspan: time baseline used to determine Fourier GP frequencies;
+        derived from data if not specified
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
@@ -1957,7 +1968,8 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
     amp_prior = "uniform" if upper_limit else "log-uniform"
 
     # find the maximum time span to set GW frequency sampling
-    Tspan = model_utils.get_tspan(psrs)
+    if Tspan is None:
+        Tspan = model_utils.get_tspan(psrs)
 
     # timing model
     if is_wideband and use_dmdata:
@@ -1972,9 +1984,7 @@ def model_3d(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2113,9 +2123,7 @@ def model_2a_drop_be(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2241,9 +2249,7 @@ def model_2a_drop_crn(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -2397,9 +2403,7 @@ def model_chromatic(psrs, psd='powerlaw', noisedict=None, white_vary=False,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:
@@ -3000,9 +3004,7 @@ def model_cw(psrs, upper_limit=False, rn_psd='powerlaw', noisedict=None,
             # dmjump = parameter.Constant()
         s = gp_signals.WidebandTimingModel(dmefac=dmefac,
                                            log10_dmequad=log10_dmequad, dmjump=dmjump,
-                                           dmefac_selection=selections.Selection(selections.by_backend),
-                                           log10_dmequad_selection=selections.Selection(
-                                               selections.by_backend),
+                                           selection=selections.Selection(selections.by_backend),
                                            dmjump_selection=selections.Selection(selections.by_frontend))
     else:
         if tm_marg:

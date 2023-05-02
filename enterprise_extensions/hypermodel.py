@@ -136,13 +136,12 @@ class HyperModel(object):
 
     def get_parameter_groups(self):
 
-        groups = []
+        unique_groups = []
         for p in self.models.values():
-            pta_groups = []
-            pta_groups.extend(get_parameter_groups(p))
+            groups = get_parameter_groups(p)
             if self.tm_groups:
-                pta_groups.extend(get_timing_groups(p))
-                pta_groups.append(
+                groups.extend(get_timing_groups(p))
+                groups.append(
                     group_from_params(
                         p,
                         [
@@ -152,20 +151,17 @@ class HyperModel(object):
                         ],
                     )
                 )
-            for grp in pta_groups:
-                if not isinstance(grp, (int, np.int64)):
-                    groups.append(
-                        [
-                            list(self.param_names).index(p.param_names[subgrp])
-                            for subgrp in grp
-                        ]
-                    )
-                else:
-                    groups.append(self.param_names[grp])
-        groups = list(np.unique(groups))
-        groups.extend([[len(self.param_names) - 1]])  # nmodel
-
-        return groups
+            # check for any duplicate groups
+            # e.g. the GWB may have different indices in model 1 and model 2
+            for group in groups:
+                check_group = []
+                for idx in group:
+                    param_name = p.param_names[idx]
+                    check_group.append(self.param_names.index(param_name))
+                if check_group not in unique_groups:
+                    unique_groups.append(check_group)
+        unique_groups.extend([[len(self.param_names) - 1]])
+        return unique_groups
 
     def initial_sample(self, tm_params_orig=None, tm_param_dict=None, zero_start=True):
         """
@@ -254,11 +250,18 @@ class HyperModel(object):
         ndim = len(self.param_names)
 
         # initial jump covariance matrix
-        if os.path.exists(outdir+'/cov.npy'):
-            try:
-                cov = np.load(outdir+'/cov.npy')
-            except (ValueError):
-                cov = np.diag(np.ones(ndim) * 0.1**2)
+        if os.path.exists(outdir+'/cov.npy') and resume:
+            cov = np.load(outdir+'/cov.npy')
+
+            # check that the one we load is the same shape as our data
+            cov_new = np.diag(np.ones(ndim) * 1.0**2)
+            if cov.shape != cov_new.shape:
+                msg = 'The covariance matrix (cov.npy) in the output folder is '
+                msg += 'the wrong shape for the parameters given. '
+                msg += 'Start with a different output directory or '
+                msg += 'change resume to False to overwrite the run that exists.'
+
+                raise ValueError(msg)
         else:
             cov = np.diag(np.ones(ndim) * 1.0**2)  # used to be 0.1
 
@@ -377,6 +380,11 @@ class HyperModel(object):
         if "cw_log10_h" in self.param_names:
             print("Adding CW prior draws...\n")
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+
+        # free spectrum prior draw
+        if np.any(['log10_rho' in par for par in self.param_names]):
+            print('Adding free spectrum prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
         # Prior distribution draw for parameters named GW
         if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
