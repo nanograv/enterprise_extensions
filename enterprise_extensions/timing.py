@@ -165,9 +165,9 @@ def filter_Mmat(psr, ltm_list=[]):
 def dm_funk(adjusted_dmx_epochs, dm0, dm1, dm2):
     """Used to refit for DM0, DM1, and DM2.
     :param adjusted_toas: (dmxepochs-dmepoch) measured dmx epochs - the reference epoch for DM [s]
-    :param dm0: dm enterprise parameters of the constant DM offset
-    :param dm1: dm enterprise parameters of the first DM derivative
-    :param dm2: dm enterprise parameters of the second DM derivative
+    :param dm0: the constant DM offset
+    :param dm1: the first DM derivative
+    :param dm2: the second DM derivative
     """
     # DM(t)=DM+DM1*(t-DMEPOCH)+DM2*(t-DMEPOCH)^2
     return dm0 + dm1 * adjusted_dmx_epochs + dm2 * (adjusted_dmx_epochs ** 2)
@@ -185,7 +185,7 @@ def dm_delay(toas, freqs, dm0=0, dm1=0, dm2=0, dmepoch=0, **kwargs):
     :param dmepoch: the reference epoch for DM [s]
     """
     dmN = dm0 + dm1*(toas-dmepoch) + dm2*(toas-dmepoch)**2
-    return dmN * freqs**2 / const.DM_K / 1e12
+    return dmN / freqs**2 / const.DM_K / 1e12
 
 
 def dm_block(psr,
@@ -217,7 +217,6 @@ def dm_block(psr,
                 raise ValueError("dmepoch must be assigned.")
         else:
             raise ValueError("dmepoch must be assigned.")
-    DMEPOCH = dmepoch*24*3600
 
     # Make sure dmx_data is sorted
     if all(dmx_data["DMXEP"] != sorted(dmx_data["DMXEP"])):
@@ -234,7 +233,7 @@ def dm_block(psr,
     dmx_DMEPOCH = sorted_dmx_vals[(np.abs(sorted_dmx_ep - dmepoch)).argmin()]
     # Fit a quadratic equation (given in dm_funk) to get central dm0, dm1, and dm2 values and their errors
     # We make dmx(DMEPOCH) = 0
-    popt, pcov = scipy.optimize.curve_fit(dm_funk, sorted_dmx_ep*24*3600-DMEPOCH, sorted_dmx_vals-dmx_DMEPOCH)
+    popt, pcov = scipy.optimize.curve_fit(dm_funk, sorted_dmx_ep-dmepoch, sorted_dmx_vals-dmx_DMEPOCH)
     perr = np.sqrt(np.diag(pcov))
 
     dm0 = get_prior(prior_type, perr[0]*prior_sigma, mu=popt[0],
@@ -248,6 +247,7 @@ def dm_block(psr,
                     prior_upper_bound=popt[2]+prior_lower_bound*perr[2])
 
     # dm model
+    DMEPOCH = dmepoch*24*3600  # Change to seconds
     dm_func = dm_delay(psr.toas, psr.freqs, dm0=dm0, dm1=dm1, dm2=dm2, dmepoch=DMEPOCH)
 
     dm = deterministic_signals.Deterministic(dm_func, name="dm_model")
