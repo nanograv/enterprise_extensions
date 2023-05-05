@@ -1131,15 +1131,15 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
     # DM GP noise prior draw
-    if 'dm_gp' in jp.snames:
+    if 'dm_gp' in jp.snames and len(jp.snames['dm_gp'])!=0:
         print('Adding DM GP noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
     # DM annual prior draw
-    if 'dm_s1yr' in jp.snames:
+    if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
-
+        
     # DM dip prior draw
     if 'dmexp' in jp.snames:
         print('Adding DM exponential dip prior draws...\n')
