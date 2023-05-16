@@ -201,7 +201,7 @@ def dm_block(psr,
     :param psr: a pulsar object on which to construct the timing model
     :param dmepoch: the reference epoch for DM [days]
     :param prior_type: the function used for the priors ['uniform', 'normal', 'bounded-normal']
-    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'bounded-normal'
+    :param prior_sigma: the sigma for the prior if ``prior_type`` is 'normal' or 'bounded-normal'
     :param prior_lower_bound: the lower bound for the prior
     :param prior_upper_bound: the upper bound for the prior
     """

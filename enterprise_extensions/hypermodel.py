@@ -186,6 +186,11 @@ class HyperModel(object):
                             x0.append([np.double(tm_param_dict[p_name]["prior_mu"])])
                         else:
                             x0.append([np.double(tm_params_orig[p_name][0])])
+                elif "dm_model" in p.name:
+                    if "mu" in str(p):
+                        x0.append([float(str(p).split("(")[1].split(",")[0].split("=")[-1])])
+                    else:
+                        x0.append(np.array(p.sample()).ravel().tolist())
                 else:
                     x0.append(np.array(p.sample()).ravel().tolist())
         else:
@@ -401,6 +406,11 @@ class HyperModel(object):
         if "timing_model" in jp.snames:
             print("Adding timing model prior draw...\n")
             sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
+
+        # DM Model Draws
+        if "dm_model" in jp.snames:
+            print("Adding dm model prior draw...\n")
+            sampler.addProposalToCycle(jp.draw_from_signal("dm_model"), 10)
 
         if timing:
             if jp.restrict_mass:

@@ -1710,6 +1710,7 @@ def get_timing_groups(pta):
         groups.append(dmx_group)
     jump_fd_group = group_from_partial_par_name(pta, part="FD")
     jump_fd_group.extend(group_from_partial_par_name(pta, part="JUMP"))
+    jump_fd_group.extend(group_from_partial_par_name(pta, part="dm_model"))
     if len(jump_fd_group):
         groups.append(jump_fd_group)
 
@@ -1914,6 +1915,11 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if "timing_model" in jp.snames:
         print("Adding timing model prior draw...\n")
         sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
+
+    # DM Model Draws
+    if "dm_model" in jp.snames:
+        print("Adding dm model prior draw...\n")
+        sampler.addProposalToCycle(jp.draw_from_signal("dm_model"), 10)
 
     if timing:
         if jp.restrict_mass:
