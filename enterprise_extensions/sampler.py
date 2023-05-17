@@ -1141,17 +1141,17 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
         
     # DM dip prior draw
-    if 'dmexp' in jp.snames:
+    if 'dmexp' in jp.snames and len(jp.snames['dmexp'])!=0:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
     # DM cusp prior draw
-    if 'dm_cusp' in jp.snames:
+    if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
         print('Adding DM exponential cusp prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
     # DMX prior draw
-    if 'dmx_signal' in jp.snames:
+    if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
         print('Adding DMX prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
