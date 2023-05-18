@@ -213,44 +213,40 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
         # DM GP noise prior draw
-        if 'dm_gp' in self.snames:
+        if 'dm_gp' in self.snames and len(jp.snames['dm_gp'])!=0:
             print('Adding DM GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
         # DM annual prior draw
-        if 'dm_s1yr' in jp.snames:
+        if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
         # DM dip prior draw
-        if 'dmexp' in '\t'.join(jp.snames):
+        dmexp_nm = [nm for nm in jp.snames if 'dmexp' in nm]
+        if len(dmexp_nm)!=0 and all([len(jp.snames[nm])!=0 for nm in dmexp_nm]):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
         # DM cusp prior draw
-        if 'dm_cusp' in jp.snames:
+        if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
             print('Adding DM exponential cusp prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
         # DMX prior draw
-        if 'dmx_signal' in jp.snames:
+        if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
         # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
+        if 'chrom_gp' in self.snames and len(jp.snames['chrom_gp'])!=0:
             print('Adding Chromatic GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
-        if 'gp_sw' in jp.snames:
+        if 'gp_sw' in jp.snames and len(jp.snames['gp_sw'])!=0:
             print('Adding Solar Wind DM GP prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
-
-        # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
-            print('Adding Chromatic GP noise prior draws...\n')
-            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
