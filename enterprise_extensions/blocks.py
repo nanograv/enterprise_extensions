@@ -566,7 +566,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         if psd in ['powerlaw', 'turnover']:
             if not vary:
                 log10_A = parameter.Constant()
-            if prior == 'uniform':
+            elif prior == 'uniform':
                 log10_A = parameter.LinearExp(-18, -11)
             elif prior == 'log-uniform':
                 log10_A = parameter.Uniform(-18, -11)
