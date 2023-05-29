@@ -709,6 +709,36 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_gw_rho_prior(self, x, iter, beta):
+        """
+        Jump proposals on free spec
+        """
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        parnames = [par.name for par in self.params]
+        pname = [pnm for pnm in parnames
+                 if ('gw' in pnm and 'rho' in pnm)][0]
+
+        idx = parnames.index(pname)
+        param = self.params[idx]
+
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
     def draw_from_signal_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -1197,5 +1227,10 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if 'cw_log10_Mc' in pta.param_names:
         print('Adding CW prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
+
+    # free spectrum prior draw
+    if np.any(['log10_rho' in par for par in pta.param_names]):
+        print('Adding free spectrum prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
     return sampler
