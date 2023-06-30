@@ -1,6 +1,10 @@
 =======
 History
 =======
+
+2.4.3 (2023-27-06)
+Update Zenodo entry.
+
 2.4.2 (2022-28-12)
 Fix HyperModel to support newer versions of numpy.
 
