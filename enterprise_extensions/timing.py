@@ -200,7 +200,8 @@ def dm_block(psr,
     Returns the quadratic dm model block of the model
     :param psr: a pulsar object on which to construct the timing model
     :param dmepoch: the reference epoch for DM [days]
-    :param prior_type: the function used for the priors ['uniform', 'normal', 'bounded-normal']
+    :param prior_type: the function used for the priors ['uniform', 'normal', 'bounded-normal', 'fixed']
+        If set to fixed, the dm_quadratic coefficients are sed to the curve fit values.
     :param prior_sigma: the sigma for the prior if ``prior_type`` is 'normal' or 'bounded-normal'
     :param prior_lower_bound: the lower bound for the prior
     :param prior_upper_bound: the upper bound for the prior
@@ -236,15 +237,20 @@ def dm_block(psr,
     popt, pcov = scipy.optimize.curve_fit(dm_funk, sorted_dmx_ep-dmepoch, sorted_dmx_vals-dmx_DMEPOCH)
     perr = np.sqrt(np.diag(pcov))
 
-    dm0 = get_prior(prior_type, perr[0]*prior_sigma, mu=popt[0],
-                    prior_lower_bound=popt[0]-prior_lower_bound*perr[0],
-                    prior_upper_bound=popt[0]+prior_lower_bound*perr[0])
-    dm1 = get_prior(prior_type, perr[1]*prior_sigma, mu=popt[1],
-                    prior_lower_bound=popt[1]-prior_lower_bound*perr[1],
-                    prior_upper_bound=popt[1]+prior_lower_bound*perr[1])
-    dm2 = get_prior(prior_type, perr[2]*prior_sigma, mu=popt[2],
-                    prior_lower_bound=popt[2]-prior_lower_bound*perr[2],
-                    prior_upper_bound=popt[2]+prior_lower_bound*perr[2])
+    if prior_type.lower() == 'fixed':
+        dm0 = parameter.Constant(val=popt[0])
+        dm1 = parameter.Constant(val=popt[1])
+        dm2 = parameter.Constant(val=popt[2])
+    else:
+        dm0 = get_prior(prior_type, perr[0]*prior_sigma, mu=popt[0],
+                        prior_lower_bound=popt[0]-prior_lower_bound*perr[0],
+                        prior_upper_bound=popt[0]+prior_lower_bound*perr[0])
+        dm1 = get_prior(prior_type, perr[1]*prior_sigma, mu=popt[1],
+                        prior_lower_bound=popt[1]-prior_lower_bound*perr[1],
+                        prior_upper_bound=popt[1]+prior_lower_bound*perr[1])
+        dm2 = get_prior(prior_type, perr[2]*prior_sigma, mu=popt[2],
+                        prior_lower_bound=popt[2]-prior_lower_bound*perr[2],
+                        prior_upper_bound=popt[2]+prior_lower_bound*perr[2])
 
     # dm model
     DMEPOCH = dmepoch*24*3600  # Change to seconds
