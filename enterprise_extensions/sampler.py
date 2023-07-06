@@ -1917,7 +1917,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
 
     # DM Model Draws
-    if "dm_model" in jp.snames:
+    if "dm_model" in jp.snames and len(jp.snames["dm_model"]):
         print("Adding dm model prior draw...\n")
         sampler.addProposalToCycle(jp.draw_from_signal("dm_model"), 10)
 
