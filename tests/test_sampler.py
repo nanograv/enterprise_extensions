@@ -27,7 +27,6 @@ with open(datadir+'/ng11yr_noise.json', 'r') as fin:
 @pytest.fixture
 def dmx_psrs(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)
@@ -42,7 +41,6 @@ def dmx_psrs(caplog):
 @pytest.fixture
 def empirical_distribution_1d(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)
@@ -55,7 +53,6 @@ def empirical_distribution_1d(caplog):
 @pytest.fixture
 def empirical_distribution_1d_kde(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)
@@ -68,7 +65,6 @@ def empirical_distribution_1d_kde(caplog):
 @pytest.fixture
 def empirical_distribution_2d(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)
@@ -81,7 +77,6 @@ def empirical_distribution_2d(caplog):
 @pytest.fixture
 def empirical_distribution_2d_kde(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)

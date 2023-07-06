@@ -11,7 +11,7 @@ from enterprise_extensions import model_orfs, models
 
 # Define the output to be on a single line.
 def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
-    return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
+    return "%s:%s: %s: %s\n" % (filename, lineno, category.__name__, message)
 
 
 # Override default format.
@@ -36,8 +36,17 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd',
-                 wideband=False, select=None, noisedict=None, pta=None):
+    def __init__(
+        self,
+        psrs,
+        bayesephem=True,
+        gamma_common=4.33,
+        orf="hd",
+        wideband=False,
+        select=None,
+        noisedict=None,
+        pta=None,
+    ):
 
         # initialize standard model with fixed white noise and
         # and powerlaw red and gw signal
@@ -69,20 +78,20 @@ class OptimalStatistic(object):
         # overlap reduction function
         if orf == 'hd':
             self.orf = model_orfs.hd_orf
-        elif orf == 'dipole':
+        elif orf == "dipole":
             self.orf = model_orfs.dipole_orf
-        elif orf == 'monopole':
+        elif orf == "monopole":
             self.orf = model_orfs.monopole_orf
-        elif orf == 'gw_monopole':
+        elif orf == "gw_monopole":
             self.orf = model_orfs.gw_monopole_orf
-        elif orf == 'gw_dipole':
+        elif orf == "gw_dipole":
             self.orf = model_orfs.gw_dipole_orf
-        elif orf == 'st':
+        elif orf == "st":
             self.orf = model_orfs.st_orf
         else:
-            raise ValueError('Unknown ORF!')
+            raise ValueError("Unknown ORF!")
 
-    def compute_os(self, params=None, psd='powerlaw', fgw=None):
+    def compute_os(self, params=None, psd="powerlaw", fgw=None):
         """
         Computes the optimal statistic values given an
         `enterprise` parameter dictionary.
@@ -104,16 +113,18 @@ class OptimalStatistic(object):
         """
 
         if params is None:
-            params = {name: par.sample() for name, par
-                      in zip(self.pta.param_names, self.pta.params)}
+            params = {
+                name: par.sample()
+                for name, par in zip(self.pta.param_names, self.pta.params)
+            }
         else:
             # check to see that the params dictionary includes values
             # for all of the parameters in the model
             for p in self.pta.param_names:
                 if p not in params.keys():
-                    msg = '{0} is not included '.format(p)
-                    msg += 'in the parameter dictionary. '
-                    msg += 'Drawing a random value.'
+                    msg = "{0} is not included ".format(p)
+                    msg += "in the parameter dictionary. "
+                    msg += "Drawing a random value."
 
                     warnings.warn(msg)
 
@@ -127,7 +138,9 @@ class OptimalStatistic(object):
         phiinvs = self.pta.get_phiinv(params, logdet=False)
 
         X, Z = [], []
-        for TNr, TNT, FNr, FNF, FNT, phiinv in zip(TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs):
+        for TNr, TNT, FNr, FNF, FNT, phiinv in zip(
+            TNrs, TNTs, FNrs, FNFs, FNTs, phiinvs
+        ):
 
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             try:
@@ -149,7 +162,6 @@ class OptimalStatistic(object):
 
                 if psd == 'powerlaw':
                     if self.gamma_common is None and 'gw_gamma' in params.keys():
-                        print('{0:1.2}'.format(params['gw_gamma']))
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
                                                gamma=params['gw_gamma'])
                     else:
@@ -179,7 +191,7 @@ class OptimalStatistic(object):
         sig = np.array(sig)
         ORF = np.array(ORF)
         xi = np.array(xi)
-        OS = (np.sum(rho*ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2))
+        OS = np.sum(rho * ORF / sig ** 2) / np.sum(ORF ** 2 / sig ** 2)
         OS_sig = 1 / np.sqrt(np.sum(ORF ** 2 / sig ** 2))
 
         return xi, rho, sig, OS, OS_sig
@@ -198,8 +210,8 @@ class OptimalStatistic(object):
 
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
-            msg = 'MCMC chain does not have the same number of parameters '
-            msg += 'as the model.'
+            msg = "MCMC chain does not have the same number of parameters "
+            msg += "as the model."
 
             warnings.warn(msg)
 
@@ -239,8 +251,8 @@ class OptimalStatistic(object):
 
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
-            msg = 'MCMC chain does not have the same number of parameters '
-            msg += 'as the model.'
+            msg = "MCMC chain does not have the same number of parameters "
+            msg += "as the model."
 
             warnings.warn(msg)
 
@@ -250,7 +262,7 @@ class OptimalStatistic(object):
         # is made by mapping the values from the chain to the
         # parameters in the pta object
         if param_names is None:
-            setpars = (self.pta.map_params(chain[idx, :-4]))
+            setpars = self.pta.map_params(chain[idx, :-4])
         else:
             setpars = dict(zip(param_names, chain[idx, :-4]))
 
@@ -282,17 +294,17 @@ class OptimalStatistic(object):
         # construct a list of all the ORFs to be fit simultaneously
         ORFs = []
         for corr in correlations:
-            if corr == 'hd':
+            if corr == "hd":
                 orf_func = model_orfs.hd_orf
-            elif corr == 'dipole':
+            elif corr == "dipole":
                 orf_func = model_orfs.dipole_orf
-            elif corr == 'monopole':
+            elif corr == "monopole":
                 orf_func = model_orfs.monopole_orf
-            elif corr == 'gw_monopole':
+            elif corr == "gw_monopole":
                 orf_func = model_orfs.gw_monopole_orf
-            elif corr == 'gw_dipole':
+            elif corr == "gw_dipole":
                 orf_func = model_orfs.gw_dipole_orf
-            elif corr == 'st':
+            elif corr == "st":
                 orf_func = model_orfs.st_orf
             else:
                 raise ValueError('Unknown ORF!')
@@ -301,7 +313,7 @@ class OptimalStatistic(object):
 
             npsr = len(self.pta._signalcollections)
             for ii in range(npsr):
-                for jj in range(ii+1, npsr):
+                for jj in range(ii + 1, npsr):
                     ORF.append(orf_func(self.psrlocs[ii], self.psrlocs[jj]))
 
             ORFs.append(np.array(ORF))
@@ -311,7 +323,7 @@ class OptimalStatistic(object):
 
         Bmatinv = np.linalg.inv(Bmat)
 
-        Cmat = np.array([np.sum(rho*ORFs[i]/sig**2) for i in range(len(ORFs))])
+        Cmat = np.array([np.sum(rho * ORFs[i] / sig ** 2) for i in range(len(ORFs))])
 
         A = np.dot(Bmatinv, Cmat)
         A_err = np.array([np.sqrt(Bmatinv[i, i]) for i in range(len(ORFs))])
@@ -340,8 +352,8 @@ class OptimalStatistic(object):
 
         # check that the chain file has the same number of parameters as the model
         if chain.shape[1] - 4 != len(self.pta.param_names):
-            msg = 'MCMC chain does not have the same number of parameters '
-            msg += 'as the model.'
+            msg = "MCMC chain does not have the same number of parameters "
+            msg += "as the model."
 
             warnings.warn(msg)
 
@@ -432,7 +444,7 @@ class OptimalStatistic(object):
     def get_TNT(self, params={}):
         return self.pta.get_TNT(params=params)
 
-    @signal_base.cache_call(['white_params', 'basis_params'])
+    @signal_base.cache_call(["white_params", "basis_params"])
     def get_FNT(self, params={}):
         FNTs = []
         for ct, sc in enumerate(self.pta._signalcollections):

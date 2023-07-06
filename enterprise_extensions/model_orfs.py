@@ -44,10 +44,11 @@ def spline_orf(pos1, pos2, params):
         return 1
     else:
         # spline knots placed at edges, zeros, and minimum of H&D
-        spl_knts = np.array([1e-3, 25.0, 49.3, 82.5,
-                             121.8, 150.0, 180.0]) * np.pi/180.0
+        spl_knts = (
+            np.array([1e-3, 25.0, 49.3, 82.5, 121.8, 150.0, 180.0]) * np.pi / 180.0
+        )
         omc2_knts = (1 - np.cos(spl_knts)) / 2
-        finterp = interp.interp1d(omc2_knts, params, kind='cubic')
+        finterp = interp.interp1d(omc2_knts, params, kind="cubic")
 
         omc2 = (1 - np.dot(pos1, pos2)) / 2
         return finterp(omc2)
@@ -70,11 +71,14 @@ def bin_orf(pos1, pos2, params):
         return 1
     else:
         # bins in angsep space
-        bins = np.array([1e-3, 30.0, 50.0, 80.0, 100.0,
-                         120.0, 150.0, 180.0]) * np.pi/180.0
+        bins = (
+            np.array([1e-3, 30.0, 50.0, 80.0, 100.0, 120.0, 150.0, 180.0])
+            * np.pi
+            / 180.0
+        )
         angsep = np.arccos(np.dot(pos1, pos2))
         idx = np.digitize(angsep, bins)
-        return params[idx-1]
+        return params[idx - 1]
 
 
 @signal_base.function
@@ -95,11 +99,14 @@ def zero_diag_bin_orf(pos1, pos2, params):
         return 1e-20
     else:
         # bins in angsep space
-        bins = np.array([1e-3, 30.0, 50.0, 80.0, 100.0,
-                         120.0, 150.0, 180.0]) * np.pi/180.0
+        bins = (
+            np.array([1e-3, 30.0, 50.0, 80.0, 100.0, 120.0, 150.0, 180.0])
+            * np.pi
+            / 180.0
+        )
         angsep = np.arccos(np.dot(pos1, pos2))
         idx = np.digitize(angsep, bins)
-        return params[idx-1]
+        return params[idx - 1]
 
 
 @signal_base.function
@@ -140,12 +147,12 @@ def freq_hd(pos1, pos2, params):
     nfreq = params[0]
     orf_ifreq = params[1]
     if np.all(pos1 == pos2):
-        return np.ones(2*nfreq)
+        return np.ones(2 * nfreq)
     else:
         omc2 = (1 - np.dot(pos1, pos2)) / 2
         hd_coeff = 1.5 * omc2 * np.log(omc2) - 0.25 * omc2 + 0.5
-        hd_coeff *= np.ones(2*nfreq)
-        hd_coeff[:2*orf_ifreq] = 0.0
+        hd_coeff *= np.ones(2 * nfreq)
+        hd_coeff[: 2 * orf_ifreq] = 0.0
         return hd_coeff
 
 
@@ -243,7 +250,12 @@ def anis_orf(pos1, pos2, params, **kwargs):
     if lmax > 0:
         clm[1:] = params
 
-    return sum(clm[ii] * basis for ii, basis in enumerate(anis_basis[: (lmax + 1) ** 2, psr1_index, psr2_index]))
+    return sum(
+        clm[ii] * basis
+        for ii, basis in enumerate(
+            anis_basis[: (lmax + 1) ** 2, psr1_index, psr2_index]
+        )
+    )
 
 
 @signal_base.function
@@ -256,7 +268,7 @@ def gw_monopole_orf(pos1, pos2):
     if np.all(pos1 == pos2):
         return 1
     else:
-        return 1/2
+        return 1 / 2
 
 
 @signal_base.function
@@ -268,7 +280,7 @@ def gw_dipole_orf(pos1, pos2):
     if np.all(pos1 == pos2):
         return 1
     else:
-        return 1/2*np.dot(pos1, pos2)
+        return 1 / 2 * np.dot(pos1, pos2)
 
 
 @signal_base.function

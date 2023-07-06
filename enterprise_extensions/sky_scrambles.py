@@ -87,11 +87,15 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
     orf_mags = []
 
     if resume:
-        print('Resuming from earlier run... loading sky scrambles from file {0}'.format(filename))
+        print(
+            "Resuming from earlier run... loading sky scrambles from file {0}".format(
+                filename
+            )
+        )
         npzfile = np.load(filename)
-        matches, orfs = npzfile['matches'], npzfile['orfs']
-        thetas, phis = npzfile['thetas'], npzfile['phis']
-        print('{0} sky scrambles have already been generated.'.format(len(matches)))
+        matches, orfs = npzfile["matches"], npzfile["orfs"]
+        thetas, phis = npzfile["thetas"], npzfile["phis"]
+        print("{0} sky scrambles have already been generated.".format(len(matches)))
         for o in orfs:
             orf_mags.append(np.sqrt(np.dot(o, o)))
     else:
@@ -101,12 +105,12 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
     tstart = time.time()
     while ct <= Nmax and len(matches) <= N:
         ptheta = np.arccos(np.random.uniform(-1, 1, npsr))
-        pphi = np.random.uniform(0, 2*np.pi, npsr)
+        pphi = np.random.uniform(0, 2 * np.pi, npsr)
         orf_s, orf_s_mag = compute_orf(ptheta, pphi)
         match = compute_match(orf_true, orf_true_mag, orf_s, orf_s_mag)
         if thresh == 1.0:
             if ct == 0:
-                print('There is no threshold! Keep all the sky scrambles')
+                print("There is no threshold! Keep all the sky scrambles")
             if len(orfs) == 0:
                 orfs.append(orf_s)
                 matches.append(match)
@@ -132,7 +136,13 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
                 phis = pphi[np.newaxis, ...]
                 orf_mags.append(np.sqrt(np.dot(orf_s, orf_s)))
             else:
-                check = np.all(map(lambda x, y: compute_match(orf_s, orf_s_mag, x, y)<=thresh, orfs, orf_mags))
+                check = np.all(
+                    map(
+                        lambda x, y: compute_match(orf_s, orf_s_mag, x, y) <= thresh,
+                        orfs,
+                        orf_mags,
+                    )
+                )
                 if check:
                     matches = np.append(matches, match)
                     orf_reshape = np.vstack(orf_s).T
@@ -149,17 +159,25 @@ def get_scrambles(psrs, N=500, Nmax=10000, thresh=0.1,
             sys.stdout.flush()
 
     if len(matches) < N:
-        print('\nGenerated {0} matches rather than the desired {1} matches'.format(len(matches), N))
+        print(
+            "\nGenerated {0} matches rather than the desired {1} matches".format(
+                len(matches), N
+            )
+        )
     else:
-        print('\nGenerated the desired {0} matches in {1} attempts'.format(len(matches), ct))
-    print('Total runtime: {0:.1f} min'.format((time.time()-tstart)/60.))
+        print(
+            "\nGenerated the desired {0} matches in {1} attempts".format(
+                len(matches), ct
+            )
+        )
+    print("Total runtime: {0:.1f} min".format((time.time() - tstart) / 60.0))
 
     np.savez(filename, matches=matches, orfs=orfs, thetas=thetas, phis=phis)
 
     return (matches, orfs, thetas, phis)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import argparse
 

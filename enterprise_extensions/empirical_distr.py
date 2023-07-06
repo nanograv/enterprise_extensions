@@ -17,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 class EmpiricalDistribution1D(object):
     """
-    Class used to define a 1D empirical distribution
-    based on posterior from another MCMC.
+    Class used to define a 1D empirical distribution based on posterior from another MCMC.
 
     :param samples: samples for hist
-    :param bins: edges to use for hist (left and right) make sure bins
-        cover whole prior!
-
+    :param bins: edges to use for hist (left and right) make sure bins cover whole prior!
     """
     def __init__(self, param_name, samples, bins):
         self.ndim = 1
@@ -103,7 +100,6 @@ class EmpiricalDistribution2D(object):
     :param samples: samples for hist
     :param bins: edges to use for hist (left and right)
         make sure bins cover whole prior!
-
     """
     def __init__(self, param_names, samples, bins):
         self.ndim = 2
@@ -148,7 +144,6 @@ class EmpiricalDistribution2DKDE(object):
 
         :param param_names: 2-element list of parameter names
         :param samples: samples, with dimension (2 x Nsamples)
-
 
         :return distr: list of empirical distributions
         """
@@ -210,7 +205,6 @@ def make_empirical_distributions(pta, paramlist, params, chain,
         :param nbins: number of bins to use for the empirical distributions
 
         :return distr: list of empirical distributions
-
         """
 
     distr = []
@@ -227,6 +221,7 @@ def make_empirical_distributions(pta, paramlist, params, chain,
 
         if len(pl) == 1:
             idx = pta.param_names.index(pl[0])
+
             prior_min = pta.params[idx].prior._defaults['pmin']
             prior_max = pta.params[idx].prior._defaults['pmax']
 
@@ -286,7 +281,6 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
         :param nbins: number of bins to use for the empirical distributions
 
         :return distr: list of empirical distributions
-
         """
 
     distr = []

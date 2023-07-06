@@ -11,8 +11,9 @@ from enterprise.signals import (deterministic_signals,
 
 
 @signal_base.function
-def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
-                     dropout_psr='B1855+09', k_drop=0.5, k_threshold=0.5):
+def dropout_powerlaw(
+    f, name, log10_A=-16, gamma=5, dropout_psr="B1855+09", k_drop=0.5, k_threshold=0.5
+):
     """
     Dropout powerlaw for a stochastic process. Switches a stochastic
     process on or off in a single pulsar depending on whether k_drop exceeds
@@ -48,13 +49,27 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
 
 
 @signal_base.function
-def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
-                                 d_jupiter_mass=0, d_saturn_mass=0, d_uranus_mass=0,
-                                 d_neptune_mass=0, jup_orb_elements=np.zeros(6),
-                                 sat_orb_elements=np.zeros(6), inc_jupiter_orb=False,
-                                 jup_orbelxyz=None, jup_mjd=None, inc_saturn_orb=False,
-                                 sat_orbelxyz=None, sat_mjd=None, equatorial=True,
-                                 k_drop=0.5, k_threshold=0.5):
+def dropout_physical_ephem_delay(
+    toas,
+    planetssb,
+    pos_t,
+    frame_drift_rate=0,
+    d_jupiter_mass=0,
+    d_saturn_mass=0,
+    d_uranus_mass=0,
+    d_neptune_mass=0,
+    jup_orb_elements=np.zeros(6),
+    sat_orb_elements=np.zeros(6),
+    inc_jupiter_orb=False,
+    jup_orbelxyz=None,
+    jup_mjd=None,
+    inc_saturn_orb=False,
+    sat_orbelxyz=None,
+    sat_mjd=None,
+    equatorial=True,
+    k_drop=0.5,
+    k_threshold=0.5,
+):
     """
     Dropout BayesEphem model. Switches BayesEphem on or off depending on
     whether k_drop exceeds k_threshold.
@@ -81,8 +96,12 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
                                  offset=None, equatorial=equatorial)
 
     # mass perturbations
-    mpert = [(jupiter, d_jupiter_mass), (saturn, d_saturn_mass),
-             (uranus, d_uranus_mass), (neptune, d_neptune_mass)]
+    mpert = [
+        (jupiter, d_jupiter_mass),
+        (saturn, d_saturn_mass),
+        (uranus, d_uranus_mass),
+        (neptune, d_neptune_mass),
+    ]
     for planet, dm in mpert:
         earth += utils.dmass(planet, dm)
 
@@ -101,10 +120,10 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
                            for aa in range(3)]).T
 
     # construct the true geocenter to barycenter roemer
-    tmp_roemer = np.einsum('ij,ij->i', planetssb[:, 2, :3], pos_t)
+    tmp_roemer = np.einsum("ij,ij->i", planetssb[:, 2, :3], pos_t)
 
     # create the delay
-    delay = tmp_roemer - np.einsum('ij,ij->i', earth, pos_t)
+    delay = tmp_roemer - np.einsum("ij,ij->i", earth, pos_t)
 
     return k_switch * delay
 
@@ -146,15 +165,15 @@ def Dropout_PhysicalEphemerisSignal(
     BaseClass = deterministic_signals.Deterministic(wf, name=name)
 
     class Dropout_PhysicalEphemerisSignal(BaseClass):
-        signal_name = 'phys_ephem'
-        signal_id = 'phys_ephem_' + name if name else 'phys_ephem'
+        signal_name = "phys_ephem"
+        signal_id = "phys_ephem_" + name if name else "phys_ephem"
 
         def __init__(self, psr):
 
             # not available for PINT yet
             if isinstance(psr, enterprise.pulsar.PintPulsar):
-                msg = 'Physical Ephemeris model is not compatible with PINT '
-                msg += 'at this time.'
+                msg = "Physical Ephemeris model is not compatible with PINT "
+                msg += "at this time."
                 raise NotImplementedError(msg)
 
             super(Dropout_PhysicalEphemerisSignal, self).__init__(psr)
@@ -164,7 +183,7 @@ def Dropout_PhysicalEphemerisSignal(
                 U, _ = utils.create_quantization_matrix(psr.toas, nmin=1)
                 self.uinds = utils.quant2ind(U)
                 avetoas = np.array([psr.toas[sc].mean() for sc in self.uinds])
-                self._wf[''].add_kwarg(toas=avetoas)
+                self._wf[""].add_kwarg(toas=avetoas)
 
                 # interpolate ssb planet position vectors to avetoas
                 planetssb = np.zeros((len(avetoas), 9, 3))
@@ -182,9 +201,9 @@ def Dropout_PhysicalEphemerisSignal(
             # initialize delay
             self._delay = np.zeros(len(psr.toas))
 
-        @signal_base.cache_call('delay_params')
+        @signal_base.cache_call("delay_params")
         def get_delay(self, params):
-            delay = self._wf[''](params=params)
+            delay = self._wf[""](params=params)
             if use_epoch_toas:
                 for slc, val in zip(self.uinds, delay):
                     self._delay[slc] = val

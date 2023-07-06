@@ -19,7 +19,7 @@ from enterprise_extensions import model_orfs, models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
 
 testdir = os.path.dirname(os.path.abspath(__file__))
-datadir = os.path.join(testdir, 'data')
+datadir = os.path.join(testdir, "data")
 
 
 psr_names = ['J0613-0200', 'J1713+0747', 'J1909-3744']
@@ -69,9 +69,9 @@ def test_model_2a_altpol_spectrum(nodmx_psrs, caplog):
     m = signal_base.PTA([s(psr) for psr in nodmx_psrs])
     m.set_default_params(noise_dict)
     for param in m.params:
-        if 'gw_p_dist' in str(param):
+        if "gw_p_dist" in str(param):
             # get pulsar name and distance
-            psr_name = str(param).split('_')[0].strip('"')
+            psr_name = str(param).split("_")[0].strip('"')
             psr_dist = [p._pdist for p in nodmx_psrs if psr_name in p.name][0]
 
             # edit prior settings

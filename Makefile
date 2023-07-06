@@ -69,8 +69,9 @@ coverage: test ## check code coverage quickly with the default Python
 	$(BROWSER) htmlcov/index.html
 
 jupyter-docs: ## biuld jupyter notebook docs
-	jupyter nbconvert --template docs/nb-rst.tpl --to rst docs/_static/notebooks/*.ipynb --output-dir docs/
-	cp -r docs/_static/notebooks/img docs/
+	jupyter nbconvert --to rst docs/_static/notebooks/*.ipynb --output-dir docs/
+	# jupyter nbconvert --template docs/nb-rst.tpl --to rst docs/_static/notebooks/*.ipynb --output-dir docs/
+	# cp -r docs/_static/notebooks/img docs/
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -f docs/enterprise_extensions*.rst

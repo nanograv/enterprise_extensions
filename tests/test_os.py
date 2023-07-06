@@ -40,7 +40,6 @@ def dmx_psrs(caplog):
 @pytest.fixture
 def nodmx_psrs(caplog):
     """Sample pytest fixture.
-
     See more at: http://doc.pytest.org/en/latest/fixture.html
     """
     caplog.set_level(logging.CRITICAL)

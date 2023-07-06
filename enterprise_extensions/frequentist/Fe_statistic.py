@@ -35,7 +35,7 @@ class FeStat(object):
 
         # set white noise parameters
         if params is None:
-            print('No noise dictionary provided!...')
+            print("No noise dictionary provided!...")
         else:
             self.pta.set_default_params(params)
 
@@ -45,7 +45,7 @@ class FeStat(object):
         self.Nmats = None
 
     def get_Nmats(self):
-        '''Makes the Nmatrix used in the fstatistic'''
+        """Makes the Nmatrix used in the fstatistic"""
         TNTs = self.pta.get_TNT(self.params)
         phiinvs = self.pta.get_phiinv(self.params, logdet=False, method='partition')
         # Get noise parameters for pta toaerr**2
@@ -100,10 +100,10 @@ class FeStat(object):
             ntoa = len(psr.toas)
 
             A = np.zeros((4, ntoa))
-            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
-            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
-            A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
-            A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
+            A[0, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas - tref))
+            A[1, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas - tref))
+            A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas - tref))
+            A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas - tref))
 
             ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
             ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
@@ -115,7 +115,9 @@ class FeStat(object):
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
+                    M[idx, jj, kk] = innerProduct_rr(
+                        A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave
+                    )
 
         fstat = np.zeros(gw_skyloc.shape[1])
         if maximized_parameters:
@@ -128,7 +130,9 @@ class FeStat(object):
             NN = np.copy(N)
             MM = np.copy(M)
             for idx, psr in enumerate(self.psrs):
-                F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_pos[0], gw_pos[1])
+                F_p, F_c, _ = utils.create_gw_antenna_pattern(
+                    psr.pos, gw_pos[0], gw_pos[1]
+                )
                 NN[idx, :] *= np.array([F_p, F_p, F_c, F_c])
                 MM[idx, :, :] *= np.array([[F_p**2, F_p**2, F_p*F_c, F_p*F_c],
                                            [F_p**2, F_p**2, F_p*F_c, F_p*F_c],

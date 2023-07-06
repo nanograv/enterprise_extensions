@@ -14,7 +14,7 @@ from enterprise import constants as const
 from enterprise_extensions import model_utils, models
 
 testdir = os.path.dirname(os.path.abspath(__file__))
-datadir = os.path.join(testdir, 'data')
+datadir = os.path.join(testdir, "data")
 
 
 psr_names = ['J0613-0200', 'J1713+0747', 'J1909-3744']
@@ -62,12 +62,13 @@ def test_model_singlepsr_noise(nodmx_psrs, caplog):
 def test_model_singlepsr_noise_faclike(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     # default behaviour
-    m=models.model_singlepsr_noise(nodmx_psrs[1],
-                                   factorized_like=True, Tspan=10*const.yr)
+    m = models.model_singlepsr_noise(
+        nodmx_psrs[1], factorized_like=True, Tspan=10 * const.yr
+    )
     m.get_basis()
-    assert 'gw_log10_A' in m.param_names
-    assert 'J1713+0747_red_noise_log10_A' in m.param_names
-    assert m.signals["J1713+0747_gw"]._labels[''][-1] == const.fyr
+    assert "gw_log10_A" in m.param_names
+    assert "J1713+0747_red_noise_log10_A" in m.param_names
+    assert m.signals["J1713+0747_gw"]._labels[""][-1] == const.fyr
 
     # gw but no RN
     m=models.model_singlepsr_noise(nodmx_psrs[1], red_var=False,

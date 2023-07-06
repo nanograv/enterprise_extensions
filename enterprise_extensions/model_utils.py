@@ -30,13 +30,14 @@ def linBinning(T, logmode, f_min, nlin, nlog):
 
     """
     if logmode < 0:
-        raise ValueError("Cannot do log-spacing when all frequencies are"
-                         "linearly sampled")
+        raise ValueError(
+            "Cannot do log-spacing when all frequencies are" "linearly sampled"
+        )
 
     # First the linear spacing and weights
     df_lin = 1.0 / T
     f_min_lin = (1.0 + logmode) / T
-    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin-1)*df_lin, nlin)
+    f_lin = np.linspace(f_min_lin, f_min_lin + (nlin - 1) * df_lin, nlin)
     w_lin = np.sqrt(df_lin * np.ones(nlin))
 
     if nlog > 0:
@@ -44,12 +45,14 @@ def linBinning(T, logmode, f_min, nlin, nlog):
         f_min_log = np.log(f_min)
         f_max_log = np.log((logmode+0.5)/T)
         df_log = (f_max_log - f_min_log) / (nlog)
-        f_log = np.exp(np.linspace(f_min_log+0.5*df_log,
-                                   f_max_log-0.5*df_log, nlog))
+        f_log = np.exp(
+            np.linspace(f_min_log + 0.5 * df_log, f_max_log - 0.5 * df_log, nlog)
+        )
         w_log = np.sqrt(df_log * f_log)
         return np.append(f_log, f_lin), np.append(w_log, w_lin)
     else:
         return f_lin, w_lin
+
 
 # New filter for different cadences
 
@@ -64,7 +67,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
         start_idx = (np.abs((psr._toas / 86400) - start_time)).argmin()
         end_idx = (np.abs((psr._toas / 86400) - end_time)).argmin()
         # make a safe copy of sliced toas
-        tmp_toas = psr._toas[start_idx:end_idx+1].copy()
+        tmp_toas = psr._toas[start_idx : end_idx + 1].copy()
         # cumulative sum of time differences
         cumsum = np.cumsum(np.diff(tmp_toas / 86400))
         tspan = (tmp_toas.max() - tmp_toas.min()) / 86400
@@ -74,8 +77,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
             idx = (np.abs(cumsum - ii)).argmin()
             mask.append(idx)
         # append start and end segements with cadence-sliced toas
-        mask = np.append(np.arange(start_idx),
-                         np.array(mask) + start_idx)
+        mask = np.append(np.arange(start_idx), np.array(mask) + start_idx)
         mask = np.append(mask, np.arange(end_idx, len(psr._toas)))
 
     psr._toas = psr._toas[mask]
@@ -97,7 +99,7 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
 
 
 def get_tspan(psrs):
-    """ Returns maximum time span for all pulsars.
+    """Returns maximum time span for all pulsars.
 
     :param psrs: List of pulsar objects
 
@@ -110,9 +112,8 @@ def get_tspan(psrs):
 
 
 class PostProcessing(object):
-
     def __init__(self, chain, pars, burn_percentage=0.25):
-        burn = int(burn_percentage*chain.shape[0])
+        burn = int(burn_percentage * chain.shape[0])
         self.chain = chain[burn:]
         self.pars = pars
 
@@ -120,13 +121,13 @@ class PostProcessing(object):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
-            nrows = int(np.ceil(ndim/ncols))
+            nrows = int(np.ceil(ndim / ncols))
         else:
             ncols, nrows = 1, 1
 
-        plt.figure(figsize=(15, 2*nrows))
+        plt.figure(figsize=(15, 2 * nrows))
         for ii in range(ndim):
-            plt.subplot(nrows, ncols, ii+1)
+            plt.subplot(nrows, ncols, ii + 1)
             plt.plot(self.chain[:, ii], **plot_kwargs)
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
@@ -135,13 +136,13 @@ class PostProcessing(object):
         ndim = len(self.pars)
         if ndim > 1:
             ncols = 4
-            nrows = int(np.ceil(ndim/ncols))
+            nrows = int(np.ceil(ndim / ncols))
         else:
             ncols, nrows = 1, 1
 
-        plt.figure(figsize=(15, 2*nrows))
+        plt.figure(figsize=(15, 2 * nrows))
         for ii in range(ndim):
-            plt.subplot(nrows, ncols, ii+1)
+            plt.subplot(nrows, ncols, ii + 1)
             plt.hist(self.chain[:, ii], **hist_kwargs)
             plt.title(self.pars[ii], fontsize=8)
         plt.tight_layout()
@@ -158,10 +159,10 @@ def ul(chain, q=95.0):
 
     """
 
-    hist = np.histogram(10.0**chain, bins=100)
+    hist = np.histogram(10.0 ** chain, bins=100)
     hist_dist = scistats.rv_histogram(hist)
 
-    A_ul = 10**np.percentile(chain, q=q)
+    A_ul = 10 ** np.percentile(chain, q=q)
     p_ul = hist_dist.pdf(A_ul)
 
     Aul_error = np.sqrt((q/100.) * (1.0 - (q/100.0)) /
@@ -193,8 +194,8 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
 
         post = n / N / delta
 
-        bf.append(prior/post)
-        bf_err.append(bf[ii]/np.sqrt(n))
+        bf.append(prior / post)
+        bf_err.append(bf[ii] / np.sqrt(n))
 
         if n > ntol:
             mask.append(ii)
@@ -225,21 +226,21 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
 
     if uncertainty:
 
-        if bot == 0. or top == 0.:
+        if bot == 0.0 or top == 0.0:
             sigma = 0.0
         else:
             # Counting transitions from model 1 model 2
             ct_tb = 0
-            for ii in range(len(mask_top)-1):
+            for ii in range(len(mask_top) - 1):
                 if mask_top[ii]:
-                    if not mask_top[ii+1]:
+                    if not mask_top[ii + 1]:
                         ct_tb += 1
 
             # Counting transitions from model 2 to model 1
             ct_bt = 0
-            for ii in range(len(mask_bot)-1):
+            for ii in range(len(mask_bot) - 1):
                 if mask_bot[ii]:
-                    if not mask_bot[ii+1]:
+                    if not mask_bot[ii + 1]:
                         ct_bt += 1
 
             try:
@@ -269,9 +270,9 @@ def bic(chain, nobs, log_evidence=False):
     nparams = chain.shape[1] - 4  # removing 4 aux columns
     maxlnlike = chain[:, -4].max()
 
-    bic = np.log(nobs)*nparams - 2.0*maxlnlike
+    bic = np.log(nobs) * nparams - 2.0 * maxlnlike
     if log_evidence:
-        return (bic, -0.5*bic)
+        return (bic, -0.5 * bic)
     else:
         return bic
 
@@ -296,7 +297,7 @@ def mask_filter(psr, mask):
     psr.sort_data()
 
 
-class CompareTimingModels():
+class CompareTimingModels:
     """
     Compare difference between the usual and marginalized timing models.
 
@@ -315,7 +316,9 @@ class CompareTimingModels():
         self.abs_tol = abs_tol
         self.rel_tol = rel_tol
         if dense:
-            self.pta_marg = model(psrs, tm_marg=True, dense_like=True, **kwargs)  # marginalized model
+            self.pta_marg = model(
+                psrs, tm_marg=True, dense_like=True, **kwargs
+            )  # marginalized model
         else:
             self.pta_marg = model(psrs, tm_marg=True, **kwargs)  # marginalized model
         self.pta_norm = model(psrs, **kwargs)  # normal model
@@ -327,34 +330,42 @@ class CompareTimingModels():
         self.count = 0
 
     def check_timing(self, number=10_000):
-        print('Timing sample creation...')
+        print("Timing sample creation...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
         end = time.time()
         sample_time = end - start
-        print('Sampling {0} points took {1} seconds.'.format(number, sample_time))
+        print("Sampling {0} points took {1} seconds.".format(number, sample_time))
 
-        print('Timing MarginalizedTimingModel...')
+        print("Timing MarginalizedTimingModel...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
             self.pta_marg.get_lnlikelihood(x0)
         end = time.time()
-        time_marg = end - start - sample_time  # remove sampling time from total time taken
-        print('Sampling {0} points took {1} seconds.'.format(number, time_marg))
+        time_marg = (
+            end - start - sample_time
+        )  # remove sampling time from total time taken
+        print("Sampling {0} points took {1} seconds.".format(number, time_marg))
 
-        print('Timing TimingModel...')
+        print("Timing TimingModel...")
         start = time.time()
         for __ in range(number):
             x0 = np.hstack([p.sample() for p in self.pta_marg.params])
             self.pta_norm.get_lnlikelihood(x0)
         end = time.time()
-        time_norm = end - start - sample_time  # remove sampling time from total time taken
-        print('Sampling {0} points took {1} seconds.'.format(number, time_norm))
+        time_norm = (
+            end - start - sample_time
+        )  # remove sampling time from total time taken
+        print("Sampling {0} points took {1} seconds.".format(number, time_norm))
 
         res = time_norm / time_marg
-        print('MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.'.format(res, number))
+        print(
+            "MarginalizedTimingModel is {0} times faster than TimingModel after {1} points.".format(
+                res, number
+            )
+        )
         return res
 
     def get_sample_point(self):

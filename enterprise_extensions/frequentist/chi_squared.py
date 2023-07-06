@@ -5,9 +5,10 @@ import scipy.linalg as sl
 
 
 def get_chi2(pta, xs):
-    """Compute generalize chisq for pta:
-        chisq = y^T (N + F phi F^T)^-1 y
-              = y^T N^-1 y - y^T N^-1 F (F^T N^-1 F + phi^-1)^-1 F^T N^-1 y
+    """
+    Compute generalize chisq for pta:
+    chisq = y^T (N + F phi F^T)^-1 y
+          = y^T N^-1 y - y^T N^-1 F (F^T N^-1 F + phi^-1)^-1 F^T N^-1 y
     """
 
     params = xs if isinstance(xs, dict) else pta.map_params(xs)
