@@ -889,16 +889,16 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         if 'pta' in list(p.flags.keys()):
             if 'NANOGrav' in p.flags['pta'] and not is_wideband:
                 s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
-                                        tnequad=tnequad, select=select)
+                                           tnequad=tnequad, select=select)
                 if gequad:
                     s2 += white_signals.EquadNoise(log10_equad=parameter.Uniform(-8.5, -5),
-                                                selection=selections.Selection(selections.no_selection),
-                                                name='gequad')
+                                                   selection=selections.Selection(selections.no_selection),
+                                                   name='gequad')
                 if '1713' in p.name and dm_var:
                     tmin = p.toas.min() / const.day
                     tmax = p.toas.max() / const.day
                     s3 = s2 + chrom.dm_exponential_dip(tmin=tmin, tmax=tmax, idx=2,
-                                                    sign=False, name='dmexp')
+                                                       sign=False, name='dmexp')
                     models.append(s3(p))
                 else:
                     models.append(s2(p))
