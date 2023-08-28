@@ -7,6 +7,7 @@ import platform
 
 import healpy as hp
 import numpy as np
+from PTMCMCSampler import __version__ as __vPTMCMC__
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from enterprise_extensions import __version__
@@ -48,11 +49,11 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
-                    if not(emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
+                    if not (emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
                         prior_ok = False
                         continue
                 elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
-                    if not(emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
+                    if not (emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
                         prior_ok=False
                         continue
             if prior_ok:
@@ -710,6 +711,36 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_gw_rho_prior(self, x, iter, beta):
+        """
+        Jump proposals on free spec
+        """
+
+        q = x.copy()
+        lqxy = 0
+
+        # draw parameter from signal model
+        parnames = [par.name for par in self.params]
+        pname = [pnm for pnm in parnames
+                 if ('gw' in pnm and 'rho' in pnm)][0]
+
+        idx = parnames.index(pname)
+        param = self.params[idx]
+
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        # forward-backward jump probability
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
+
+        return q, float(lqxy)
+
     def draw_from_signal_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -1043,6 +1074,7 @@ def save_runtime_info(pta, outdir='chains', human=None):
             fout.write(field + " : " + data + "\n")
         fout.write("\n")
         fout.write("enterprise_extensions v" + __version__ +"\n")
+        fout.write("PTMCMCSampler v" + __vPTMCMC__ +"\n")
         fout.write(pta.summary())
 
     # save paramter list
@@ -1197,5 +1229,10 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if 'cw_log10_Mc' in pta.param_names:
         print('Adding CW prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
+
+    # free spectrum prior draw
+    if np.any(['log10_rho' in par for par in pta.param_names]):
+        print('Adding free spectrum prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
     return sampler
