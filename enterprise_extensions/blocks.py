@@ -36,7 +36,7 @@ def channelized_backends(backend_flags):
     return {flagval: backend_flags == flagval for flagval in flagvals}
 
 
-def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
+def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False, kernel_ecorr_method = "sherman-morrison",
                       efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Returns the white noise block of the model:
@@ -109,7 +109,8 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         else:
             ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
                                                 selection=backend_ng,
-                                                name=name)
+                                                name=name, 
+                                                method=kernel_ecorr_method)
     # combine signals
     if inc_ecorr:
         s = efeq + ec
