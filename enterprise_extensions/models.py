@@ -95,7 +95,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_gp_kernel: GP kernel type to use in chrom ['diag','nondiag']
     :param chrom_psd: power-spectral density of chromatic noise
         ['powerlaw','tprocess','free_spectrum']
-    :param chrom_idx: frequency scaling of chromatic noise
+    :param chrom_idx: frequency scaling of chromatic noise. use 'vary' to vary
+        between [2.5,5].
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
