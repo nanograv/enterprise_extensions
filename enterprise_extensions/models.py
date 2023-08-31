@@ -237,15 +237,6 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name],vary=vary_dm)
         if dm_annual:
             s += chrom.dm_annual_signal(vary=vary_dm)
-        if chrom_gp:
-            s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
-                                       psd=chrom_psd, idx=chrom_idx,
-                                       components=chrom_Nfreqs,
-                                       nondiag_kernel=chrom_kernel,
-                                       dt=chrom_dt, df=chrom_df,
-                                       include_quadratic=chrom_quad,
-                                       coefficients=coefficients,
-                                       vary=vary_dm)
 
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
@@ -321,7 +312,16 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
                                   swgp_prior=swgp_prior, swgp_basis=swgp_basis,
                                   Tspan=Tspan)
-
+            
+    if chrom_gp:
+        s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
+                                   psd=chrom_psd, idx=chrom_idx,
+                                   components=chrom_Nfreqs,
+                                   nondiag_kernel=chrom_kernel,
+                                   dt=chrom_dt, df=chrom_df,
+                                   include_quadratic=chrom_quad,
+                                   coefficients=coefficients,
+                                   vary=vary_chrom)
     if extra_sigs is not None:
         s += extra_sigs
 
