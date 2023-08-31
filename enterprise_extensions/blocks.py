@@ -548,7 +548,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
     :param df:
         frequency-scale for linear interpolation basis (MHz)
     :param idx:
-        Index of radio frequency dependence (i.e. DM is 2). Any float will work.
+        Index of radio frequency dependence (i.e. DM is 2). Any float will
+        work or 'vary' will vary between [2.5,5]
     :param include_quadratic:
         Whether to include a quadratic fit.
     :param name: Name of signal
@@ -562,9 +563,16 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Whether to vary the parameters or use constant values.
 
     """
+    if idx == 'vary':
+        if not vary:
+            idx = parameter.Constant()
+        else:
+            idx = parameter.Uniform(2.5, 5)
+            
     if gp_kernel == 'diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
-                                                            Tspan=Tspan)
+                                                            Tspan=Tspan,
+                                                            idx=idx)
         if psd in ['powerlaw', 'turnover']:
             if not vary:
                 log10_A = parameter.Constant()
@@ -613,7 +621,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 log10_p = parameter.Constant()
                 log10_gam_p = parameter.Constant()
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day,int=int)
             chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
                                             log10_gam_p=log10_gam_p,
