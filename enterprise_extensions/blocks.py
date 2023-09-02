@@ -621,7 +621,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 log10_p = parameter.Constant()
                 log10_gam_p = parameter.Constant()
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day,int=int)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day,idx=idx)
             chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
                                             log10_gam_p=log10_gam_p,
