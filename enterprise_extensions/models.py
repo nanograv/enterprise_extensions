@@ -225,7 +225,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             if dmgp_kernel == 'diag':
                 s += dm_noise_block(gp_kernel=dmgp_kernel, psd=dm_psd,
                                     prior=amp_prior, components=dm_Nfreqs,
-                                    gamma_val=gamma_dm_val,
+                                    gamma_val=gamma_dm_val, Tspan=Tspan,
                                     coefficients=coefficients,
                                     vary=vary_dm)
             elif dmgp_kernel == 'nondiag':
@@ -322,6 +322,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                    dt=chrom_dt, df=chrom_df,
                                    include_quadratic=chrom_quad,
                                    coefficients=coefficients,
+                                   Tspan=Tspan,
                                    vary=vary_chrom)
     if extra_sigs is not None:
         s += extra_sigs
