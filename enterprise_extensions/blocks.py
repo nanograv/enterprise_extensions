@@ -537,7 +537,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         Whether to use a diagonal kernel for the GP. ['diag','nondiag']
     :param nondiag_kernel:
         Which nondiagonal kernel to use for the GP.
-        ['periodic','sq_exp']
+        ['periodic','sq_exp','dmx_like']
     :param psd:
         PSD to use for common red noise signal. Available options
         are ['powerlaw', 'turnover' 'spectrum']
@@ -640,6 +640,16 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                          log10_ell=log10_ell)
+            
+        elif nondiag_kernel == 'dmx_like':
+            # DMX-like signal
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+            else:
+                log10_sigma = parameter.Constant()
+
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
+            chm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
     cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
                              coefficients=coefficients)
