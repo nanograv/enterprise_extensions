@@ -204,7 +204,7 @@ def dmx_delay(toas, freqs, dmx_ids, **kwargs):
     return wf
 
 
-def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
+def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp', vary=True):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -216,15 +216,24 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dmexp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    log10_tau_dmexp = parameter.Uniform(0, 2.5)
-    if sign == 'vary':
+    if vary:
+        t0_dmexp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dmexp = parameter.Uniform(-10, -2)
+        log10_tau_dmexp = parameter.Uniform(0, 2.5)
+    else:
+        t0_dmexp = parameter.Constant()
+        log10_Amp_dmexp = parameter.Constant()
+        log10_tau_dmexp = parameter.Constant()
+
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -238,7 +247,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
 
 
 def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
-                        symmetric=False, name='dm_cusp'):
+                        symmetric=False, name='dm_cusp', vary=True):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -250,16 +259,24 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dm_cusp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
-    log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
+    if vary:
+        t0_dm_cusp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
+        log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
+    else:
+        t0_dm_cusp = parameter.Constant()
+        log10_Amp_dm_cusp = parameter.Constant()
+        log10_tau_dm_cusp_pre = parameter.Constant()
 
-    if sign == 'vary':
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -267,8 +284,10 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
 
     if symmetric:
         log10_tau_dm_cusp_post = 1
-    else:
+    elif vary:
         log10_tau_dm_cusp_post = parameter.Uniform(0, 2.5)
+    else:
+        log10_tau_dm_cusp_post = parameter.Constant()
 
     wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp, sign_param=sign_param,
                         t0=t0_dm_cusp, log10_tau_pre=log10_tau_dm_cusp_pre,
@@ -292,18 +311,28 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dual_cusp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dual_cusp_1 = parameter.Uniform(-10, -2)
-    log10_Amp_dual_cusp_2 = parameter.Uniform(-10, -2)
-    log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
-    log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
+    if vary:
+        t0_dual_cusp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dual_cusp_1 = parameter.Uniform(-10, -2)
+        log10_Amp_dual_cusp_2 = parameter.Uniform(-10, -2)
+        log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
+        log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
+    else:
+        t0_dual_cusp = parameter.Constant()
+        log10_Amp_dual_cusp_1 = parameter.Constant()
+        log10_Amp_dual_cusp_2 = parameter.Constant()
+        log10_tau_dual_cusp_pre_1 = parameter.Constant()
+        log10_tau_dual_cusp_pre_2 = parameter.Constant()
 
-    if sign == 'vary':
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -312,9 +341,12 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     if symmetric:
         log10_tau_dual_cusp_post_1 = 1
         log10_tau_dual_cusp_post_2 = 1
-    else:
+    elif vary:
         log10_tau_dual_cusp_post_1 = parameter.Uniform(0, 2.5)
         log10_tau_dual_cusp_post_2 = parameter.Uniform(0, 2.5)
+    else:
+        log10_tau_dual_cusp_post_1 = parameter.Constant()
+        log10_tau_dual_cusp_post_2 = parameter.Constant()
 
     wf = chrom_dual_exp_cusp(t0=t0_dual_cusp, sign_param=sign_param,
                              symmetric=symmetric,
@@ -336,22 +368,29 @@ def dmx_signal(dmx_data, name='dmx_signal'):
 
     :param dmx_data: dictionary of DMX data for each pulsar from parfile.
     :param name: Name of signal.
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmx_sig:
         dmx signal waveform.
     """
     dmx = {}
-    for dmx_id in sorted(dmx_data):
-        dmx_data_tmp = dmx_data[dmx_id]
-        dmx.update({dmx_id: parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
-                                             sigma=dmx_data_tmp['DMX_ERR'])})
+    if vary:
+        for dmx_id in sorted(dmx_data):
+            dmx_data_tmp = dmx_data[dmx_id]
+            dmx.update({dmx_id: parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
+                                                 sigma=dmx_data_tmp['DMX_ERR'])})
+    else:
+        for dmx_id in sorted(dmx_data):
+            dmx_data_tmp = dmx_data[dmx_id]
+            dmx.update({dmx_id: parameter.Constant()})
+
     wf = dmx_delay(dmx_ids=dmx_data, **dmx)
     dmx_sig = deterministic_signals.Deterministic(wf, name=name)
 
     return dmx_sig
 
 
-def dm_annual_signal(idx=2, name='dm_s1yr'):
+def dm_annual_signal(idx=2, name='dm_s1yr', vary=True):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 
@@ -359,12 +398,17 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dm1yr:
         chromatic annual waveform.
     """
-    log10_Amp_dm1yr = parameter.Uniform(-10, -2)
-    phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+    if vary:
+        log10_Amp_dm1yr = parameter.Uniform(-10, -2)
+        phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+    else:
+        log10_Amp_dm1yr = parameter.Constant()
+        phase_dm1yr = parameter.Constant()
 
     wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
                                phase=phase_dm1yr, idx=idx)

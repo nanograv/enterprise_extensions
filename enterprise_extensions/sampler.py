@@ -530,7 +530,9 @@ class JumpProposal(object):
         # draw parameter from signal model
         signal_name = [par for par in self.pnames
                        if ('gw' in par and 'log10_A' in par)][0]
-        idx = list(self.pnames).index(signal_name)
+
+        param_names = [par.name for par in self.params]
+        idx = list(param_names).index(signal_name)
         param = self.params[idx]
 
         q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
@@ -1160,28 +1162,33 @@ def setup_sampler(pta, outdir='chains', resume=False,
         print('Adding red noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
+    # Chromatic GP noise prior draw
+    if 'chrom_gp' in jp.snames and len(jp.snames['chrom_gp'])!=0:
+        print('Adding Chromatic GP noise prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
+
     # DM GP noise prior draw
-    if 'dm_gp' in jp.snames:
+    if 'dm_gp' in jp.snames and len(jp.snames['dm_gp'])!=0:
         print('Adding DM GP noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
     # DM annual prior draw
-    if 'dm_s1yr' in jp.snames:
+    if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
-
+        
     # DM dip prior draw
-    if 'dmexp' in jp.snames:
+    if 'dmexp' in jp.snames and len(jp.snames['dmexp'])!=0:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
     # DM cusp prior draw
-    if 'dm_cusp' in jp.snames:
+    if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
         print('Adding DM exponential cusp prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
     # DMX prior draw
-    if 'dmx_signal' in jp.snames:
+    if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
         print('Adding DMX prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
