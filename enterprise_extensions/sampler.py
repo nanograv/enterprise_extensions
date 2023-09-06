@@ -1162,6 +1162,11 @@ def setup_sampler(pta, outdir='chains', resume=False,
         print('Adding red noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
+    # Chromatic GP noise prior draw
+    if 'chrom_gp' in jp.snames and len(jp.snames['chrom_gp'])!=0:
+        print('Adding Chromatic GP noise prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
+
     # DM GP noise prior draw
     if 'dm_gp' in jp.snames and len(jp.snames['dm_gp'])!=0:
         print('Adding DM GP noise prior draws...\n')
