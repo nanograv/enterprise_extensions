@@ -11,6 +11,8 @@ import pickle
 import pytest
 
 from enterprise_extensions import models, sampler
+import numpy as np
+from enterprise_extensions.sampler import BuildPriorDraw
 from enterprise_extensions.empirical_distr import (
     make_empirical_distributions, make_empirical_distributions_KDE)
 
@@ -89,25 +91,22 @@ def empirical_distribution_2d_kde(caplog):
         emp_dists = pickle.load(fin)
 
     return emp_dists
-
+    
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_jumpproposal(dmx_psrs, caplog):
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
-    jp = sampler.JumpProposal(m2a)
-    assert jp.draw_from_prior.__name__ == 'draw_from_prior'
-    assert jp.draw_from_signal_prior.__name__ == 'draw_from_signal_prior'
-    assert (jp.draw_from_par_prior('J1713+0747').__name__ ==
-            'draw_from_J1713+0747_prior')
-    assert (jp.draw_from_par_log_uniform({'gw': (-20, -10)}).__name__ ==
-            'draw_from_gw_log_uniform')
-    assert (jp.draw_from_signal('red noise').__name__ ==
-            'draw_from_red noise_signal')
+def test_BuildPriorDraw():
+    # Create a mock pta object
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
+    
+    # Create an instance of BuildPriorDraw
+    assert (BuildPriorDraw(m2a, m2a.param_names,
+                           name='draw_from_prior').__name__ ==
+            'draw_from_prior')
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_setup_sampler(dmx_psrs, caplog):
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     samp = sampler.setup_sampler(m2a, outdir=outdir, human='tester')
     assert hasattr(samp, "sample")
     paramfile = os.path.join(outdir, "pars.txt")
@@ -116,6 +115,7 @@ def test_setup_sampler(dmx_psrs, caplog):
         params = [line.rstrip('\n') for line in f]
     for ptapar, filepar in zip(m2a.param_names, params):
         assert ptapar == filepar
+    assert samp.propCycle[0].__name__ == 'draw_from_prior'
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
@@ -123,7 +123,7 @@ def test_extend_emp_dists_1d(dmx_psrs, caplog):
     with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
         tmp_data = pickle.load(fin)
 
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     new_dist = make_empirical_distributions(m2a, tmp_data['names'], tmp_data['names'],
                                             tmp_data['samples'], save_dists=False)
     # run extend when edges match priors
@@ -143,7 +143,7 @@ def test_extend_emp_dists_1d(dmx_psrs, caplog):
 def test_extend_emp_dists_2d(dmx_psrs, caplog):
     with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
         tmp_data = pickle.load(fin)
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     parnames = [[tmp_data['names'][0], tmp_data['names'][1]],
                 [tmp_data['names'][2], tmp_data['names'][3]],
                 [tmp_data['names'][4], tmp_data['names'][5]]]
@@ -170,7 +170,7 @@ def test_extend_emp_dists_1d_kde(dmx_psrs, caplog):
     with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
         tmp_data = pickle.load(fin)
 
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     new_dist = make_empirical_distributions_KDE(m2a, tmp_data['names'], tmp_data['names'],
                                                 tmp_data['samples'], save_dists=False)
     new_dist = sampler.extend_emp_dists(m2a, new_dist)
@@ -188,7 +188,7 @@ def test_extend_emp_dists_2d_kde(dmx_psrs, caplog):
 
     with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
         tmp_data = pickle.load(fin)
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     parnames = [[tmp_data['names'][0], tmp_data['names'][1]],
                 [tmp_data['names'][2], tmp_data['names'][3]],
                 [tmp_data['names'][4], tmp_data['names'][5]]]
