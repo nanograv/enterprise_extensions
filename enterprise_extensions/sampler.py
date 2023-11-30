@@ -625,28 +625,31 @@ def setup_sampler(pta, outdir='chains', resume=False,
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(BuildPriorDraw(pta, pta.params,
-                                              name='prior_draw'), 5)
+    sampler.addProposalToCycle(BuildPriorDraw(pta, pta.param_names,
+                                              name='draw_from_prior'), 5)
 
     # try adding empirical proposals
     if empirical_distr is not None:
         print('Attempting to add empirical proposals...\n')
         sampler.addProposalToCycle(EmpDistrDraw(jp.empirical_distr,
                                                 pta.param_names,
-                                                name='emp_distr_draws'), 10)
+                                                name='draw_from_empirical_distr'),
+                                   10)
 
     # list of signal names
     snames = ['red noise', 'dm_gp', 'chrom_gp',
               'dmx_signal', 'phys_ephem', 'bwm', 'fdm', 'cw', 'gp_sw',
-              'linear timing model', 'ecorr_sherman-morrison', 'ecorr',
-              'efac', 'equad']
+              'linear timing model', 'ecorr_sherman-morrison',
+              'measurement_noise', 'tnequad']
     
     for sname in snames:
         # adding prior draws
-        if sname in jp.snames:
+        if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
             print(f'Adding {sname} prior draws...\n')
-            sampler.addProposalToCycle(BuildPriorDraw(pta, jp.snames[sname],
-                                                      name=sname), 10)
+            param_names = [p.name for p in jp.snames[sname]]
+            sampler.addProposalToCycle(BuildPriorDraw(pta, param_names,
+                                                      name='draw_from_'+sname),
+                                       10)
 
     # adding other signal draws
     param_names = ['dipole', 'monopole', 'hd', 'log10_rho',
@@ -657,6 +660,6 @@ def setup_sampler(pta, outdir='chains', resume=False,
         if len(params) >= 1:
             print(f'Adding {p} prior draws...\n')
             sampler.addProposalToCycle(BuildPriorDraw(pta, params,
-                                                      name=p+'_draws'), 10)
+                                                      name='draw_from_'+p), 10)
 
     return sampler
