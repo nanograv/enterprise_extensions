@@ -17,14 +17,18 @@ from enterprise_extensions.empirical_distr import (EmpiricalDistribution1D,
                                                    EmpiricalDistribution2DKDE)
 
 
-def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir='./chains'):
+def extend_emp_dists(pta, emp_dists, npoints=100_000,
+                     save_ext_dists=False, outdir='./chains'):
+
     new_emp_dists = []
     modified = False  # check if anything was changed
     for emp_dist in emp_dists:
-        if isinstance(emp_dist, EmpiricalDistribution2D) or isinstance(emp_dist, EmpiricalDistribution2DKDE):
+        if (isinstance(emp_dist, EmpiricalDistribution2D) or
+            isinstance(emp_dist, EmpiricalDistribution2DKDE)):
             # check if we need to extend the distribution
             prior_ok=True
-            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
+            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names,
+                                                    emp_dist._Nbins)):
                 param_names = [par.name for par in pta.params]
                 if param not in param_names:  # skip if one of the parameters isn't in our PTA object
                     short_par = '_'.join(param.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
@@ -49,11 +53,13 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
                 # no need to extend if histogram edges are already prior min/max
                 if isinstance(emp_dist, EmpiricalDistribution2D):
-                    if not (emp_dist._edges[ii][0] == prior_min and emp_dist._edges[ii][-1] == prior_max):
+                    if not (emp_dist._edges[ii][0] == prior_min and
+                            emp_dist._edges[ii][-1] == prior_max):
                         prior_ok = False
                         continue
                 elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
-                    if not (emp_dist.minvals[ii] == prior_min and emp_dist.maxvals[ii] == prior_max):
+                    if not (emp_dist.minvals[ii] == prior_min and
+                            emp_dist.maxvals[ii] == prior_max):
                         prior_ok=False
                         continue
             if prior_ok:
@@ -67,7 +73,8 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
             minvals = []
             maxvals = []
             idxs_to_remove = []
-            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names, emp_dist._Nbins)):
+            for ii, (param, nbins) in enumerate(zip(emp_dist.param_names,
+                                                    emp_dist._Nbins)):
                 param_idx = param_names.index(param)
                 if pta.params[param_idx].type == 'uniform':
                     prior_min = pta.params[param_idx].prior._defaults['pmin']
@@ -86,13 +93,19 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
                 new_bins.append(np.linspace(prior_min, prior_max, nbins + 40))
             samples = np.delete(samples, idxs_to_remove, axis=0)
             if isinstance(emp_dist, EmpiricalDistribution2D):
-                new_emp = EmpiricalDistribution2D(emp_dist.param_names, samples.T, new_bins)
+                new_emp = EmpiricalDistribution2D(emp_dist.param_names,
+                                                  samples.T, new_bins)
             elif isinstance(emp_dist, EmpiricalDistribution2DKDE):
                 # new distribution with more bins this time to extend it all the way out in same style as above.
-                new_emp = EmpiricalDistribution2DKDE(emp_dist.param_names, samples.T, minvals=minvals, maxvals=maxvals, nbins=nbins+40, bandwidth=emp_dist.bandwidth)
+                new_emp = EmpiricalDistribution2DKDE(emp_dist.param_names,
+                                                     samples.T, minvals=minvals,
+                                                     maxvals=maxvals,
+                                                     nbins=nbins+40,
+                                                     bandwidth=emp_dist.bandwidth)
             new_emp_dists.append(new_emp)
 
-        elif isinstance(emp_dist, EmpiricalDistribution1D) or isinstance(emp_dist, EmpiricalDistribution1DKDE):
+        elif (isinstance(emp_dist, EmpiricalDistribution1D) or
+              isinstance(emp_dist, EmpiricalDistribution1DKDE)):
             param_names = [par.name for par in pta.params]
             if emp_dist.param_name not in param_names:  # skip if one of the parameters isn't in our PTA object
                 short_par = '_'.join(emp_dist.param_name.split('_')[:-1])  # make sure we aren't skipping priors with size!=None
@@ -473,9 +486,6 @@ def get_global_parameters(pta):
     gpars = list(set(par for par in pars if pars.count(par) > 1))
     ipars = [par for par in pars if par not in gpars]
 
-    # gpars = np.unique(list(filter(lambda x: pars.count(x)>1, pars)))
-    # ipars = np.array([p for p in pars if p not in gpars])
-
     return np.array(gpars), np.array(ipars)
 
 
@@ -613,6 +623,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     # parameter groupings
     if groups is None:
         groups = get_parameter_groups(pta)
+        groups.extend(get_psr_groups(pta))
 
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume, loglkwargs=loglkwargs,
@@ -636,7 +647,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
                                                 name='draw_from_empirical_distr'),
                                    10)
 
-    # list of signal names
+    # list of typical signal names
     snames = ['red noise', 'dm_gp', 'chrom_gp',
               'dmx_signal', 'phys_ephem', 'bwm', 'fdm', 'cw', 'gp_sw',
               'linear timing model', 'ecorr_sherman-morrison',
