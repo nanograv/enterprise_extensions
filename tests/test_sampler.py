@@ -11,7 +11,6 @@ import pickle
 import pytest
 
 from enterprise_extensions import models, sampler
-import numpy as np
 from enterprise_extensions.sampler import BuildPriorDraw
 from enterprise_extensions.empirical_distr import (
     make_empirical_distributions, make_empirical_distributions_KDE)
@@ -91,13 +90,13 @@ def empirical_distribution_2d_kde(caplog):
         emp_dists = pickle.load(fin)
 
     return emp_dists
-    
+
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_BuildPriorDraw():
+def test_BuildPriorDraw(dmx_psrs, caplog):
     # Create a mock pta object
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
-    
+
     # Create an instance of BuildPriorDraw
     assert (BuildPriorDraw(m2a, m2a.param_names,
                            name='draw_from_prior').__name__ ==
@@ -116,6 +115,7 @@ def test_setup_sampler(dmx_psrs, caplog):
     for ptapar, filepar in zip(m2a.param_names, params):
         assert ptapar == filepar
     assert samp.propCycle[0].__name__ == 'draw_from_prior'
+    assert samp.propCycle[5].__name__ == 'draw_from_red noise'
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
