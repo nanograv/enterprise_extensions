@@ -24,7 +24,7 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000,
     modified = False  # check if anything was changed
     for emp_dist in emp_dists:
         if (isinstance(emp_dist, EmpiricalDistribution2D) or
-            isinstance(emp_dist, EmpiricalDistribution2DKDE)):
+           isinstance(emp_dist, EmpiricalDistribution2DKDE)):
             # check if we need to extend the distribution
             prior_ok=True
             for ii, (param, nbins) in enumerate(zip(emp_dist.param_names,
@@ -182,7 +182,7 @@ class UserDraw(object):
             for symmetric proposals set `log_qs=None`, then `log_qxy=0`
         :param name: name for PTMCMC bookkeeping
         """
-        #TODO check all idxs in keys!
+        # TODO check all idxs in keys!
         self.idxs = idxs
         self.samplers = samplers
         self.log_qs = log_qs
@@ -203,9 +203,9 @@ class UserDraw(object):
         # draw parameter from idxs
         ii = np.random.choice(self.idxs)
 
-        try: # vector parameter
+        try:  # vector parameter
             y[ii] = self.samplers[ii]()[0]
-        except (IndexError, TypeError) as e:
+        except (IndexError, TypeError):
             y[ii] = self.samplers[ii]()
 
         if self.log_qs is None:
@@ -216,10 +216,10 @@ class UserDraw(object):
         return y, lqxy
 
 
-def BuildPriorDraw(pta, parlist, name=None):
+def BuildPriorDraw(pta_params, parlist, name=None):
     """create a callable object to perfom a prior draw
-    :param pta:
-        instantiated PTA object
+    :param pta_params:
+        parameters from a PTA object (pta.params)
     :param parlist:
         single string or list of strings of parameter name(s) to
         use for this jump.
@@ -228,19 +228,19 @@ def BuildPriorDraw(pta, parlist, name=None):
     """
     if not isinstance(parlist, list):
         parlist = [parlist]
-    idxs = [pta.param_names.index(par) for par in parlist]
+    idxs = [pta_params.index(par) for par in parlist]
 
     # parameter map
     pmap = []
     ct = 0
-    for ii, pp in enumerate(pta.params):
+    for ii, pp in enumerate(pta_params):
         size = pp.size or 1
         for nn in range(size):
             pmap.append(ii)
         ct += size
 
-    sampler = {ii: pta.params[pmap[ii]].sample for ii in idxs}
-    log_q = {ii: pta.params[pmap[ii]].get_logpdf for ii in idxs}
+    sampler = {ii: pta_params[pmap[ii]].sample for ii in idxs}
+    log_q = {ii: pta_params[pmap[ii]].get_logpdf for ii in idxs}
 
     return UserDraw(idxs, sampler, log_q, name=name)
 
@@ -258,7 +258,7 @@ class EmpDistrDraw(object):
         :param name: name for PTMCMC bookkeeping
         """
         self._distr = distr
-        self.Nmax = Nmax if Nmax else len(distr)        
+        self.Nmax = Nmax if Nmax else len(distr)
         self.__name__ = name if name else 'draw_empirical'
 
         # which model indices go with which distr?
@@ -636,7 +636,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(BuildPriorDraw(pta, pta.param_names,
+    sampler.addProposalToCycle(BuildPriorDraw(pta.params, pta.param_names,
                                               name='draw_from_prior'), 5)
 
     # try adding empirical proposals
@@ -652,25 +652,25 @@ def setup_sampler(pta, outdir='chains', resume=False,
               'dmx_signal', 'phys_ephem', 'bwm', 'fdm', 'cw', 'gp_sw',
               'linear timing model', 'ecorr_sherman-morrison',
               'measurement_noise', 'tnequad']
-    
+
     for sname in snames:
         # adding prior draws
         if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
             print(f'Adding {sname} prior draws...\n')
             param_names = [p.name for p in jp.snames[sname]]
-            sampler.addProposalToCycle(BuildPriorDraw(pta, param_names,
+            sampler.addProposalToCycle(BuildPriorDraw(pta.params, param_names,
                                                       name='draw_from_'+sname),
                                        10)
 
     # adding other signal draws
     param_names = ['dipole', 'monopole', 'hd', 'log10_rho',
                    'dmexp', 'dm_cusp', 'dm_s1yr']
-    
+
     for p in param_names:
         params = [par for par in pta.param_names if p in par]
         if len(params) >= 1:
             print(f'Adding {p} prior draws...\n')
-            sampler.addProposalToCycle(BuildPriorDraw(pta, params,
+            sampler.addProposalToCycle(BuildPriorDraw(pta.params, params,
                                                       name='draw_from_'+p), 10)
 
     return sampler
