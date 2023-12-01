@@ -643,7 +643,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if empirical_distr is not None:
         print('Attempting to add empirical proposals...\n')
         sampler.addProposalToCycle(EmpDistrDraw(jp.empirical_distr,
-                                                pta.params,
+                                                pta.param_names,
                                                 name='draw_from_empirical_distr'), 10)
 
     # list of typical signal names

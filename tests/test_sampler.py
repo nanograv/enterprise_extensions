@@ -109,21 +109,6 @@ def test_BuildPriorDraw(dmx_psrs, caplog):
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_setup_sampler(dmx_psrs, caplog):
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
-    samp = sampler.setup_sampler(m2a, outdir=outdir, human='tester')
-    assert hasattr(samp, "sample")
-    paramfile = os.path.join(outdir, "pars.txt")
-    assert os.path.isfile(paramfile)
-    with open(paramfile, "r") as f:
-        params = [line.rstrip('\n') for line in f]
-    for ptapar, filepar in zip(m2a.param_names, params):
-        assert ptapar == filepar
-    assert samp.propCycle[0].__name__ == 'draw_from_prior'
-    assert samp.propCycle[5].__name__ == 'draw_from_red noise'
-
-
-@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_extend_emp_dists_1d(dmx_psrs, caplog):
     with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
         tmp_data = pickle.load(fin)
@@ -213,3 +198,33 @@ def test_extend_emp_dists_2d_kde(dmx_psrs, caplog):
         assert new_dist[i].maxvals[0] <= m2a.params[k].prior._defaults['pmax']
         assert new_dist[i].minvals[1] <= m2a.params[k + 1].prior._defaults['pmin']
         assert new_dist[i].maxvals[1] <= m2a.params[k + 1].prior._defaults['pmax']
+
+
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_setup_sampler(dmx_psrs, caplog):
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
+
+    with open(datadir+'/emp_dist_samples.pkl', 'rb') as fin:
+        tmp_data = pickle.load(fin)
+
+    new_dist = make_empirical_distributions(m2a, tmp_data['names'], tmp_data['names'],
+                                            tmp_data['samples'], save_dists=False)
+    # run extend when edges match priors
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+    # change priors so they don't match edges of empirical distribution
+    for ii in range(len(tmp_data['names'])):
+        m2a.params[ii].prior._defaults['pmin'] -= 0.1
+    new_dist = sampler.extend_emp_dists(m2a, new_dist)
+
+    samp = sampler.setup_sampler(m2a, outdir=outdir, human='tester',
+                                 empirical_distr=new_dist)
+    assert hasattr(samp, "sample")
+    paramfile = os.path.join(outdir, "pars.txt")
+    assert os.path.isfile(paramfile)
+    with open(paramfile, "r") as f:
+        params = [line.rstrip('\n') for line in f]
+    for ptapar, filepar in zip(m2a.param_names, params):
+        assert ptapar == filepar
+    assert samp.propCycle[0].__name__ == 'draw_from_prior'
+    assert samp.propCycle[5].__name__ == 'draw_from_empirical_distr'
+    assert samp.propCycle[15].__name__ == 'draw_from_red noise'
