@@ -60,6 +60,7 @@ def test_hyper_sampler(dmx_psrs, caplog):
     assert os.path.isfile(paramfile)
     with open(paramfile, "r") as f:
         params = [line.rstrip('\n') for line in f]
+    print(params, hm.param_names)
     for ptapar, filepar in zip(hm.param_names, params):
         assert ptapar == filepar
     x0 = hm.initial_sample()

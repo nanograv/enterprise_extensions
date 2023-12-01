@@ -217,14 +217,15 @@ class HyperModel(object):
         sampler.jp = jp
 
         # always add draw from prior
-        sampler.addProposalToCycle(BuildPriorDraw(self.params, self.param_names,
+        sampler.addProposalToCycle(BuildPriorDraw(self.params,
+                                                  self.param_names[:-1],  # ignore nmodel
                                                   name='draw_from_prior'), 5)
 
         # try adding empirical proposals
         if empirical_distr is not None:
             print('Attempting to add empirical proposals...\n')
             sampler.addProposalToCycle(EmpDistrDraw(jp.empirical_distr,
-                                                    self.param_names,
+                                                    self.param_names[:-1],  # ignore nmodel
                                                     name='draw_from_empirical_distr'), 10)
 
         # list of typical signal names
@@ -239,7 +240,7 @@ class HyperModel(object):
                 print(f'Adding {sname} prior draws...\n')
                 param_names = [p.name for p in jp.snames[sname]]
                 sampler.addProposalToCycle(BuildPriorDraw(self.params,
-                                                          self.param_names,
+                                                          param_names,
                                                           name='draw_from_'+sname), 10)
 
         # adding other signal draws
