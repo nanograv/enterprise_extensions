@@ -182,7 +182,6 @@ class UserDraw(object):
             for symmetric proposals set `log_qs=None`, then `log_qxy=0`
         :param name: name for PTMCMC bookkeeping
         """
-        # TODO check all idxs in keys!
         self.idxs = idxs
         self.samplers = samplers
         self.log_qs = log_qs
@@ -218,7 +217,7 @@ class UserDraw(object):
 
 def BuildPriorDraw(pta_params, parlist, name=None):
     """create a callable object to perfom a prior draw
-    :param pta_params:
+    :param pta_param_names:
         parameters from a PTA object (pta.params)
     :param parlist:
         single string or list of strings of parameter name(s) to
@@ -228,7 +227,8 @@ def BuildPriorDraw(pta_params, parlist, name=None):
     """
     if not isinstance(parlist, list):
         parlist = [parlist]
-    idxs = [pta_params.index(par) for par in parlist]
+    pta_param_names = [par.name for par in pta_params]
+    idxs = [pta_param_names.index(par) for par in parlist]
 
     # parameter map
     pmap = []
@@ -643,9 +643,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if empirical_distr is not None:
         print('Attempting to add empirical proposals...\n')
         sampler.addProposalToCycle(EmpDistrDraw(jp.empirical_distr,
-                                                pta.param_names,
-                                                name='draw_from_empirical_distr'),
-                                   10)
+                                                pta.params,
+                                                name='draw_from_empirical_distr'), 10)
 
     # list of typical signal names
     snames = ['red noise', 'dm_gp', 'chrom_gp',
@@ -658,9 +657,9 @@ def setup_sampler(pta, outdir='chains', resume=False,
         if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
             print(f'Adding {sname} prior draws...\n')
             param_names = [p.name for p in jp.snames[sname]]
-            sampler.addProposalToCycle(BuildPriorDraw(pta.params, param_names,
-                                                      name='draw_from_'+sname),
-                                       10)
+            sampler.addProposalToCycle(BuildPriorDraw(pta.params,
+                                                      param_names,
+                                                      name='draw_from_'+sname), 10)
 
     # adding other signal draws
     param_names = ['dipole', 'monopole', 'hd', 'log10_rho',

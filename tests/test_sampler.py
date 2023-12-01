@@ -98,9 +98,14 @@ def test_BuildPriorDraw(dmx_psrs, caplog):
     m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
 
     # Create an instance of BuildPriorDraw
-    assert (BuildPriorDraw(m2a, m2a.param_names,
+    assert (BuildPriorDraw(m2a.params, m2a.param_names,
                            name='draw_from_prior').__name__ ==
             'draw_from_prior')
+    red_params = [p for p in m2a.param_names if 'red_noise' in p]
+    draw_from_red_noise = BuildPriorDraw(m2a.params, red_params,
+                                         name='draw_from_red_noise')
+    assert draw_from_red_noise.__name__ == 'draw_from_red_noise'
+    assert draw_from_red_noise.idxs == [0, 1, 2, 3, 4, 5]
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
