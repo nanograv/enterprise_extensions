@@ -9,7 +9,7 @@ from enterprise import constants as const
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
 from .sampler import (JumpProposal, get_parameter_groups,
-                      save_runtime_info, BuildPriorDraw, EmpDistrDraw)
+                      save_runtime_info, build_prior_draw, EmpDistrDraw)
 
 
 class HyperModel(object):
@@ -217,9 +217,9 @@ class HyperModel(object):
         sampler.jp = jp
 
         # always add draw from prior
-        sampler.addProposalToCycle(BuildPriorDraw(self.params,
-                                                  self.param_names[:-1],  # ignore nmodel
-                                                  name='draw_from_prior'), 5)
+        sampler.addProposalToCycle(build_prior_draw(self.params,
+                                                    self.param_names[:-1],  # ignore nmodel
+                                                    name='draw_from_prior'), 5)
 
         # try adding empirical proposals
         if empirical_distr is not None:
@@ -239,9 +239,9 @@ class HyperModel(object):
             if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
                 print(f'Adding {sname} prior draws...\n')
                 param_names = [p.name for p in jp.snames[sname]]
-                sampler.addProposalToCycle(BuildPriorDraw(self.params,
-                                                          param_names,
-                                                          name='draw_from_'+sname), 10)
+                sampler.addProposalToCycle(build_prior_draw(self.params,
+                                                            param_names,
+                                                            name='draw_from_'+sname), 10)
 
         # adding other signal draws
         param_names = ['dipole', 'monopole', 'hd', 'log10_rho',
@@ -251,8 +251,8 @@ class HyperModel(object):
             par_names = [par for par in self.param_names if p in par]
             if len(par_names) >= 1:
                 print(f'Adding {p} prior draws...\n')
-                sampler.addProposalToCycle(BuildPriorDraw(self.params, par_names,
-                                                          name='draw_from_'+p), 10)
+                sampler.addProposalToCycle(build_prior_draw(self.params, par_names,
+                                                            name='draw_from_'+p), 10)
 
         return sampler
 

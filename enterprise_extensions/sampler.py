@@ -215,7 +215,7 @@ class UserDraw(object):
         return y, lqxy
 
 
-def BuildPriorDraw(pta_params, parlist, name=None):
+def build_prior_draw(pta_params, parlist, name=None):
     """create a callable object to perfom a prior draw
     :param pta_param_names:
         parameters from a PTA object (pta.params)
@@ -636,8 +636,8 @@ def setup_sampler(pta, outdir='chains', resume=False,
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(BuildPriorDraw(pta.params, pta.param_names,
-                                              name='draw_from_prior'), 5)
+    sampler.addProposalToCycle(build_prior_draw(pta.params, pta.param_names,
+                                                name='draw_from_prior'), 5)
 
     # try adding empirical proposals
     if empirical_distr is not None:
@@ -657,9 +657,9 @@ def setup_sampler(pta, outdir='chains', resume=False,
         if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
             print(f'Adding {sname} prior draws...\n')
             param_names = [p.name for p in jp.snames[sname]]
-            sampler.addProposalToCycle(BuildPriorDraw(pta.params,
-                                                      param_names,
-                                                      name='draw_from_'+sname), 10)
+            sampler.addProposalToCycle(build_prior_draw(pta.params,
+                                                        param_names,
+                                                        name='draw_from_'+sname), 10)
 
     # adding other signal draws
     param_names = ['dipole', 'monopole', 'hd', 'log10_rho',
@@ -669,7 +669,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
         params = [par for par in pta.param_names if p in par]
         if len(params) >= 1:
             print(f'Adding {p} prior draws...\n')
-            sampler.addProposalToCycle(BuildPriorDraw(pta.params, params,
-                                                      name='draw_from_'+p), 10)
+            sampler.addProposalToCycle(build_prior_draw(pta.params, params,
+                                                        name='draw_from_'+p), 10)
 
     return sampler
