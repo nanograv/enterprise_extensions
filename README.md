@@ -16,7 +16,7 @@ You can also install it by cloning the repo and running `pip install .` in the `
 Did you use `enterprise_extensions`?
 Remember to cite it as:
 
->Taylor, S. R., Baker, P. T., Hazboun, J. S., Simon, J., & Vigeland, S. J. (2021). enterprise_extensions v2.3.1. https://github.com/nanograv/enterprise_extensions
+>Taylor, S. R., Baker, P. T., Hazboun, J. S., Simon, J., & Vigeland, S. J. (2021). enterprise_extensions v2.4.3. https://github.com/nanograv/enterprise_extensions
 
 ```latex
 @misc{enterprise,
@@ -24,7 +24,7 @@ Remember to cite it as:
   title        = {enterprise_extensions},
   year         = {2021},
   url          = {https://github.com/nanograv/enterprise_extensions},
-  note         = {v2.3.3}
+  note         = {v2.4.3}
 }
 ```
 
