@@ -18,10 +18,13 @@ def dropout_powerlaw(f, name, log10_A=-16, gamma=5, dropout_psr='all', k_drop=No
     process on or off in a single pulsar depending on whether k_drop exceeds
     k_threshold.
 
-    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all'
-        will use the method on all pulsars.
-    :param dropbin_psr: Which pulsar to use a dropbin parameter. Used to set frequency 
-        bins as a free parameter. The value 'all' will use the method on all pulsars.
+    :param log10_A: Powerlaw PSD amplitude.
+    :param gamma: Powerlaw PSD spectral index.
+    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all' will use the method on all pulsars. A list of pulsar names will use the method on the defined list. A pulsar name will use it on the selected one.
+    :param k_drop: Dropout factor to drop all the signal (if k_drop < k_threshold) or not. Give enterprise parameter object to include it to the fit.
+    :param dropbin_psr: Which pulsar to use a dropbin parameter (used to set frequency bins as a free parameter). Same conditions than for dropout_psr.
+    :param k_dropbin: "Dropbin" factor to drop all frequencies of the power law PSD higher than k_dropbin/Tspan. Give enterprise parameter object to include it to the fit. Note that one need to set Nmax+1 as upper prior edge in enterprise parameter, where Nmax is the maximum Nbin to fit for. 
+    :k_threshold: Threshold used for the dropout analysis, as the powerlaw is dropped if k_drop < k_threshold
     """
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
