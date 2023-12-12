@@ -95,7 +95,21 @@ def empirical_distribution_2d_kde(caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_build_prior_draw(dmx_psrs, caplog):
     # Create a mock pta object
-    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True,
+                          psd='spectrum')
+
+    # Create an instance of build_prior_draw
+    assert (build_prior_draw(m2a.params, m2a.param_names,
+                             name='draw_from_prior').__name__ ==
+            'draw_from_prior')
+    red_params = [p for p in m2a.param_names if 'red_noise' in p]
+    draw_from_red_noise = build_prior_draw(m2a.params, red_params,
+                                           name='draw_from_red_noise')
+    assert draw_from_red_noise.__name__ == 'draw_from_red_noise'
+    assert draw_from_red_noise.idxs == [0, 1, 2, 3, 4, 5]
+
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True,
+                          psd='powerlaw')
 
     # Create an instance of build_prior_draw
     assert (build_prior_draw(m2a.params, m2a.param_names,

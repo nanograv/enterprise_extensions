@@ -227,7 +227,14 @@ def build_prior_draw(pta_params, parlist, name=None):
     """
     if not isinstance(parlist, list):
         parlist = [parlist]
-    pta_param_names = [par.name for par in pta_params]
+
+    pta_param_names = []
+    for p in pta_params:
+        if p.size:
+            for ii in range(p.size):
+                pta_param_names.append(p.name + '_' + str(ii))
+        else:
+            pta_param_names.append(p.name)
     idxs = [pta_param_names.index(par) for par in parlist]
 
     # parameter map
