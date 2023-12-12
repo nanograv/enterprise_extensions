@@ -11,40 +11,67 @@ from enterprise.signals import (deterministic_signals,
 
 
 @signal_base.function
-def dropout_powerlaw(f, name, log10_A=-16, gamma=5,
-                     dropout_psr='B1855+09', k_drop=0.5, k_threshold=0.5):
+def dropout_powerlaw(f, name, log10_A=-16, gamma=5, dropout_psr='all', k_drop=None,
+                     dropbin_psr='all', k_dropbin=None, k_threshold=0.5):
     """
     Dropout powerlaw for a stochastic process. Switches a stochastic
     process on or off in a single pulsar depending on whether k_drop exceeds
     k_threshold.
 
-    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all'
-        will use the method on all pulsars.
+    :param log10_A: Powerlaw PSD amplitude.
+    :param gamma: Powerlaw PSD spectral index.
+    :param dropout_psr: Which pulsar to use a dropout switch on. The value 'all' will use the method on all pulsars. A list of pulsar names will use the method on the defined list. A pulsar name will use it on the selected one.
+    :param k_drop: Dropout factor to drop all the signal (if k_drop < k_threshold) or not. Give enterprise parameter object to include it to the fit.
+    :param dropbin_psr: Which pulsar to use a dropbin parameter (used to set frequency bins as a free parameter). Same conditions than for dropout_psr.
+    :param k_dropbin: "Dropbin" factor to drop all frequencies of the power law PSD higher than k_dropbin/Tspan. Give enterprise parameter object to include it to the fit. Note that one need to set Nmax+1 as upper prior edge in enterprise parameter, where Nmax is the maximum Nbin to fit for. 
+    :k_threshold: Threshold used for the dropout analysis, as the powerlaw is dropped if k_drop < k_threshold
     """
 
     df = np.diff(np.concatenate((np.array([0]), f[::2])))
-    if name == 'all':
+    
+    # Several pulsars with several or only one dropout factors
+    if k_drop is not None:
+        if isinstance(dropout_psr, list):
+            if name in dropout_psr:
+                k_drop = k_drop
+            else:
+                k_drop = 1.
+        elif dropout_psr == 'all':
+            k_drop = k_drop
+        elif dropout_psr == name:
+            k_drop = k_drop
+        else:
+            k_drop = 1.
+
         if k_drop >= k_threshold:
-            k_switch = 1.0
+            k_switch = 1.
         elif k_drop < k_threshold:
-            k_switch = 0.0
-
-        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                           const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
-
-    elif name == dropout_psr:
-        if k_drop >= k_threshold:
-            k_switch = 1.0
-        elif k_drop < k_threshold:
-            k_switch = 0.0
-
-        return k_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                           const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
-
+            k_switch = 0.
     else:
+         k_switch = 1.
 
-        return ((10**log10_A)**2 / 12.0 / np.pi**2 *
-                const.fyr**(gamma-3) * f**(-gamma) * np.repeat(df, 2))
+    # Allow to set the number of frequency bins as a free parameter for one or several pulsars
+    if k_dropbin is not None:
+        k_dropbin = int(k_dropbin)
+        
+        if isinstance(dropbin_psr, list):
+            if name in dropbin_psr:
+                b_switch = np.hstack((np.repeat(np.ones(k_dropbin), 2), 0.*np.ones(len(f) - k_dropbin*2)))
+            else:
+                b_switch = 1.
+        elif dropbin_psr == 'all':
+            b_switch = np.hstack((np.repeat(np.ones(k_dropbin), 2), 0.*np.ones(len(f) - k_dropbin*2)))
+        elif dropbin_psr == name:
+            b_switch = np.hstack((np.repeat(np.ones(k_dropbin), 2), 0.*np.ones(len(f) - k_dropbin*2)))
+        else:
+            b_switch = 1.
+    else:
+        b_switch = 1.
+
+    all_switch = [1e-30 if i==0. else i for i in np.atleast_1d(k_switch*b_switch)]
+
+    return all_switch * ((10**log10_A)**2 / 12.0 / np.pi**2 * const.fyr**(gamma-3) * f**(-gamma) *
+                         np.repeat(df, 2))
 
 
 @signal_base.function
@@ -64,7 +91,7 @@ def dropout_physical_ephem_delay(toas, planetssb, pos_t, frame_drift_rate=0,
     if k_drop >= k_threshold:
         k_switch = 1.0
     elif k_drop < k_threshold:
-        k_switch = 0.0
+        k_switch = 1e-30
 
     # convert toas to MJD
     mjd = toas / 86400
