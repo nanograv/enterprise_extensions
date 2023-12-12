@@ -663,7 +663,15 @@ def setup_sampler(pta, outdir='chains', resume=False,
         # adding prior draws
         if (sname in jp.snames) and (len(jp.snames[sname]) >= 1):
             print(f'Adding {sname} prior draws...\n')
-            param_names = [p.name for p in jp.snames[sname]]
+
+            param_names = []
+            for p in jp.snames[sname]:
+                if p.size:
+                    for ii in range(p.size):
+                        param_names.append(p.name + '_' + str(ii))
+                else:
+                    param_names.append(p.name)
+
             sampler.addProposalToCycle(build_prior_draw(pta.params,
                                                         param_names,
                                                         name='draw_from_'+sname), 10)
