@@ -166,7 +166,7 @@ class JumpProposal(object):
         self.ndim = sum(p.size or 1 for p in pta.params)
         self.plist = [p.name for p in pta.params]
 
-        # wangwei add
+        # parameter dictionary
         self.params_dict = {}
         for p in self.params:
             if p.size:
@@ -540,7 +540,6 @@ class JumpProposal(object):
         signal_name = [par for par in self.pnames
                        if ('gw' in par and 'log10_A' in par)][0]
         
-        # wangwei add
         param = self.params_dict[signal_name]
 
         q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
