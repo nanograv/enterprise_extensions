@@ -539,7 +539,7 @@ class JumpProposal(object):
         # draw parameter from signal model
         signal_name = [par for par in self.pnames
                        if ('gw' in par and 'log10_A' in par)][0]
-        
+
         param = self.params_dict[signal_name]
 
         q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
