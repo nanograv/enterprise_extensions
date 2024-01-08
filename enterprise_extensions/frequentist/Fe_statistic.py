@@ -1,9 +1,22 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 31 16:49:49 2023
+
+@author: kgrunthal
+"""
 
 import numpy as np
 import scipy.linalg as sl
-from enterprise.signals import (gp_signals, parameter, signal_base, utils,
+from enterprise.signals import (gp_signals, parameter, selections, signal_base, utils,
                                 white_signals)
+from enterprise_extensions import blocks
+from . import cgw_model
+
+
+
+
+
 
 
 class FeStat(object):
@@ -15,49 +28,23 @@ class FeStat(object):
 
     """
 
-    def __init__(self, psrs, params=None):
+    def __init__(self, psrs, params=None, custom_models={}, inc_crn=False, orf=None, pta=None):
 
-        print('Initializing the model...')
+        #print('Initializing the model...\n')
 
-        efac = parameter.Constant()
-        equad = parameter.Constant()
-        ef = white_signals.MeasurementNoise(efac=efac)
-        eq = white_signals.EquadNoise(log10_equad=equad)
-
-        tm = gp_signals.TimingModel(use_svd=True)
-
-        s = eq + ef + tm
-
-        model = []
-        for p in psrs:
-            model.append(s(p))
-        self.pta = signal_base.PTA(model)
-
-        # set white noise parameters
-        if params is None:
-            print('No noise dictionary provided!...')
+        if pta is None:
+            self.pta = cgw_model.model_cw(psrs, crn=inc_crn, custom_models=custom_models, orf=orf, noisedict=params)
         else:
-            self.pta.set_default_params(params)
-
+            self.pta = pta
         self.psrs = psrs
         self.params = params
+        
+        self.Nvecs = None
 
-        self.Nmats = None
+        
 
-    def get_Nmats(self):
-        '''Makes the Nmatrix used in the fstatistic'''
-        TNTs = self.pta.get_TNT(self.params)
-        phiinvs = self.pta.get_phiinv(self.params, logdet=False, method='partition')
-        # Get noise parameters for pta toaerr**2
-        Nvecs = self.pta.get_ndiag(self.params)
-        # Get the basis matrix
-        Ts = self.pta.get_basis(self.params)
-
-        Nmats = [make_Nmat(phiinv, TNT, Nvec, T) for phiinv, TNT, Nvec, T in zip(phiinvs, TNTs, Nvecs, Ts)]
-
-        return Nmats
-
-    def compute_Fe(self, f0, gw_skyloc, brave=False, maximized_parameters=False):
+    #--------------------------------------------------------------------------
+    def compute_Fe(self, f0, gw_skyloc, brave=False, maximized_parameters=False, sky_scrambles=False, psrs_theta_phi=None):
         """
         Computes the Fe-statistic (see Ellis, Siemens, Creighton 2012).
 
@@ -84,18 +71,29 @@ class FeStat(object):
         TNTs = self.pta.get_TNT(self.params)
         Ts = self.pta.get_basis()
 
-        if self.Nmats is None:
+        if self.Nvecs is None:
+            self.Nvecs = self.pta.get_ndiag(self.params)
 
-            self.Nmats = self.get_Nmats()
 
         n_psr = len(self.psrs)
         N = np.zeros((n_psr, 4))
         M = np.zeros((n_psr, 4, 4))
 
-        for idx, (psr, Nmat, TNT, phiinv, T) in enumerate(zip(self.psrs, self.Nmats,
+        for idx, (psr, Nvec, TNT, phiinv, T) in enumerate(zip(self.psrs, self.Nvecs,
                                                               TNTs, phiinvs, Ts)):
-
+            
+            # calculate non-changing terms for the inner product
+            # to avoid redundant calculations in innerProduct_rr
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
+            
+            if brave:
+                cf = sl.cho_factor(Sigma, check_finite=False)
+                SigmaTNT = sl.cho_solve(cf, TNT, check_finite=False)
+            else:
+                cf = sl.cho_factor(Sigma)
+                SigmaTNT = sl.cho_solve(cf, TNT)
+            
+            SigmaTNT_2 = np.dot(SigmaTNT, SigmaTNT)
 
             ntoa = len(psr.toas)
 
@@ -105,17 +103,17 @@ class FeStat(object):
             A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
             A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
 
-            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-            ip4 = innerProduct_rr(A[3, :], psr.residuals, Nmat, T, Sigma, brave=brave)
-
+            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+            ip4 = innerProduct_rr(A[3, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+        
             N[idx, :] = np.array([ip1, ip2, ip3, ip4])
 
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nmat, T, Sigma, brave=brave)
+                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
 
         fstat = np.zeros(gw_skyloc.shape[1])
         if maximized_parameters:
@@ -128,7 +126,17 @@ class FeStat(object):
             NN = np.copy(N)
             MM = np.copy(M)
             for idx, psr in enumerate(self.psrs):
-                F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_pos[0], gw_pos[1])
+                if sky_scrambles:
+                    if psrs_theta_phi is None:
+                        ptheta = np.arccos(np.random.uniform(-1., 1.))
+                        pphi = np.random.uniform(0., 2*np.pi)
+                    else:
+                        ptheta = psrs_theta_phi[idx, 0]
+                        pphi = psrs_theta_phi[idx, 1]
+                    pos = np.array([np.cos(pphi)*np.sin(ptheta), np.sin(pphi)*np.sin(ptheta), np.cos(ptheta)])
+                    F_p, F_c, _ = utils.create_gw_antenna_pattern(pos, gw_pos[0], gw_pos[1])
+                else:
+                    F_p, F_c, _ = utils.create_gw_antenna_pattern(psr.pos, gw_pos[0], gw_pos[1])
                 NN[idx, :] *= np.array([F_p, F_p, F_c, F_c])
                 MM[idx, :, :] *= np.array([[F_p**2, F_p**2, F_p*F_c, F_p*F_c],
                                            [F_p**2, F_p**2, F_p*F_c, F_p*F_c],
@@ -187,9 +195,12 @@ class FeStat(object):
             return fstat, inc_max, psi_max, phase0_max, h_max
         else:
             return fstat
+        
 
 
-def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
+
+#==============================================================================
+def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=False):
     r"""
         Compute inner product using rank-reduced
         approximations for red noise/jitter
@@ -197,48 +208,54 @@ def innerProduct_rr(x, y, Nmat, Tmat, Sigma, TNx=None, TNy=None, brave=False):
 
         :param x: vector timeseries 1
         :param y: vector timeseries 2
-        :param Nmat: white noise matrix
+        :param Nvec: white noise Sherman Morrison object
+        :param SigmaTilde: second term in WN matrix
         :param Tmat: Modified design matrix including red noise/jitter
+        :param TNT: T^T N^{-1} T matrix from pta object
         :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
+
         :return: inner product (x|y)
         """
 
     # white noise term
+    """
+    -- before: --
     Ni = Nmat
     xNy = np.dot(np.dot(x, Ni), y)
     Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
-
-    if TNx is None and TNy is None:
-        TNx = np.dot(Tmat.T, Nx)
-        TNy = np.dot(Tmat.T, Ny)
-
+    """
+    
+    TNy = Nvec.solve(y, left_array = Tmat)
+    TNx = Nvec.solve(x, left_array = Tmat)  # later used only in transposed version
+    xNy = Nvec.solve(y, left_array = x)
+    
     if brave:
         cf = sl.cho_factor(Sigma, check_finite=False)
         SigmaTNy = sl.cho_solve(cf, TNy, check_finite=False)
     else:
         cf = sl.cho_factor(Sigma)
         SigmaTNy = sl.cho_solve(cf, TNy)
+        
+    term1 = np.dot(TNx, SigmaTNy)
+    term2 = np.dot(TNx, np.dot(SigmaTNT, SigmaTNy))
+    term3 = np.dot(TNx, np.dot(SigmaTNT_2, SigmaTNy))
+    
+    ret = xNy - 2.*(term1-term2) - term3
+    #print('TNx: {}, SigmaTNy: {}, SigmaTNT: {}'.format(TNx.shape, SigmaTNy.shape, SigmaTNT.shape))
 
-    ret = xNy - np.dot(TNx, SigmaTNy)
-
+    
     return ret
 
 
-def make_Nmat(phiinv, TNT, Nvec, T):
+'''
+#==============================================================================
+def make_Sigmas(phiinv, TNT, Nvec, T):
+    
+    
+    # get TtN 
+    TtN = Nvec.solve(T).transpose()
 
-    Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
-    cf = sl.cho_factor(Sigma)
-    # Nshape = np.shape(T)[0] # Not currently used in code
+    expval2 = sl.cho_solve(sl.cho_factor(Sigma), TtN)
 
-    TtN = np.multiply((1/Nvec)[:, None], T).T
-
-    # Put pulsar's autoerrors in a diagonal matrix
-    Ndiag = np.diag(1/Nvec)
-
-    expval2 = sl.cho_solve(cf, TtN)
-    # TtNt = np.transpose(TtN) # Not currently used in code
-
-    # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-    return Ndiag - np.dot(TtN.T, expval2)
+    return Sigma, np.dot(TtN.T, expval2)
+'''
