@@ -240,6 +240,11 @@ class JumpProposal(object):
 
             self.empirical_distr = pickled_distr
 
+        # jeremy is adding functionality for a hypermodel empirical distribution
+        elif isinstance(empirical_distr, dict):
+            # do something here
+            pass
+
         # all other cases - emp dists set to None
         else:
             self.empirical_distr = None
