@@ -242,8 +242,13 @@ class JumpProposal(object):
 
         # jeremy is adding functionality for a hypermodel empirical distribution
         elif isinstance(empirical_distr, dict):
-            # do something here
-            pass
+            # save the dictionary of empirical distributions to self
+            self.empirical_distr = empirical_distr
+            # get the index of the nmodel param
+            self.nmodel_param_idx = list(self.plist).index('nmodel')
+            # get the dictionary keys
+            self.emp_dist_dict_keys = list(empirical_distr.keys())
+
 
         # all other cases - emp dists set to None
         else:
@@ -410,6 +415,61 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
+    def draw_from_hypermodel_empirical_distribution(self, x, iter, beta):
+        """
+        Defines a jump proposal which draws from different empirical distributions for
+        different submodels in a hypermodel.
+        Note that the models must be put in the dictionary in the order corresponding to
+        the models of the hypermodel -- don't sort dictionary keys!
+
+        """
+        q = x.copy()
+        lqxy = 0
+
+        if self.empirical_distr is not None:
+
+            # get nmodel value for the proposed sample
+            hm_idx = int(np.rint(q[self.nmodel_param_idx]))
+            # get the empirical distribution dictionary key corresponding to proposed sample nmodel
+            key = self.emp_dist_dict_keys[hm_idx]
+            # empirical_distr = self.empirical_distr[key]
+            # maybe we don't need to create a variable for the above ^^
+
+            # continue as an empiricial distribution jump proposal, but with the dictionary keyed appropriately
+            # randomly choose one of the empirical distributions
+            distr_idx = np.random.randint(0, len(self.empirical_distr[key]))
+
+            if self.empirical_distr[key][distr_idx].ndim == 1:
+
+                idx = self.pnames.index(self.empirical_distr[key][distr_idx].param_name)
+                q[idx] = self.empirical_distr[key][distr_idx].draw()
+
+                lqxy = (self.empirical_distr[key][distr_idx].logprob(x[idx]) -
+                        self.empirical_distr[key][distr_idx].logprob(q[idx]))
+
+                dist = self.empirical_distr[key][distr_idx]
+                # if we fall outside the emp distr support, pull from prior instead
+                if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
+                    q, lqxy = self.draw_from_prior(x, iter, beta)
+
+            else:
+                dist = self.empirical_distr[key][distr_idx]
+                oldsample = [x[self.pnames.index(p)] for p in dist.param_names]
+                newsample = dist.draw()
+
+                lqxy = (dist.logprob(oldsample) - dist.logprob(newsample))
+
+                for p, n in zip(dist.param_names, newsample):
+                    q[self.pnames.index(p)] = n
+
+                # if we fall outside the emp distr support, pull from prior instead
+                for ii in range(len(oldsample)):
+                    if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
+                        q, lqxy = self.draw_from_prior(x, iter, beta)
+
+        return q, float(lqxy)
+
+    
     def draw_from_dm_gp_prior(self, x, iter, beta):
 
         q = x.copy()
