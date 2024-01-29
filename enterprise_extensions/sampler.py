@@ -200,6 +200,16 @@ class JumpProposal(object):
             # check if a list of emp dists is provided
             self.empirical_distr = empirical_distr
 
+        # jeremy is adding functionality for a hypermodel empirical distribution
+        elif isinstance(empirical_distr, dict):
+            # save the dictionary of empirical distributions to self
+            self.empirical_distr = empirical_distr
+            # get the index of the nmodel param
+            #print(self.plist)
+            #self.nmodel_param_idx = list(self.pta_params).index('nmodel')
+            # get the dictionary keys
+            self.emp_dist_dict_keys = list(empirical_distr.keys())
+
         # check if a directory of empirical dist pkl files are provided
         elif empirical_distr is not None and os.path.isdir(empirical_distr):
 
@@ -223,7 +233,7 @@ class JumpProposal(object):
             self.empirical_distr = pickled_distr
 
         # check if single pkl file provided
-        elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
+        elif empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 # try opening the file
                 with open(empirical_distr, 'rb') as f:
@@ -240,38 +250,46 @@ class JumpProposal(object):
 
             self.empirical_distr = pickled_distr
 
-        # jeremy is adding functionality for a hypermodel empirical distribution
-        elif isinstance(empirical_distr, dict):
-            # save the dictionary of empirical distributions to self
-            self.empirical_distr = empirical_distr
-            # get the index of the nmodel param
-            self.nmodel_param_idx = list(self.plist).index('nmodel')
-            # get the dictionary keys
-            self.emp_dist_dict_keys = list(empirical_distr.keys())
-
-
         # all other cases - emp dists set to None
         else:
             self.empirical_distr = None
 
         if self.empirical_distr is not None:
             # only save the empirical distributions for parameters that are in the model
-            mask = []
-            for idx, d in enumerate(self.empirical_distr):
-                if d.ndim == 1:
-                    if d.param_name in pta.param_names:
-                        mask.append(idx)
-                else:
-                    if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
-                        mask.append(idx)
-            if len(mask) >= 1:
-                self.empirical_distr = [self.empirical_distr[m] for m in mask]
-                # extend empirical_distr here:
-                print('Extending empirical distributions to priors...\n')
-                self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
-                                                        save_ext_dists=save_ext_dists, outdir=outdir)
+            if isinstance(self.empirical_distr, dict):
+                for key in self.emp_dist_dict_keys:
+                    mask = []
+                    for idx, d in enumerate(self.empirical_distr[key]):
+                        if d.ndim == 1:
+                            if d.param_name in pta.param_names:
+                                mask.append(idx)
+                        else:
+                            if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                                mask.append(idx)
+                    if len(mask) >= 1:
+                        self.empirical_distr[key] = [self.empirical_distr[key][m] for m in mask]
+                        # extend empirical_distr here:
+                        print(f'extending {key}\'s empirical distributions to priors...\n')
+                        self.empirical_distr[key] = extend_emp_dists(pta, self.empirical_distr[key], npoints=100_000,
+                                                                save_ext_dists=save_ext_dists, outdir=outdir)
+                    
             else:
-                self.empirical_distr = None
+                mask = []
+                for idx, d in enumerate(self.empirical_distr):
+                    if d.ndim == 1:
+                        if d.param_name in pta.param_names:
+                            mask.append(idx)
+                    else:
+                        if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                            mask.append(idx)
+                if len(mask) >= 1:
+                    self.empirical_distr = [self.empirical_distr[m] for m in mask]
+                    # extend empirical_distr here:
+                    print('extending empirical distributions to priors...\n')
+                    self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
+                                                            save_ext_dists=save_ext_dists, outdir=outdir)
+                else:
+                    self.empirical_distr = none
 
         if empirical_distr is not None and self.empirical_distr is None:
             # if an emp dist path is provided, but fails the code, this helpful msg is provided
@@ -338,7 +356,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        if self.empirical_distr is not None:
+        if self.empirical_distr is not None and not isinstance(self.empirical_distr, dict):
 
             # randomly choose one of the empirical distributions
             distr_idx = np.random.randint(0, len(self.empirical_distr))
@@ -415,7 +433,7 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    def draw_from_hypermodel_empirical_distribution(self, x, iter, beta):
+    def draw_from_hypermodel_empirical_distr(self, x, iter, beta):
         """
         Defines a jump proposal which draws from different empirical distributions for
         different submodels in a hypermodel.
@@ -429,7 +447,9 @@ class JumpProposal(object):
         if self.empirical_distr is not None:
 
             # get nmodel value for the proposed sample
-            hm_idx = int(np.rint(q[self.nmodel_param_idx]))
+            #print(" q: ",  q)
+            # i guess the nmodel parameter is always the last in the q array
+            hm_idx = int(np.rint(q[-1]))
             # get the empirical distribution dictionary key corresponding to proposed sample nmodel
             key = self.emp_dist_dict_keys[hm_idx]
             # empirical_distr = self.empirical_distr[key]
