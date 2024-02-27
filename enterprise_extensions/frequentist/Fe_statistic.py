@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 31 16:49:49 2023
+Feb 2019, Bence Becsy (NANOGrav):   created file, implemented FeStatistics
 
-@author: kgrunthal
+Dec 2023, Kathrin Grunthal (EPTA):  code not suitable for Sherman-Morrison
+
+Jan 2024, Kathrin Grunthal (EPTA):  corrected matrix operations and implementation
 """
 
 import numpy as np
@@ -30,15 +32,15 @@ class FeStat(object):
 
     def __init__(self, psrs, params=None, custom_models={}, inc_crn=False, orf=None, pta=None):
 
-        #print('Initializing the model...\n')
-
         if pta is None:
-            self.pta = cgw_model.model_cw(psrs, crn=inc_crn, custom_models=custom_models, orf=orf, noisedict=params)
+            print('No PTA model given')
+            return
+
         else:
             self.pta = pta
+
         self.psrs = psrs
         self.params = params
-        
         self.Nvecs = None
 
         
