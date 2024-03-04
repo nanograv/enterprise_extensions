@@ -6,6 +6,10 @@ Feb 2019, Bence Becsy (NANOGrav):   created file, implemented FeStatistics
 Dec 2023, Kathrin Grunthal (EPTA):  code not suitable for Sherman-Morrison
 
 Jan 2024, Kathrin Grunthal (EPTA):  corrected matrix operations and implementation
+                                    code works with Sherman-Morrison
+
+Mar 2024, Kathrin Grunthal (EPTA):  assure backward-compatibility
+                                    remove nuisance code
 """
 
 import numpy as np
@@ -33,8 +37,27 @@ class FeStat(object):
     def __init__(self, psrs, params=None, custom_models={}, inc_crn=False, orf=None, pta=None):
 
         if pta is None:
-            print('No PTA model given')
-            return
+            print('Creating a PTA with TM and WN')
+            
+            efac = parameter.Constant()
+            equad = parameter.Constant()
+            ef = white_signals.MeasurementNoise(efac=efac)
+            eq = white_signals.EquadNoise(log10_equad=equad)
+
+            tm = gp_signals.TimingModel(use_svd=True)
+
+            s = eq + ef + tm
+
+            model = []
+            for p in psrs:
+                model.append(s(p))
+            self.pta = signal_base.PTA(model)
+
+            # set white noise parameters
+            if params is None:
+                print('No noise dictionary provided!')
+            else:
+                self.pta.set_default_params(params)
 
         else:
             self.pta = pta
@@ -219,14 +242,6 @@ def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=Fa
         :return: inner product (x|y)
         """
 
-    # white noise term
-    """
-    -- before: --
-    Ni = Nmat
-    xNy = np.dot(np.dot(x, Ni), y)
-    Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
-    """
-    
     TNy = Nvec.solve(y, left_array = Tmat)
     TNx = Nvec.solve(x, left_array = Tmat)  # later used only in transposed version
     xNy = Nvec.solve(y, left_array = x)
@@ -238,26 +253,7 @@ def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=Fa
         cf = sl.cho_factor(Sigma)
         SigmaTNy = sl.cho_solve(cf, TNy)
         
-    term1 = np.dot(TNx, SigmaTNy)
-    term2 = np.dot(TNx, np.dot(SigmaTNT, SigmaTNy))
-    term3 = np.dot(TNx, np.dot(SigmaTNT_2, SigmaTNy))
     
-    ret = xNy - 2.*(term1-term2) - term3
-    #print('TNx: {}, SigmaTNy: {}, SigmaTNT: {}'.format(TNx.shape, SigmaTNy.shape, SigmaTNT.shape))
-
-    
-    return ret
+    return xNy - TNx.T @ SigmaTNy
 
 
-'''
-#==============================================================================
-def make_Sigmas(phiinv, TNT, Nvec, T):
-    
-    
-    # get TtN 
-    TtN = Nvec.solve(T).transpose()
-
-    expval2 = sl.cho_solve(sl.cho_factor(Sigma), TtN)
-
-    return Sigma, np.dot(TtN.T, expval2)
-'''
