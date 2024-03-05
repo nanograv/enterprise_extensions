@@ -80,7 +80,7 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             efac = parameter.Normal(1.0, wb_efac_sigma)
         else:
             efac = parameter.Uniform(0.01, 10.0)
-        #equad = parameter.Uniform(-8.5, -5)
+        equad = parameter.Uniform(-8.5, -5)
         if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
     else:
