@@ -5,6 +5,13 @@ from collections import OrderedDict
 import numpy as np
 from enterprise.signals import deterministic_signals, parameter, signal_base
 
+
+try:
+    long_double_format = np.float128
+except AttributeError:
+    # on ARM64 float128 is not available
+    long_double_format = np.double
+
 # timing model delay
 
 
@@ -31,8 +38,9 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
     orig_params = np.array([tmparams_orig[key] for key in keys])
 
     # put varying parameters into dictionary
-    tmparams_rescaled = np.atleast_1d(np.float128(orig_params[:, 0] +
-                                                tmparams * orig_params[:, 1]))
+    tmparams_rescaled = np.atleast_1d(
+        long_double_format(orig_params[:, 0] + tmparams * orig_params[:, 1])
+    )
     tmparams_vary = OrderedDict(zip(keys, tmparams_rescaled))
 
     # set to new values
@@ -40,8 +48,9 @@ def tm_delay(residuals, t2pulsar, tmparams_orig, tmparams, which='all'):
     new_res = np.double(t2pulsar.residuals().copy())
 
     # remember to set values back to originals
-    t2pulsar.vals(OrderedDict(zip(keys,
-                                  np.atleast_1d(np.float128(orig_params[:, 0])))))
+    t2pulsar.vals(
+        OrderedDict(zip(keys, np.atleast_1d(long_double_format(orig_params[:, 0]))))
+    )
 
     # Sort the residuals
     isort = np.argsort(t2pulsar.toas(), kind='mergesort')
