@@ -110,15 +110,6 @@ class FeStat(object):
             # calculate non-changing terms for the inner product
             # to avoid redundant calculations in innerProduct_rr
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
-            
-            if brave:
-                cf = sl.cho_factor(Sigma, check_finite=False)
-                SigmaTNT = sl.cho_solve(cf, TNT, check_finite=False)
-            else:
-                cf = sl.cho_factor(Sigma)
-                SigmaTNT = sl.cho_solve(cf, TNT)
-            
-            SigmaTNT_2 = np.dot(SigmaTNT, SigmaTNT)
 
             ntoa = len(psr.toas)
 
@@ -128,17 +119,17 @@ class FeStat(object):
             A[2, :] = 1 / f0 ** (1 / 3) * np.sin(2 * np.pi * f0 * (psr.toas-tref))
             A[3, :] = 1 / f0 ** (1 / 3) * np.cos(2 * np.pi * f0 * (psr.toas-tref))
 
-            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
-            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
-            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
-            ip4 = innerProduct_rr(A[3, :], psr.residuals, Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+            ip1 = innerProduct_rr(A[0, :], psr.residuals, Nvec, T, TNT, Sigma, brave=brave)
+            ip2 = innerProduct_rr(A[1, :], psr.residuals, Nvec, T, TNT, Sigma, brave=brave)
+            ip3 = innerProduct_rr(A[2, :], psr.residuals, Nvec, T, TNT, Sigma, brave=brave)
+            ip4 = innerProduct_rr(A[3, :], psr.residuals, Nvec, T, TNT, Sigma, brave=brave)
         
             N[idx, :] = np.array([ip1, ip2, ip3, ip4])
 
             # define M matrix M_ij=(A_i|A_j)
             for jj in range(4):
                 for kk in range(4):
-                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nvec, T, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=brave)
+                    M[idx, jj, kk] = innerProduct_rr(A[jj, :], A[kk, :], Nvec, T, TNT, Sigma, brave=brave)
 
         fstat = np.zeros(gw_skyloc.shape[1])
         if maximized_parameters:
@@ -225,7 +216,7 @@ class FeStat(object):
 
 
 #==============================================================================
-def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=False):
+def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, brave=False):
     r"""
         Compute inner product using rank-reduced
         approximations for red noise/jitter
@@ -234,7 +225,6 @@ def innerProduct_rr(x, y, Nvec, Tmat, TNT, Sigma, SigmaTNT, SigmaTNT_2, brave=Fa
         :param x: vector timeseries 1
         :param y: vector timeseries 2
         :param Nvec: white noise Sherman Morrison object
-        :param SigmaTilde: second term in WN matrix
         :param Tmat: Modified design matrix including red noise/jitter
         :param TNT: T^T N^{-1} T matrix from pta object
         :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
