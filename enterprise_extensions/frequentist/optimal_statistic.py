@@ -27,8 +27,7 @@ class OptimalStatistic(object):
     :param psrs: List of `enterprise` Pulsar instances.
     :param bayesephem: Include BayesEphem model. Default=True
     :param gamma_common:
-        Fixed common red process spectral index value. By default we
-        vary the spectral index over the range [0, 7].
+        Fixed common red process spectral index value.
     :param orf:
         String representing which overlap reduction function to use.
         By default we do not use any spatial correlations. Permitted
@@ -36,7 +35,7 @@ class OptimalStatistic(object):
 
     """
 
-    def __init__(self, psrs, bayesephem=True, gamma_common=4.33, orf='hd',
+    def __init__(self, psrs, gamma_common, bayesephem=False, orf='hd',
                  wideband=False, select=None, noisedict=None, pta=None):
 
         # initialize standard model with fixed white noise and
@@ -57,6 +56,11 @@ class OptimalStatistic(object):
             self.pta = pta
 
         self.gamma_common = gamma_common
+        self.gamma_common_name = None
+        for p_name in self.pta.param_names:
+            if p_name in ['gw_gamma', 'crn_gamma', 'gw_crn_gamma', 'crn_gw_gamma']:
+                self.gamma_common_name = p_name
+            
         # get frequencies here
         self.freqs = self._get_freqs(psrs)
 
@@ -148,9 +152,9 @@ class OptimalStatistic(object):
             for jj in range(ii+1, npsr):
 
                 if psd == 'powerlaw':
-                    if self.gamma_common is None and 'gw_gamma' in params.keys():
+                    if self.gamma_common is None and self.gamma_common_name in params.keys():
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
-                                               gamma=params['gw_gamma'])
+                                               gamma=params[self.gamma_common_name])
                     else:
                         phiIJ = utils.powerlaw(self.freqs, log10_A=0,
                                                gamma=self.gamma_common)
@@ -183,7 +187,7 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, OS, OS_sig
 
-    def compute_noise_marginalized_os(self, chain, param_names=None, N=10000):
+    def compute_noise_marginalized_os(self, chain, param_names=None, seed = None, N=10000):
         """
         Compute noise marginalized OS.
 
@@ -205,8 +209,10 @@ class OptimalStatistic(object):
         opt, sig = np.zeros(N), np.zeros(N)
         rho, rho_sig = [], []
         setpars = {}
-        for ii in range(N):
-            idx = np.random.randint(0, chain.shape[0])
+        if seed:
+            np.random.seed(seed)
+        idxs = np.random.randint(0, chain.shape[0], size = N)
+        for idx in idxs:
 
             # if param_names is not specified, the parameter dictionary
             # is made by mapping the values from the chain to the
@@ -317,7 +323,7 @@ class OptimalStatistic(object):
 
         return xi, rho, sig, A, A_err
 
-    def compute_noise_marginalized_multiple_corr_os(self, chain, param_names=None, N=10000,
+    def compute_noise_marginalized_multiple_corr_os(self, chain, param_names=None, seed = None, N=10000,
                                                     correlations=['monopole', 'dipole', 'hd']):
         """
         Noise-marginalized fitting of the correlations to multiple spatial
@@ -346,8 +352,10 @@ class OptimalStatistic(object):
 
         rho, sig, A, A_err = [], [], [], []
         setpars = {}
-        for ii in range(N):
-            idx = np.random.randint(0, chain.shape[0])
+        if seed:
+            np.random.seed(seed)
+        idxs = np.random.randint(0, chain.shape[0], size = N)
+        for idx in idxs:
 
             # if param_names is not specified, the parameter dictionary
             # is made by mapping the values from the chain to the
