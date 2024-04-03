@@ -36,8 +36,13 @@ def channelized_backends(backend_flags):
     return {flagval: backend_flags == flagval for flagval in flagvals}
 
 
+# function for number of temponest coefficients
+def get_tncoeff(tspan, components):
+    return int(tspan / 86400 / components)
+
+
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
+                      efac1=False, tnequad=False, select='backend', ecorr_select='nanograv', common=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
     """
     Returns the white noise block of the model:
 
@@ -56,19 +61,50 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     :param efac1:
         use a strong prior on EFAC = Normal(mu=1, stdev=0.1)
     :param tnequad:
-        Whether to use the TempoNest definition of EQUAD. Defaults to False to
-        follow Tempo, Tempo2 and Pint definition.
+        Whether to use the TempoNest definition of EQUAD. Use None for EFAC only,
+        'equad' for EQUAD only, True to follow Temponest definition.
+        Defaults to False to follow Tempo, Tempo2 and Pint definition.
+    :param select:
+        Used to define the selection function to group ToAs for EFAC and EQUAD. 
+        Defaults to "backend" to use by_backend function, but could also be a list or dictionnary for custom selection, or None.
+    :param ecorr_select:
+        Used to define the selection function to group ToAs for ECORR
+        Defaults to "nanograv" to use nanograv_backends function, but could also be "channelized" to use channelized_backends function,
+        a list or dictionnary for custom selection, or None.
+    :param common:
+        Whether to set the white-noise signal as a common signal (i.e. multi-psr white noise)
+    :param name:
+        Define the signal name.
+    :param ng_twg_setup:
+        If True, set EFAC prior as a Normal(1, wb_efac_sigma). Default is False.
+    :param wb_efac_sigma:
+        Used for ng_twg_setup. Default is 0.25.
     """
 
     if select == 'backend':
         # define selection by observing backend
-        backend = selections.Selection(selections.by_backend)
-        # define selection by nanograv backends
-        backend_ng = selections.Selection(selections.nanograv_backends)
-        # backend_ch = selections.Selection(channelized_backends)
+        selection = selections.Selection(selections.by_backend)
+    elif isinstance(select, list):
+        # define selection by list of custom backend
+        selection = selections.Selection(selections.custom_backends(select))
+    elif isinstance(select, dict):
+        # define selection by dict of custom backend
+        selection = selections.Selection(selections.custom_backends_dict(select))
     else:
         # define no selection
-        backend = selections.Selection(selections.no_selection)
+        selection = selections.Selection(selections.no_selection)
+
+    # define selection by backends for ECORR
+    if ecorr_select == 'nanograv':
+        selection_ecorr = selections.Selection(selections.nanograv_backends)
+    elif ecorr_select == 'channelized':
+        selection_ecorr = selections.Selection(channelized_backends)
+    elif isinstance(ecorr_select, list):
+        selection_ecorr = selections.Selection(selections.custom_backends(ecorr_select))
+    elif isinstance(ecorr_select, dict):
+        selection_ecorr = selections.Selection(selections.custom_backends_dict(ecorr_select))
+    else:
+        selection_ecorr = selections.Selection(selections.no_selection)
 
     # white noise parameters
     if vary:
@@ -78,38 +114,49 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
             efac = parameter.Normal(1.0, wb_efac_sigma)
         else:
             efac = parameter.Uniform(0.01, 10.0)
-        equad = parameter.Uniform(-8.5, -5)
+        equad = parameter.Uniform(-9, -5)
         if inc_ecorr:
-            ecorr = parameter.Uniform(-8.5, -5)
+            ecorr = parameter.Uniform(-9, -5)
     else:
         efac = parameter.Constant()
         equad = parameter.Constant()
         if inc_ecorr:
             ecorr = parameter.Constant()
 
+    if common:
+        efac = efac(name+"_efac")
+        if tnequad:
+            equad = equad(name+"_log10_tnequad")
+        else:
+            equad = equad(name+"_log10_t2equad")
+
     # white noise signals
-    if tnequad:
-        efeq = white_signals.MeasurementNoise(efac=efac,
-                                              selection=backend, name=name)
+    if tnequad is None:
+        efeq = white_signals.MeasurementNoise(efac=efac, selection=selection, name=name)
+    elif tnequad == 'equad':
+        efeq = white_signals.TNEquadNoise(log10_tnequad=equad,
+                                          selection=selection, name=name)
+    elif tnequad:
+        efeq = white_signals.MeasurementNoise(efac=efac, selection=selection, name=name)
         efeq += white_signals.TNEquadNoise(log10_tnequad=equad,
-                                           selection=backend, name=name)
+                                           selection=selection, name=name)
     else:
         efeq = white_signals.MeasurementNoise(efac=efac, log10_t2equad=equad,
-                                              selection=backend, name=name)
+                                              selection=selection, name=name)
 
     if inc_ecorr:
         if gp_ecorr:
             if name is None:
                 ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng)
+                                                selection=selection_ecorr)
             else:
                 ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr,
-                                                selection=backend_ng, name=name)
+                                                selection=selection_ecorr, name=name)
 
         else:
             ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
-                                                selection=backend_ng,
-                                                name=name)
+                                                selection=selection_ecorr, name=name)
+
     # combine signals
     if inc_ecorr:
         s = efeq + ec
