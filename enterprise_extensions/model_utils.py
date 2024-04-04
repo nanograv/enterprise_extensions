@@ -96,6 +96,14 @@ def cadence_filter(psr, start_time=None, end_time=None, cadence=None):
     psr.sort_data()
 
 
+def get_tncoeff(tspan, components):
+    """ Function for number of temponest coefficients
+    :param tspan: Time span
+    :param components: Number of sampling frequencies
+    """
+    return int(tspan / 86400 / components)
+
+
 def get_tspan(psrs):
     """ Returns maximum time span for all pulsars.
 
