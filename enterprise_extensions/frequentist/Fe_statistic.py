@@ -17,13 +17,10 @@ import scipy.linalg as sl
 from enterprise.signals import (
     gp_signals,
     parameter,
-    selections,
     signal_base,
     utils,
     white_signals,
 )
-from enterprise_extensions import blocks
-from . import cgw_model
 
 
 class FeStat(object):
