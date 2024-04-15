@@ -184,6 +184,9 @@ def white_noise_block(
 def red_noise_block(
     psd="powerlaw",
     prior="log-uniform",
+    logmin=None,
+    logmax=None,
+    modes=None,
     Tspan=None,
     components=30,
     logf=False,
@@ -197,13 +200,10 @@ def red_noise_block(
     delta_val=None,
     coefficients=False,
     select=None,
-    modes=None,
     wgts=None,
     combine=True,
     break_flat=False,
     break_flat_fq=None,
-    logmin=None,
-    logmax=None,
     dropout=False,
     dropbin=False,
     dropbin_min=10,
@@ -211,14 +211,21 @@ def red_noise_block(
     name="red_noise",
 ):
     """
-    Returns red noise model:
-        Red noise modeled as a power-law with 30 sampling frequencies
+    Returns achromatic red noise signal object.
 
     :param psd:
-        PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess]
+        PSD function [e.g. powerlaw (default), turnover, spectrum, tprocess, tprocess_adapt]
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
+    :param logmin:
+        Prior lower edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Center of normal prior distribution if prior="gaussian".
+    :param logmax:
+        Prior upper edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Standard deviation of normal prior distribution if prior="gaussian".
+    :param modes:
+        List of Fourier modes. Favored against the use of Tspan, components and logf
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for indivicual pulsar.
@@ -248,11 +255,9 @@ def red_noise_block(
     :param delta_val:
         If not None, constant value for delta parameter of psd="broken_powerlaw".
         Corresponding to slope for frequencies < f_break (fb).
-    :param coefficients: include latent coefficients in GP model?
+    :param coefficients: include latent coefficients in GP model
     :param select:
         Set the method to apply selection function.
-    :param modes:
-        List of Fourier modes. Favored against the use of Tspan, components and logf
     :param wgts:
         Weights used for the powerlaw_genmodes psd.
     :param combine:
@@ -261,12 +266,6 @@ def red_noise_block(
         Set psd as powerlaw + flat component, with break frequency defined by break_flat_fq
     :param break_flat_fq:
         Frequency used to separate powerlaw and flat component for break_flat=True.
-    :param logmin:
-        Prior lower edge for log10_A, if prior in ["uniform", "log-uniform"], Default is "log-uniform".
-        Center of normal prior distribution if prior="gaussian".
-    :param logmax:
-        Prior upper edge for log10_A, if prior in ["uniform", "log-uniform"], Default is "log-uniform".
-        Standard deviation of normal prior distribution if prior="gaussian".
     :param dropout: Use a dropout analysis for intrinsic red noise models.
         Currently only supports power law option.
     :param dropbin: Use a dropout analysis for the number of frequency bins.
@@ -365,7 +364,6 @@ def red_noise_block(
             pl = gpp.t_process_adapt(
                 log10_A=log10_A, gamma=gamma, alphas_adapt=alpha_adapt, nfreq=nfreq
             )
-
     if psd == "spectrum":
         if logmin is not None and logmax is not None:
             if prior == "uniform":
@@ -553,63 +551,185 @@ def dm_noise_block(
     psd="powerlaw",
     nondiag_kernel="periodic",
     prior="log-uniform",
+    logmin=None,
+    logmax=None,
+    tndm=False,
     dt=15,
     df=200,
+    modes=None,
     Tspan=None,
     components=30,
+    logf=False,
+    fmin=None,
+    fmax=None,
+    tnfreq=False,
+    gamma_prior="uniform",
     gamma_val=None,
+    gammamin=0,
+    gammamax=7,
+    delta_val=None,
     coefficients=False,
+    select=None,
+    dropout=False,
+    dropbin=False,
+    dropbin_min=10,
+    k_threshold=0.5,
+    name="dm_gp",
 ):
     """
-    Returns DM noise model:
+    Returns DM noise signal object.
 
-        1. DM noise modeled as a power-law with 30 sampling frequencies
-
+    :param gp_kernel:
+        Type of Gaussian Process kernel [diag (default) or nondiag]
     :param psd:
-        PSD function [e.g. powerlaw (default), spectrum, tprocess]
+        PSD function for the GP kernel if gp_kernel="diag" [e.g. powerlaw (default), turnover, spectrum, tprocess, tprocess_adapt]
+    :param nondiag_kernel:
+        Type of kernel to use if gp_kernel="nondiag" [periodic (default), periodic_rfband, sq_exp, sq_exp_rfband, dmx_like]
     :param prior:
         Prior on log10_A. Default if "log-uniform". Use "uniform" for
         upper limits.
+    :param logmin:
+        Prior lower edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Center of normal prior distribution if prior="gaussian".
+    :param logmax:
+        Prior upper edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Standard deviation of normal prior distribution if prior="gaussian".
+    :param tndm:
+        Use "dm_tn" Fourier design matrix gp_base, and thus set amplitude at Temponest units.
     :param dt:
-        time-scale for linear interpolation basis (days)
+        Time-scale for linear interpolation basis (days)
     :param df:
-        frequency-scale for linear interpolation basis (MHz)
+        Frequency-scale for linear interpolation basis (MHz)
+    :param modes:
+        List of Fourier modes. Favored against the use of Tspan, components and logf
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for indivicual pulsar.
     :param components:
         Number of frequencies in sampling of DM-variations.
+    :param logf:
+        Use log frequency spacing for the Fourier modes
+    :param fmin:
+        Lower sampling frequency
+    :param fmax:
+        Upper sampling frequency
+    :param tnfreq::
+        Number of temponest sampling components.
+        If True, components might be given in days^-1
+    :param gamma_prior:
+        Define the prior distribution of gamma. Default is "uniform".
+        "Gaussian" is also available, with gammamin and gammamax being resp. the mu and sigma
     :param gamma_val:
         If given, this is the fixed slope of the power-law for
         powerlaw, turnover, or tprocess DM-variations
+    :param gammamin:
+        Prior lower edge for gamma, if gamma_prior="uniform" (default).
+        Center of normal prior distribution if gamma_prior="gaussian".
+    :param gammamax:
+        Prior upper edge for gamma, if gamma_prior="uniform" (default).
+        Standard deviation of normal prior distribution if gamma_prior="gaussian".
+    :param delta_val:
+        If not None, constant value for delta parameter of psd="broken_powerlaw".
+        Corresponding to slope for frequencies < f_break (fb).
+    :param coefficients: include latent coefficients in GP model
+    :param select:
+        Set the method to apply selection function.
+    :param dropout: Use a dropout analysis for intrinsic red noise models.
+        Currently only supports power law option.
+    :param dropbin: Use a dropout analysis for the number of frequency bins.
+        Currently only supports power law option.
+    :param dropbin_min: Set the minimal number of freq. bins for the dropbin.
+    :param k_threshold: Threshold for dropout analysis.
+    :param name: Define the signal name.
     """
+    if tnfreq and Tspan is not None:
+        components = get_tncoeff(Tspan, components)
+
     # dm noise parameters that are common
     if gp_kernel == "diag":
-        if psd in ["powerlaw", "turnover", "tprocess", "tprocess_adapt"]:
+        if psd in [
+            "powerlaw", 
+            "turnover", 
+            "broken_powerlaw", 
+            "flat_powerlaw", 
+            "tprocess", 
+            "tprocess_adapt"
+        ]:
             # parameters shared by PSD functions
-            if prior == "uniform":
-                log10_A_dm = parameter.LinearExp(-20, -11)
-            elif prior == "log-uniform" and gamma_val is not None:
-                if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_A_dm = parameter.Uniform(-20, -11)
-                else:
-                    log10_A_dm = parameter.Uniform(-20, -11)
+            if logmin is not None and logmax is not None:
+                if prior == "uniform":
+                    log10_A_dm = parameter.LinearExp(logmin, logmax)
+                elif prior == "log-uniform":
+                    log10_A_dm = parameter.Uniform(logmin, logmax)
+                elif prior == "gaussian":
+                    log10_A_dm = parameter.Normal(logmin, logmax)
             else:
-                log10_A_dm = parameter.Uniform(-20, -11)
+                if prior == "uniform":
+                    log10_A_dm = parameter.LinearExp(-20, -10)
+                elif prior == "log-uniform":
+                    log10_A_dm = parameter.Uniform(-20, -10)
 
             if gamma_val is not None:
                 gamma_dm = parameter.Constant(gamma_val)
             else:
-                gamma_dm = parameter.Uniform(0, 7)
+                if gamma_prior == "uniform":
+                    gamma_dm = parameter.Uniform(gammamin, gammamax)
+                elif gamma_prior == "gaussian":
+                    gamma_dm = parameter.Normal(gammamin, gammamax)
+
+            if gamma_val is not None:
+                gamma_dm = parameter.Constant(gamma_val)
+            else:
+                if gamma_prior == "uniform":
+                    gamma_dm = parameter.Uniform(gammamin, gammamax)
+                elif gamma_prior == "gaussian":
+                    gamma_dm = parameter.Normal(gammamin, gammamax)
 
             # different PSD function parameters
             if psd == "powerlaw":
-                dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+                if any([dropout, dropbin]):
+                    if dropout:
+                        k_drop = parameter.Uniform(0, 1)
+                    else:
+                        k_drop = 1
+                    if dropbin:
+                        k_dropbin = parameter.Uniform(dropbin_min, components + 1)
+                    else:
+                        k_dropbin = None
+                    dm_prior = drop.dropout_powerlaw(
+                        log10_A=log10_A_dm,
+                        gamma=gamma_dm,
+                        k_drop=k_drop,
+                        k_dropbin=k_dropbin,
+                        k_threshold=k_threshold,
+                    )
+                else:
+                    dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
+            elif psd == "broken_powerlaw":
+                kappa_dm = parameter.Uniform(0.01, 0.5)
+                log10_fb_dm = parameter.Uniform(-10, -6)
+
+                if delta_val is not None:
+                    delta_dm = parameter.Constant(delta_val)
+                else:
+                    delta_dm = parameter.Uniform(0, 7)
+                dm_prior = gpp.broken_powerlaw(
+                    log10_A=log10_A_dm,
+                    gamma=gamma_dm,
+                    delta=delta_dm,
+                    log10_fb=log10_fb_dm,
+                    kappa=kappa_dm,
+                )
             elif psd == "turnover":
                 kappa_dm = parameter.Uniform(0, 7)
                 lf0_dm = parameter.Uniform(-9, -7)
                 dm_prior = utils.turnover(
                     log10_A=log10_A_dm, gamma=gamma_dm, lf0=lf0_dm, kappa=kappa_dm
+                )
+            elif psd == "flat_powerlaw":
+                log10_B_dm = parameter.Uniform(-10, -4)
+                dm_prior = gpp.flat_powerlaw(
+                    log10_A=log10_A_dm, gamma=gamma_dm, log10_B=log10_B_dm
                 )
             elif psd == "tprocess":
                 df = 2
@@ -627,16 +747,40 @@ def dm_noise_block(
                     alphas_adapt=alpha_adapt_dm,
                     nfreq=nfreq_dm,
                 )
-
         if psd == "spectrum":
-            if prior == "uniform":
-                log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
-            elif prior == "log-uniform":
-                log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+            if logmin is not None and logmax is not None:
+                if prior == "uniform":
+                    log10_rho_dm = parameter.LinearExp(logmin, logmax, size=components)
+                elif prior == "log-uniform":
+                    log10_rho_dm = parameter.Uniform(logmin, logmax, size=components)
+            else:
+                if prior == "uniform":
+                    log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+                elif prior == "log-uniform":
+                    log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+                else:
+                    log10_rho_dm = parameter.Uniform(-9, -4, size=components)
 
             dm_prior = gpp.free_spectrum(log10_rho=log10_rho_dm)
 
-        dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components, Tspan=Tspan)
+        if tndm:
+            dm_basis = utils.createfourierdesignmatrix_dm_tn(
+                nmodes=components,
+                Tspan=Tspan,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                modes=modes,
+            )
+        else:
+            dm_basis = utils.createfourierdesignmatrix_dm(
+                nmodes=components,
+                Tspan=Tspan,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                modes=modes,
+            )
 
     elif gp_kernel == "nondiag":
         if nondiag_kernel == "periodic":
@@ -699,9 +843,21 @@ def dm_noise_block(
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
 
-    dmgp = gp_signals.BasisGP(
-        dm_prior, dm_basis, name="dm_gp", coefficients=coefficients
-    )
+    if select is None:
+        dmgp = gp_signals.BasisGP(
+            dm_prior, 
+            dm_basis,
+            name=name, 
+            coefficients=coefficients
+        )
+    else:
+        dmgp = gp_signals.BasisGP(
+            dm_prior,
+            dm_basis,
+            name=name,
+            coefficients=coefficients,
+            selection=select,
+        )
 
     return dmgp
 
@@ -711,76 +867,222 @@ def chromatic_noise_block(
     psd="powerlaw",
     nondiag_kernel="periodic",
     prior="log-uniform",
+    logmin=None,
+    logmax=None,
+    tndm=False,
     dt=15,
     df=200,
     idx=4,
+    idxmin=0,
+    idxmax=7,
     include_quadratic=False,
+    modes=None,
     Tspan=None,
-    name="chrom",
     components=30,
+    logf=False,
+    fmin=None,
+    fmax=None,
+    tnfreq=False,
+    gamma_prior="uniform",
+    gamma_val=None,
+    gammamin=0,
+    gammamax=7,
+    delta_val=None,
     coefficients=False,
+    select=None,
+    dropout=False,
+    dropbin=False,
+    dropbin_min=10,
+    k_threshold=0.5,
+    name="chrom_gp",
 ):
     """
-    Returns GP chromatic noise model :
-
-        1. Chromatic modeled with user defined PSD with
-        30 sampling frequencies. Available PSDs are
-        ['powerlaw', 'turnover' 'spectrum']
+    Returns GP chromatic noise signal object
 
     :param gp_kernel:
-        Whether to use a diagonal kernel for the GP. ['diag','nondiag']
-    :param nondiag_kernel:
-        Which nondiagonal kernel to use for the GP.
-        ['periodic','sq_exp','periodic_rfband','sq_exp_rfband']
+        Type of Gaussian Process kernel [diag (default) or nondiag]
     :param psd:
-        PSD to use for common red noise signal. Available options
-        are ['powerlaw', 'turnover' 'spectrum']
+        PSD function for the GP kernel if gp_kernel="diag" [e.g. powerlaw (default), turnover, spectrum, tprocess, tprocess_adapt]
+    :param nondiag_kernel:
+        Type of kernel to use if gp_kernel="nondiag" [periodic (default), periodic_rfband, sq_exp, sq_exp_rfband, dmx_like]
     :param prior:
-        What type of prior to use for amplitudes. ['log-uniform','uniform']
+        Prior on log10_A. Default if "log-uniform". Use "uniform" for
+        upper limits.
+    :param logmin:
+        Prior lower edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Center of normal prior distribution if prior="gaussian".
+    :param logmax:
+        Prior upper edge for log10_A, if prior in ["uniform", "log-uniform"].
+        Standard deviation of normal prior distribution if prior="gaussian".
+    :param tndm:
+        Use "dm_tn" Fourier design matrix gp_base, and thus set amplitude at Temponest units.
     :param dt:
-        time-scale for linear interpolation basis (days)
+        Time-scale for linear interpolation basis (days)
     :param df:
-        frequency-scale for linear interpolation basis (MHz)
+        Frequency-scale for linear interpolation basis (MHz)
     :param idx:
-        Index of radio frequency dependence (i.e. DM is 2). Any float will work.
+        If not Nonw, fix the chromatic index to this value. Default is 4 for scattering delay variations.
+        Achromatic if 0, DM noise if 2.
+    :param idxmin:
+        If idx is None, it is used to set the prior lower edge for idx that will be included as a parameter to fit for. Default is 0
+    :param idxmax:
+        If idx is None, it is used to set the prior upper edge for idx that will be included as a parameter to fit for. Default is 7
     :param include_quadratic:
         Whether to include a quadratic fit.
-    :param name: Name of signal
+    :param modes:
+        List of Fourier modes. Favored against the use of Tspan, components and logf
     :param Tspan:
-        Tspan from which to calculate frequencies for PSD-based GPs.
+        Sets frequency sampling f_i = i / Tspan. Default will
+        use overall time span for indivicual pulsar.
     :param components:
-        Number of frequencies to use in 'diag' GPs.
-    :param coefficients:
-        Whether to keep coefficients of the GP.
-
+        Number of frequencies in sampling of DM-variations.
+    :param logf:
+        Use log frequency spacing for the Fourier modes
+    :param fmin:
+        Lower sampling frequency
+    :param fmax:
+        Upper sampling frequency
+    :param tnfreq::
+        Number of temponest sampling components.
+        If True, components might be given in days^-1
+    :param gamma_prior:
+        Define the prior distribution of gamma. Default is "uniform".
+        "Gaussian" is also available, with gammamin and gammamax being resp. the mu and sigma
+    :param gamma_val:
+        If given, this is the fixed slope of the power-law for
+        powerlaw, turnover, or tprocess DM-variations
+    :param gammamin:
+        Prior lower edge for gamma, if gamma_prior="uniform" (default).
+        Center of normal prior distribution if gamma_prior="gaussian".
+    :param gammamax:
+        Prior upper edge for gamma, if gamma_prior="uniform" (default).
+        Standard deviation of normal prior distribution if gamma_prior="gaussian".
+    :param delta_val:
+        If not None, constant value for delta parameter of psd="broken_powerlaw".
+        Corresponding to slope for frequencies < f_break (fb).
+    :param coefficients: include latent coefficients in GP model
+    :param select:
+        Set the method to apply selection function.
+    :param dropout: Use a dropout analysis for intrinsic red noise models.
+        Currently only supports power law option.
+    :param dropbin: Use a dropout analysis for the number of frequency bins.
+        Currently only supports power law option.
+    :param dropbin_min: Set the minimal number of freq. bins for the dropbin.
+    :param k_threshold: Threshold for dropout analysis.
+    :param name: Define the signal name.
     """
+    if tnfreq and Tspan is not None:
+        components = get_tncoeff(Tspan, components)
+
+    if idx is None:
+        idx = parameter.Uniform(idxmin, idxmax)
+
     if gp_kernel == "diag":
-        chm_basis = gpb.createfourierdesignmatrix_chromatic(
-            nmodes=components, Tspan=Tspan
-        )
-        if psd in ["powerlaw", "turnover"]:
-            if prior == "uniform":
-                log10_A = parameter.LinearExp(-18, -11)
-            elif prior == "log-uniform":
-                log10_A = parameter.Uniform(-18, -11)
-            gamma = parameter.Uniform(0, 7)
+        if psd in ["powerlaw", "turnover", "broken_powerlaw", "flat_powerlaw"]:
+            if logmin is not None and logmax is not None:
+                if prior == "uniform":
+                    log10_A = parameter.LinearExp(logmin, logmax)
+                elif prior == "log-uniform":
+                    log10_A = parameter.Uniform(logmin, logmax)
+                elif prior == "gaussian":
+                    log10_A = parameter.Normal(logmin, logmax)
+            else:
+                if prior == "uniform":
+                    log10_A = parameter.LinearExp(-20, -10)
+                elif prior == "log-uniform":
+                    log10_A = parameter.Uniform(-20, -10)
+
+            if gamma_val is not None:
+                gamma = parameter.Constant(gamma_val)
+            else:
+                if gamma_prior == "uniform":
+                    gamma = parameter.Uniform(gammamin, gammamax)
+                elif gamma_prior == "gaussian":
+                    gamma = parameter.Normal(gammamin, gammamax)
 
             # PSD
             if psd == "powerlaw":
-                chm_prior = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+                if any([dropout, dropbin]):
+                    if dropout:
+                        k_drop = parameter.Uniform(0, 1)
+                    else:
+                        k_drop = 1
+                    if dropbin:
+                        k_dropbin = parameter.Uniform(dropbin_min, components + 1)
+                    else:
+                        k_dropbin = None
+                    chm_prior = drop.dropout_powerlaw(
+                        log10_A=log10_A,
+                        gamma=gamma,
+                        k_drop=k_drop,
+                        k_dropbin=k_dropbin,
+                        k_threshold=k_threshold,
+                    )
+                else:
+                    chm_prior = utils.powerlaw(log10_A=log10_A, gamma=gamma)
+            elif psd == "broken_powerlaw":
+                kappa = parameter.Uniform(0.01, 0.5)
+                log10_fb = parameter.Uniform(-10, -6)
+
+                if delta_val is not None:
+                    delta = parameter.Constant(delta_val)
+                else:
+                    delta = parameter.Uniform(0, 7)
+                chm_prior = gpp.broken_powerlaw(
+                    log10_A=log10_A,
+                    gamma=gamma,
+                    delta=delta,
+                    log10_fb=log10_fb,
+                    kappa=kappa,
+                )
             elif psd == "turnover":
                 kappa = parameter.Uniform(0, 7)
                 lf0 = parameter.Uniform(-9, -7)
                 chm_prior = utils.turnover(
                     log10_A=log10_A, gamma=gamma, lf0=lf0, kappa=kappa
                 )
+            elif psd == "flat_powerlaw":
+                log10_B = parameter.Uniform(-10, -4)
+                chm_prior = gpp.flat_powerlaw(
+                    log10_A=log10_A, gamma=gamma, log10_B=log10_B
+                )
 
         if psd == "spectrum":
-            if prior == "uniform":
-                log10_rho = parameter.LinearExp(-10, -4, size=components)
-            elif prior == "log-uniform":
-                log10_rho = parameter.Uniform(-10, -4, size=components)
+            if logmin is not None and logmax is not None:
+                if prior == "uniform":
+                    log10_rho = parameter.LinearExp(logmin, logmax, size=components)
+                elif prior == "log-uniform":
+                    log10_rho = parameter.Uniform(logmin, logmax, size=components)
+            else:
+                if prior == "uniform":
+                    log10_rho = parameter.LinearExp(-10, -4, size=components)
+                elif prior == "log-uniform":
+                    log10_rho = parameter.Uniform(-10, -4, size=components)
+                else:
+                    log10_rho = parameter.Uniform(-9, -4, size=components)
+
             chm_prior = gpp.free_spectrum(log10_rho=log10_rho)
+
+        if tndm:
+            chm_basis = gpb.createfourierdesignmatrix_dm_tn(
+                nmodes=components,
+                Tspan=Tspan,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                idx=idx,
+                modes=modes,
+            )
+        else:
+            chm_basis = gpb.createfourierdesignmatrix_chromatic(
+                nmodes=components,
+                Tspan=Tspan,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                idx=idx,
+                modes=modes,
+            )
 
     elif gp_kernel == "nondiag":
         if nondiag_kernel == "periodic":
@@ -843,9 +1145,21 @@ def chromatic_noise_block(
                 log10_ell2=log10_ell2,
             )
 
-    cgp = gp_signals.BasisGP(
-        chm_prior, chm_basis, name=name + "_gp", coefficients=coefficients
-    )
+    if select is None:
+        cgp = gp_signals.BasisGP(
+            chm_prior, 
+            chm_basis, 
+            name=name, 
+            coefficients=coefficients
+        )
+    else:
+        cgp = gp_signals.BasisGP(
+            chm_prior,
+            chm_basis,
+            name=name,
+            coefficients=coefficients,
+            selection=select,
+        )
 
     if include_quadratic:
         # quadratic piece
