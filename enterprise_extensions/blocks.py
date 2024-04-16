@@ -298,7 +298,7 @@ def red_noise_block(
         else:
             if prior == "uniform":
                 log10_A = parameter.LinearExp(-20, -11)
-            elif prior == "log-uniform" and gamma_val is not None:
+            elif prior == "log-uniform":
                 log10_A = parameter.Uniform(-20, -11)
 
         if gamma_val is not None:
