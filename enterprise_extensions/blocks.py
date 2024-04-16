@@ -1175,27 +1175,46 @@ def common_red_noise_block(
     psd="powerlaw",
     prior="log-uniform",
     Tspan=None,
+    psrTspan=True,
     components=30,
+    tnfreq=False,
     combine=True,
     log10_A_val=None,
     gamma_val=None,
+    gamma_prior="uniform",
+    gammamin=0,
+    gammamax=7,
     delta_val=None,
     logmin=None,
     logmax=None,
     orf=None,
+    orf_bins=None,
     orf_ifreq=0,
     leg_lmax=5,
     name="gw",
     coefficients=False,
+    select=None,
+    logf=False,
+    fmin=None,
+    fmax=None,
+    modes=None,
     pshift=False,
     pseed=None,
+    dropout=False,
+    dropout_psr="all",
+    dropout_common=False,
+    dropbin=False,
+    dropbin_psr="all",
+    dropbin_common=False,
+    dropbin_min=10,
+    k_threshold=0.5,
+    idx=None,
+    tndm=False,
+    flagname="group",
+    flagval=None,
 ):
     """
-    Returns common red noise model:
-
-        1. Red noise modeled with user defined PSD with
-        30 sampling frequencies. Available PSDs are
-        ['powerlaw', 'turnover' 'spectrum']
+    Returns common red noise signal object.
 
     :param psd:
         PSD to use for common red noise signal. Available options
@@ -1238,6 +1257,10 @@ def common_red_noise_block(
     :param name: Name of common red process
 
     """
+    if orf_bins is None:
+        orf_bin_size = 7
+    else:
+        orf_bin_size = len(orf_bins) - 1
 
     orfs = {
         "crn": None,
@@ -1248,69 +1271,154 @@ def common_red_noise_block(
         "gt": model_orfs.gt_orf(tau=parameter.Uniform(-1.5, 1.5)("tau")),
         "dipole": model_orfs.dipole_orf(),
         "monopole": model_orfs.monopole_orf(),
+        "param_multiple_corr": model_orfs.param_multiple_corr_orf(
+            mp=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_monopole"),
+            dp=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_dipole"),
+            hd=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_hd"),
+        ),
+        "zero_diag_param_multiple_corr": model_orfs.param_multiple_corr_orf(
+            mp=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_monopole_zero_diag"),
+            dp=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_dipole_zero_diag"),
+            hd=parameter.Uniform(0.0, 1.0)("gw_orf_param_mc_hd_zero_diag"),
+            diag=1e-20,
+        ),
+        "param_monopole": model_orfs.param_monopole_orf(
+            c=parameter.Uniform(0.0, 1.0)("gw_orf_param_monopole")
+        ),
+        "zero_diag_param_monopole": model_orfs.param_monopole_orf(
+            c=parameter.Uniform(0.0, 1.0)("gw_orf_param_monopole_zero_diag"), diag=1e-20
+        ),
         "param_hd": model_orfs.param_hd_orf(
-            a=parameter.Uniform(-1.5, 3.0)("gw_orf_param0"),
-            b=parameter.Uniform(-1.0, 0.5)("gw_orf_param1"),
-            c=parameter.Uniform(-1.0, 1.0)("gw_orf_param2"),
+            a=parameter.Uniform(-1.5, 3.0)("gw_orf_param_hd_0"),
+            b=parameter.Uniform(-1.0, 0.5)("gw_orf_param_hd_1"),
+            c=parameter.Uniform(-1.0, 1.0)("gw_orf_param_hd_2"),
+        ),
+        "zero_diag_param_hd": model_orfs.param_hd_orf(
+            a=parameter.Uniform(-1.5, 3.0)("gw_orf_param_hd_zero_diag_0"),
+            b=parameter.Uniform(-1.0, 0.5)("gw_orf_param_hd_zero_diag_1"),
+            c=parameter.Uniform(-1.0, 1.0)("gw_orf_param_hd_zero_diag_2"),
+            diag=1e-20,
         ),
         "spline_orf": model_orfs.spline_orf(
             params=parameter.Uniform(-0.9, 0.9, size=7)("gw_orf_spline")
         ),
-        "bin_orf": model_orfs.bin_orf(
-            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_bin")
+        "interp_orf": model_orfs.interp_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_interp")
         ),
-        "zero_diag_hd": model_orfs.zero_diag_hd(),
-        "zero_diag_bin_orf": model_orfs.zero_diag_bin_orf(
-            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_bin_zero_diag")
+        "bin_orf": model_orfs.bin_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=orf_bin_size)("gw_orf_bin"),
+            bins=orf_bins,
+        ),
+        "bin_cos_orf": model_orfs.bin_cos_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_bin_cos")
         ),
         "freq_hd": model_orfs.freq_hd(params=[components, orf_ifreq]),
+        "zero_diag_hd": model_orfs.hd_orf(diag=1e-20),
+        "zero_diag_dipole": model_orfs.dipole_orf(diag=1e-20),
+        "zero_diag_monopole": model_orfs.monopole_orf(diag=1e-20),
+        "zero_diag_spline_orf": model_orfs.spline_orf(
+            params=parameter.Uniform(-0.9, 0.9, size=7)("gw_orf_spline_zero_diag"),
+            diag=1e-20,
+        ),
+        "zero_diag_interp_orf": model_orfs.interp_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_interp_zero_diag"),
+            diag=1e-20,
+        ),
+        "zero_diag_bin_orf": model_orfs.bin_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_bin_zero_diag"),
+            diag=1e-20,
+        ),
+        "zero_diag_bin_cos_orf": model_orfs.bin_cos_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=7)("gw_orf_bin_cos_zero_diag"),
+            diag=1e-20,
+        ),
         "legendre_orf": model_orfs.legendre_orf(
             params=parameter.Uniform(-1.0, 1.0, size=leg_lmax + 1)("gw_orf_legendre")
         ),
-        "zero_diag_legendre_orf": model_orfs.zero_diag_legendre_orf(
+        "zero_diag_legendre_orf": model_orfs.legendre_orf(
             params=parameter.Uniform(-1.0, 1.0, size=leg_lmax + 1)(
                 "gw_orf_legendre_zero_diag"
-            )
+            ),
+            diag=1e-20,
         ),
+        "chebyshev_orf": model_orfs.chebyshev_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=4)("gw_orf_chebyshev")
+        ),
+        "zero_diag_chebyshev_orf": model_orfs.chebyshev_orf(
+            params=parameter.Uniform(-1.0, 1.0, size=4)("gw_orf_chebyshev_zero_diag"),
+            diag=1e-20,
+        ),        
     }
 
+    if tnfreq and Tspan is not None:
+        components = get_tncoeff(Tspan, components)
+
     # common red noise parameters
-    if psd in ["powerlaw", "turnover", "turnover_knee", "broken_powerlaw"]:
+    if psd in [
+        "powerlaw", 
+        "turnover", 
+        "turnover_knee", 
+        "broken_powerlaw",
+        "flat_powerlaw",
+    ]:
         amp_name = "{}_log10_A".format(name)
         if log10_A_val is not None:
             log10_Agw = parameter.Constant(log10_A_val)(amp_name)
-
-        if logmin is not None and logmax is not None:
+        elif logmin is not None and logmax is not None:
             if prior == "uniform":
                 log10_Agw = parameter.LinearExp(logmin, logmax)(amp_name)
-            elif prior == "log-uniform" and gamma_val is not None:
-                if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
-                else:
-                    log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
-            else:
+            elif prior == "log-uniform":
                 log10_Agw = parameter.Uniform(logmin, logmax)(amp_name)
-
+            elif prior == "gaussian":
+                log10_Agw = parameter.Normal(logmin, logmax)(amp_name)
         else:
             if prior == "uniform":
                 log10_Agw = parameter.LinearExp(-18, -11)(amp_name)
-            elif prior == "log-uniform" and gamma_val is not None:
-                if np.abs(gamma_val - 4.33) < 0.1:
-                    log10_Agw = parameter.Uniform(-18, -14)(amp_name)
-                else:
-                    log10_Agw = parameter.Uniform(-18, -11)(amp_name)
-            else:
+            elif prior == "log-uniform":
                 log10_Agw = parameter.Uniform(-18, -11)(amp_name)
+            else:
+                log10_Agw = parameter.Uniform(-20, -11)(amp_name)
 
         gam_name = "{}_gamma".format(name)
         if gamma_val is not None:
             gamma_gw = parameter.Constant(gamma_val)(gam_name)
         else:
-            gamma_gw = parameter.Uniform(0, 7)(gam_name)
+            if gamma_prior == "uniform":
+                gamma_gw = parameter.Uniform(gammamin, gammamax)(gam_name)
+            elif gamma_prior == "gaussian":
+                gamma_gw = parameter.Normal(gammamin, gammamax)(gam_name)
 
         # common red noise PSD
         if psd == "powerlaw":
-            cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
+            if any([dropout, dropbin]):
+                if dropout:
+                    if dropout_common:
+                        k_drop = parameter.Uniform(0, 1)(name + "_k_drop")
+                    else:
+                        k_drop = parameter.Uniform(0, 1)
+                else:
+                    k_drop = None
+                if dropbin:
+                    if dropbin_common:
+                        k_dropbin = parameter.Uniform(dropbin_min, components + 1)(
+                            name + "_k_dropbin"
+                        )
+                    else:
+                        k_dropbin = parameter.Uniform(dropbin_min, components + 1)
+                else:
+                    k_dropbin = None
+
+                cpl = drop.dropout_powerlaw(
+                    log10_A=log10_Agw,
+                    gamma=gamma_gw,
+                    dropout_psr=dropout_psr,
+                    k_drop=k_drop,
+                    dropbin_psr=dropbin_psr,
+                    k_dropbin=k_dropbin,
+                    k_threshold=k_threshold,
+                )
+            else:
+                cpl = utils.powerlaw(log10_A=log10_Agw, gamma=gamma_gw)
         elif psd == "broken_powerlaw":
             delta_name = "{}_delta".format(name)
             kappa_name = "{}_kappa".format(name)
@@ -1354,69 +1462,130 @@ def common_red_noise_block(
                 kappa=kappa_gw,
                 delta=delta_gw,
             )
-
+        elif psd == "flat_powerlaw":
+            bmp_name = "{}_log10_B".format(name)
+            log10_Bgw = parameter.Uniform(-10, -4)(bmp_name)
+            cpl = gpp.flat_powerlaw(
+                log10_A=log10_Agw, gamma=gamma_gw, log10_B=log10_Bgw
+            )
     if psd == "spectrum":
         rho_name = "{}_log10_rho".format(name)
-
-        # checking if priors specified, otherwise give default values
-        if logmin is None:
-            logmin = -9
-        if logmax is None:
-            logmax = -4
-
-        if prior == "uniform":
-            log10_rho_gw = parameter.LinearExp(logmin, logmax, size=components)(
-                rho_name
-            )
-        elif prior == "log-uniform":
-            log10_rho_gw = parameter.Uniform(logmin, logmax, size=components)(rho_name)
+        if logmin is not None and logmax is not None:
+            if prior == "uniform":
+                log10_rho_gw = parameter.LinearExp(logmin, logmax, size=components)(
+                    rho_name
+                )
+            elif prior == "log-uniform":
+                log10_rho_gw = parameter.Uniform(logmin, logmax, size=components)(
+                    rho_name
+                )
+        else:
+            if prior == "uniform":
+                log10_rho_gw = parameter.LinearExp(-10, -4, size=components)(rho_name)
+            elif prior == "log-uniform":
+                log10_rho_gw = parameter.Uniform(-10, -4, size=components)(rho_name)
 
         cpl = gpp.free_spectrum(log10_rho=log10_rho_gw)
 
-    if orf is None:
-        crn = gp_signals.FourierBasisGP(
-            cpl,
-            coefficients=coefficients,
-            combine=combine,
-            components=components,
+    if select == "backend":
+        # define selection by observing backend
+        selection = selections.Selection(selections.by_backend)
+    elif select == "band" or select == "band+":
+        # define selection by observing band
+        selection = selections.Selection(selections.by_band)
+    elif isinstance(select, list):
+        # define selection by list of custom backend
+        selection = selections.Selection(selections.custom_backends(select))
+    elif isinstance(select, dict):
+        # define selection by dict of custom backend
+        selection = selections.Selection(selections.custom_backends_dict(select))
+    elif isinstance(select, type):
+        # define selection
+        selection = select
+    else:
+        # define no selection
+        selection = selections.Selection(selections.no_selection)
+
+    ## SET BASIS FUNCTIONS
+    # TODO: Find a way to use selection functions instead of flags.
+    # Note: Selecting here allows to select ToAs, even for correlated signals
+    # (not available in enterprise currently)
+    if flagname and flagval:
+        cbasis = gpb.createfourierdesignmatrix_general(
+            flagname=flagname,
+            flagval=flagval,
+            idx=idx,
+            tndm=tndm,
+            nmodes=components,
             Tspan=Tspan,
-            name=name,
+            psrTspan=psrTspan,
+            logf=logf,
+            fmin=fmin,
+            fmax=fmax,
+            modes=modes,
             pshift=pshift,
             pseed=pseed,
         )
-    elif orf in orfs.keys():
-        if orf == "crn":
-            crn = gp_signals.FourierBasisGP(
-                cpl,
-                coefficients=coefficients,
-                combine=combine,
-                components=components,
+    elif idx is not None:
+        if tndm:
+            cbasis = gpb.createfourierdesignmatrix_dm_tn(
+                nmodes=components,
                 Tspan=Tspan,
-                name=name,
-                pshift=pshift,
-                pseed=pseed,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                idx=idx,
+                modes=modes,
             )
         else:
-            crn = gp_signals.FourierBasisCommonGP(
-                cpl,
-                orfs[orf],
-                components=components,
-                combine=combine,
+            cbasis = gpb.createfourierdesignmatrix_chromatic(
+                nmodes=components,
                 Tspan=Tspan,
-                name=name,
-                pshift=pshift,
-                pseed=pseed,
+                logf=logf,
+                fmin=fmin,
+                fmax=fmax,
+                idx=idx,
+                modes=modes,
             )
-    elif isinstance(orf, types.FunctionType):
-        crn = gp_signals.FourierBasisCommonGP(
-            cpl,
-            orf,
-            components=components,
-            combine=combine,
+    else:
+        cbasis = gpb.createfourierdesignmatrix_red(
+            nmodes=components,
             Tspan=Tspan,
-            name=name,
+            logf=logf,
+            fmin=fmin,
+            fmax=fmax,
+            modes=modes,
             pshift=pshift,
             pseed=pseed,
+        )
+
+    ## SET SIGNAL OBJECT
+    if orf is None or "crn" in orf:
+        crn = gp_signals.BasisGP(
+            cpl,
+            cbasis,
+            coefficients=coefficients,
+            combine=combine,
+            selection=selection,
+            name=name,
+        )
+    elif orf in orfs.keys():
+        crn = gp_signals.BasisCommonGP(
+            cpl,
+            cbasis,
+            orfs[orf],
+            coefficients=coefficients,
+            combine=combine,
+            name=name,
+        )
+    elif isinstance(orf, types.FunctionType):
+        crn = gp_signals.BasisCommonGP(
+            cpl, 
+            cbasis, 
+            orf, 
+            coefficients=coefficients, 
+            combine=combine, 
+            name=name
         )
     else:
         raise ValueError("ORF {} not recognized".format(orf))
