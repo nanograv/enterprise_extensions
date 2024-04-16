@@ -648,12 +648,12 @@ def dm_noise_block(
     # dm noise parameters that are common
     if gp_kernel == "diag":
         if psd in [
-            "powerlaw", 
-            "turnover", 
-            "broken_powerlaw", 
-            "flat_powerlaw", 
-            "tprocess", 
-            "tprocess_adapt"
+            "powerlaw",
+            "turnover",
+            "broken_powerlaw",
+            "flat_powerlaw",
+            "tprocess",
+            "tprocess_adapt",
         ]:
             # parameters shared by PSD functions
             if logmin is not None and logmax is not None:
@@ -845,10 +845,7 @@ def dm_noise_block(
 
     if select is None:
         dmgp = gp_signals.BasisGP(
-            dm_prior, 
-            dm_basis,
-            name=name, 
-            coefficients=coefficients
+            dm_prior, dm_basis, name=name, coefficients=coefficients
         )
     else:
         dmgp = gp_signals.BasisGP(
@@ -1147,10 +1144,7 @@ def chromatic_noise_block(
 
     if select is None:
         cgp = gp_signals.BasisGP(
-            chm_prior, 
-            chm_basis, 
-            name=name, 
-            coefficients=coefficients
+            chm_prior, chm_basis, name=name, coefficients=coefficients
         )
     else:
         cgp = gp_signals.BasisGP(
@@ -1347,7 +1341,7 @@ def common_red_noise_block(
         "zero_diag_chebyshev_orf": model_orfs.chebyshev_orf(
             params=parameter.Uniform(-1.0, 1.0, size=4)("gw_orf_chebyshev_zero_diag"),
             diag=1e-20,
-        ),        
+        ),
     }
 
     if tnfreq and Tspan is not None:
@@ -1355,9 +1349,9 @@ def common_red_noise_block(
 
     # common red noise parameters
     if psd in [
-        "powerlaw", 
-        "turnover", 
-        "turnover_knee", 
+        "powerlaw",
+        "turnover",
+        "turnover_knee",
         "broken_powerlaw",
         "flat_powerlaw",
     ]:
@@ -1580,12 +1574,7 @@ def common_red_noise_block(
         )
     elif isinstance(orf, types.FunctionType):
         crn = gp_signals.BasisCommonGP(
-            cpl, 
-            cbasis, 
-            orf, 
-            coefficients=coefficients, 
-            combine=combine, 
-            name=name
+            cpl, cbasis, orf, coefficients=coefficients, combine=combine, name=name
         )
     else:
         raise ValueError("ORF {} not recognized".format(orf))
