@@ -122,6 +122,29 @@ def bin_orf(pos1, pos2, params, diag=1.0, bins=None):
 
 
 @signal_base.function
+def bin_cos_orf(pos1, pos2, params, diag=1.0):
+    """
+    Agnostic binned spatial correlation function. Bin edges are
+    placed at edges and across cos angular separation space. Changing bin
+    edges will require manual intervention to create new function.
+
+    :param: params
+        inter-pulsar correlation bin amplitudes.
+
+    Author: S. Chen (2022)
+
+    """
+    if np.all(pos1 == pos2):
+        return diag
+    else:
+        # bins in cos angsep space
+        bins = np.array([-1, -0.7, -0.4, -0.1, 0.1, 0.4, 0.7, 1])
+        cosangsep = np.dot(pos1, pos2)
+        idx = np.digitize(cosangsep, bins)
+        return params[idx - 1]
+
+
+@signal_base.function
 def freq_hd(pos1, pos2, params):
     """
     Frequency-dependent Hellings & Downs spatial correlation function.
@@ -150,9 +173,7 @@ def freq_hd(pos1, pos2, params):
         return hd_coeff
 
 
-signal_base.function
-
-
+@signal_base.function
 def legendre_orf(pos1, pos2, params, diag=1.0):
     """
     Legendre polynomial spatial correlation function.
