@@ -16,6 +16,10 @@ datadir = os.path.join(testdir, "data")
 
 psr_names = ["J0613-0200"]
 
+datadir = os.path.join(testdir, 'data')
+
+
+psr_names = ['J0613-0200']
 
 @pytest.fixture
 def nodmx_psrs(caplog):
@@ -26,6 +30,7 @@ def nodmx_psrs(caplog):
     psrs = []
     for p in psr_names:
         with open(datadir + "/{0}_ng9yr_nodmx_DE436_epsr.pkl".format(p), "rb") as fin:
+        with open(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
             psrs.append(pickle.load(fin))
 
     return psrs
@@ -48,3 +53,25 @@ def test_gibbs(nodmx_psrs, caplog):
     )
 
     assert hasattr(BPC, "sample")
+
+    psr = nodmx_psrs[0]
+    BPC = BP.BayesPower(
+                psr = psr,
+                Tspan = None,
+                select = 'backend',
+                white_vary = True,
+                inc_ecorr = True,
+                ecorr_type = 'kernel',
+                noise_dict = None,
+                tm_marg = False,
+                freq_bins = 10,
+                rhomin = -9, rhomax = -4)
+
+    assert hasattr(BPC, 'sample')
+
+
+
+
+
+
+
