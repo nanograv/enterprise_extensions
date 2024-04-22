@@ -2,7 +2,9 @@ import numpy as np
 from tqdm import tqdm
 import scipy.linalg as sl
 from functools import cached_property
-import os, glob, warnings
+import os
+import glob
+import warnings
 from enterprise_extensions import model_utils, blocks
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 from enterprise.signals import signal_base, gp_signals
@@ -105,7 +107,7 @@ class BayesPowerSingle(object):
         self.low = 10 ** (2 * self.rhomin)
         self.high = 10 ** (2 * self.rhomax)
 
-        ##Making the pta object
+        # Making the pta object
         if self.tm_marg:
             tm = gp_signals.MarginalizingTimingModel(use_svd=True)
             if self.white_vary:
@@ -170,8 +172,10 @@ class BayesPowerSingle(object):
         # Getting residuals
         self._residuals = self.pta.get_residuals()[0]
         # Intial guess for the model params
-        self._xs = np.array([p.sample() for p in self.pta.params], dtype=object)
-        # Initializign the b-coefficients. The shape is 2*freq_bins if tm_marg = True.
+        self._xs = np.array([p.sample()
+                            for p in self.pta.params], dtype=object)
+        # Initializign the b-coefficients. The shape is 2*freq_bins if tm_marg
+        # = True.
         self._b = np.zeros(self.pta.get_basis(self._xs)[0].shape[1])
         self.Tmat = self.pta.get_basis(params={})[0]
         self.phiinv = None
@@ -251,19 +255,27 @@ class BayesPowerSingle(object):
 
         try:
             TNT = self.TNT.copy()
-        except:
+        except BaseException:
             T = self.Tmat
             TNT = self.Nmat.solve(T, left_array=T)
         try:
             TNr = self.TNr.copy()
-        except:
+        except BaseException:
             T = self.Tmat
             TNr = self.Nmat.solve(self._residuals, left_array=T)
 
         np.fill_diagonal(TNT, TNT.diagonal() + self._phiinv)
         try:
-            chol = cho_factor(TNT, lower=True, overwrite_a=False, check_finite=False)
-            mean = cho_solve(chol, b=TNr, overwrite_b=False, check_finite=False)
+            chol = cho_factor(
+                TNT,
+                lower=True,
+                overwrite_a=False,
+                check_finite=False)
+            mean = cho_solve(
+                chol,
+                b=TNr,
+                overwrite_b=False,
+                check_finite=False)
             self._b = mean + st_solve(
                 chol[0],
                 np.random.normal(loc=0, scale=1, size=TNT.shape[0]),
@@ -284,8 +296,9 @@ class BayesPowerSingle(object):
                     dtype="float32",
                     mode="r",
                     shape=(self.niter, self.len_x + self.len_b),
-                )[:, -len(self._b) :]
-                self._b = bchain[np.random.default_rng().integers(0, len(bchain))]
+                )[:, -len(self._b):]
+                self._b = bchain[np.random.default_rng().integers(
+                    0, len(bchain))]
 
     def update_white_params(self, xs, iters=10):
         """
@@ -296,20 +309,23 @@ class BayesPowerSingle(object):
         wind = self.get_efacequad_indices
         xnew = xs
         x0 = xnew[wind].copy()
-        lnlike0, lnprior0 = self.get_lnlikelihood_white(x0), self.get_wn_lnprior(x0)
+        lnlike0, lnprior0 = self.get_lnlikelihood_white(
+            x0), self.get_wn_lnprior(x0)
         lnprob0 = lnlike0 + lnprior0
 
-        for ii in range(self.start_wn_iter + 1, self.start_wn_iter + iters + 1):
+        for ii in range(
+                self.start_wn_iter + 1,
+                self.start_wn_iter + iters + 1):
             x0, lnlike0, lnprob0 = self.sampler_wn.PTMCMCOneStep(
                 x0, lnlike0, lnprob0, ii
             )
         xnew[wind] = x0
         self.start_wn_iter = ii
 
-        ##Do some caching of "later needed" parameters for improved performance
+        # Do some caching of "later needed" parameters for improved performance
         self.Nmat = self.pta.get_ndiag(self.map_params(xnew))[0]
         Tmat = self.Tmat
-        if not "basis" in self.ecorr_type:
+        if "basis" not in self.ecorr_type:
             self.TNT = self.Nmat.solve(Tmat, left_array=Tmat)
         else:
             TN = Tmat / self.Nmat[:, None]
@@ -334,7 +350,9 @@ class BayesPowerSingle(object):
         ), self.get_basis_ecorr_lnprior(x0)
         lnprob0 = lnlike0 + lnprior0
 
-        for ii in range(self.start_ec_iter + 1, self.start_ec_iter + iters + 1):
+        for ii in range(
+                self.start_ec_iter + 1,
+                self.start_ec_iter + iters + 1):
             x0, lnlike0, lnprob0 = self.sampler_ec.PTMCMCOneStep(
                 x0, lnlike0, lnprob0, ii
             )
@@ -355,12 +373,12 @@ class BayesPowerSingle(object):
         # whitened residuals
         yred = self._residuals - self.Tmat @ self._b
         try:
-            if not "basis" in self.ecorr_type:
+            if "basis" not in self.ecorr_type:
                 rNr, logdet_N = Nmat.solve(yred, left_array=yred, logdet=True)
             else:
                 rNr = np.sum(yred**2 / Nmat)
                 logdet_N = np.sum(np.log(Nmat))
-        except:
+        except BaseException:
             return -np.inf
         # first component of likelihood function
         loglike = -0.5 * (logdet_N + rNr)
@@ -401,7 +419,8 @@ class BayesPowerSingle(object):
         x0 = self._xs.copy()
         x0[self.get_efacequad_indices] = xs
 
-        return np.sum([p.get_logpdf(value=x0[ct]) for ct, p in enumerate(self.params)])
+        return np.sum([p.get_logpdf(value=x0[ct])
+                      for ct, p in enumerate(self.params)])
 
     def get_basis_ecorr_lnprior(self, xs):
         """
@@ -410,7 +429,8 @@ class BayesPowerSingle(object):
         x0 = self._xs.copy()
         x0[self.get_basis_ecorr_indices] = xs
 
-        return np.sum([p.get_logpdf(value=x0[ct]) for ct, p in enumerate(self.params)])
+        return np.sum([p.get_logpdf(value=x0[ct])
+                      for ct, p in enumerate(self.params)])
 
     def sample(
         self,
@@ -463,9 +483,8 @@ class BayesPowerSingle(object):
         os.makedirs(savepath, exist_ok=True)
 
         if self.white_vary:
-            isave = int(
-                4e9
-            )  ## large number to avoid saving the white noise choice in a txt file
+            # large number to avoid saving the white noise choice in a txt file
+            isave = int(4e9)
             thin = 1
             Niter = int(niter * wniters + 1)
 
@@ -518,17 +537,17 @@ class BayesPowerSingle(object):
                     **kwargs
                 )
 
-        np.savetxt(
-            savepath + "/pars.txt", list(map(str, self.pta.param_names)), fmt="%s"
-        )
+        np.savetxt(savepath + "/pars.txt",
+                   list(map(str, self.pta.param_names)), fmt="%s")
         np.savetxt(
             savepath + "/priors.txt",
             list(map(lambda x: str(x.__repr__()), self.pta.params)),
             fmt="%s",
         )
         freqs = np.arange(
-            1 / self.Tspan, (self.freq_bins + 0.001) / self.Tspan, 1 / self.Tspan
-        )
+            1 / self.Tspan,
+            (self.freq_bins + 0.001) / self.Tspan,
+            1 / self.Tspan)
         np.save(savepath + "/freqs.npy", freqs)
         [os.remove(dpa) for dpa in glob.glob(savepath + "/*jump.txt")]
 
