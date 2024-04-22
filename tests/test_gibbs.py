@@ -29,7 +29,6 @@ def nodmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir + "/{0}_ng9yr_nodmx_DE436_epsr.pkl".format(p), "rb") as fin:
         with open(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
             psrs.append(pickle.load(fin))
 
