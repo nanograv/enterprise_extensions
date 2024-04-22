@@ -7,7 +7,7 @@ Tests for the gibbs sampling code.
 import logging
 import os
 import pickle
-import enterprise_extensions.GibbsMethod.BayesPower as BP
+import enterprise_extensions.gibbs_sampling.gibbs as BP
 import pytest
 
 testdir = os.path.dirname(os.path.abspath(__file__))
