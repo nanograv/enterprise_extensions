@@ -73,7 +73,7 @@ class HyperModel(object):
 
         # set up a parameter mask to get only the active model parameters from a sample
         self.active_par_masks = \
-	    [[par in model.param_names for par in self.param_names] for model in self.models]
+	    [[par in model.param_names for par in self.param_names] for model in self.models.values()]
 
     def get_lnlikelihood(self, x):
 
@@ -91,7 +91,7 @@ class HyperModel(object):
         ## only active parameters enter likelihood
         #active_lnlike = self.models[nmodel].get_lnlikelihood(q)
         # only active parameters enter likelihood
-        active_lnlike = self.models[nmodel].get_lnlikelihood(q[self.active_par_mask[nmodel]])
+        active_lnlike = self.models[nmodel].get_lnlikelihood(x[self.active_par_mask[nmodel]])
 
         if self.log_weights is not None:
             active_lnlike += self.log_weights[nmodel]
