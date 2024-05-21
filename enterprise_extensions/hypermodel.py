@@ -73,7 +73,7 @@ class HyperModel(object):
 
         # set up a parameter mask to get only the active model parameters from a sample
         self.active_par_masks = \
-	    [par in model.param_names for par in self.param_names] for model in self.models]
+	    [par in model.param_names for par in self.param_names] for model in self.models]]
 
     def get_lnlikelihood(self, x):
 
