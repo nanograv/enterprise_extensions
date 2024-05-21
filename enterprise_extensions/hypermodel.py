@@ -112,14 +112,20 @@ class HyperModel(object):
 
     def get_parameter_groups(self):
 
-        groups = []
+        unique_groups = []
         for p in self.models.values():
-            groups.extend(get_parameter_groups(p))
-        list(np.unique(groups))
-
-        groups.extend([[len(self.param_names)-1]])  # nmodel
-
-        return groups
+            groups = get_parameter_groups(p)
+            # check for any duplicate groups
+            # e.g. the GWB may have different indices in model 1 and model 2
+            for group in groups:
+                check_group = []
+                for idx in group:
+                    param_name = p.param_names[idx]
+                    check_group.append(self.param_names.index(param_name))
+                if check_group not in unique_groups:
+                    unique_groups.append(check_group)
+        unique_groups.extend([[len(self.param_names) - 1]])
+        return unique_groups
 
     def initial_sample(self):
         """
@@ -180,8 +186,18 @@ class HyperModel(object):
         ndim = len(self.param_names)
 
         # initial jump covariance matrix
-        if os.path.exists(outdir+'/cov.npy'):
+        if os.path.exists(outdir+'/cov.npy') and resume:
             cov = np.load(outdir+'/cov.npy')
+
+            # check that the one we load is the same shape as our data
+            cov_new = np.diag(np.ones(ndim) * 1.0**2)
+            if cov.shape != cov_new.shape:
+                msg = 'The covariance matrix (cov.npy) in the output folder is '
+                msg += 'the wrong shape for the parameters given. '
+                msg += 'Start with a different output directory or '
+                msg += 'change resume to False to overwrite the run that exists.'
+
+                raise ValueError(msg)
         else:
             cov = np.diag(np.ones(ndim) * 1.0**2)  # used to be 0.1
 
@@ -213,44 +229,40 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
         # DM GP noise prior draw
-        if 'dm_gp' in self.snames:
+        if 'dm_gp' in self.snames and len(jp.snames['dm_gp'])!=0:
             print('Adding DM GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
         # DM annual prior draw
-        if 'dm_s1yr' in jp.snames:
+        if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
         # DM dip prior draw
-        if 'dmexp' in '\t'.join(jp.snames):
+        dmexp_nm = [nm for nm in jp.snames if 'dmexp' in nm]
+        if len(dmexp_nm)!=0 and all([len(jp.snames[nm])!=0 for nm in dmexp_nm]):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
         # DM cusp prior draw
-        if 'dm_cusp' in jp.snames:
+        if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
             print('Adding DM exponential cusp prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
         # DMX prior draw
-        if 'dmx_signal' in jp.snames:
+        if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
         # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
+        if 'chrom_gp' in self.snames and len(jp.snames['chrom_gp'])!=0:
             print('Adding Chromatic GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
-        if 'gp_sw' in jp.snames:
+        if 'gp_sw' in jp.snames and len(jp.snames['gp_sw'])!=0:
             print('Adding Solar Wind DM GP prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
-
-        # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
-            print('Adding Chromatic GP noise prior draws...\n')
-            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:
@@ -286,6 +298,11 @@ class HyperModel(object):
         if 'cw_log10_h' in self.param_names:
             print('Adding CW prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_cw_log_uniform_distribution, 10)
+
+        # free spectrum prior draw
+        if np.any(['log10_rho' in par for par in self.param_names]):
+            print('Adding free spectrum prior draws...\n')
+            sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
         # Prior distribution draw for parameters named GW
         if any([str(p).split(':')[0] for p in list(self.params) if 'gw' in str(p)]):
