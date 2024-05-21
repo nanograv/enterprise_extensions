@@ -27,6 +27,7 @@ class HyperModel(object):
                                           return_index=True)
         self.param_names = self.param_names[np.argsort(ind)]
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
+        self.nmodel_idx = list(self.param_names).index('nmodel')
         #########
 
         self.pulsars = np.unique(np.concatenate([p.pulsars
@@ -78,8 +79,8 @@ class HyperModel(object):
     def get_lnlikelihood(self, x):
 
         # find model index variable
-        idx = list(self.param_names).index('nmodel')
-        nmodel = int(np.rint(x[idx]))
+        # idx = list(self.param_names).index('nmodel')
+        # nmodel = int(np.rint(x[idx]))
 
         ### jgb tryna take this outta the likelihood calls
         ## find parameters of active model
@@ -91,6 +92,7 @@ class HyperModel(object):
         ## only active parameters enter likelihood
         #active_lnlike = self.models[nmodel].get_lnlikelihood(q)
         # only active parameters enter likelihood
+        nmodel = int(np.rint(x[self.nmodel_idx]))
         active_lnlike = self.models[nmodel].get_lnlikelihood(x[self.active_par_masks[nmodel]])
 
         if self.log_weights is not None:
@@ -101,8 +103,9 @@ class HyperModel(object):
     def get_lnprior(self, x):
 
         # find model index variable
-        idx = list(self.param_names).index('nmodel')
-        nmodel = int(np.rint(x[idx]))
+        #idx = list(self.param_names).index('nmodel')
+        #nmodel = int(np.rint(x[idx]))
+        nmodel = int(np.rint(x[self.nmodel_idx]))
 
         if nmodel not in self.models.keys():
             return -np.inf
