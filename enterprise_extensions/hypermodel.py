@@ -71,20 +71,27 @@ class HyperModel(object):
                                                            for q in uniq_params]].tolist()
         #########
 
+        # set up a parameter mask to get only the active model parameters from a sample
+        self.active_par_masks = \
+	    [par in model.param_names for par in self.param_names] for model in self.models]
+
     def get_lnlikelihood(self, x):
 
         # find model index variable
         idx = list(self.param_names).index('nmodel')
         nmodel = int(np.rint(x[idx]))
 
-        # find parameters of active model
-        q = []
-        for par in self.models[nmodel].param_names:
-            idx = self.param_names.index(par)
-            q.append(x[idx])
-
+        ### jgb tryna take this outta the likelihood calls
+        ## find parameters of active model
+        #q = []
+        #for par in self.models[nmodel].param_names:
+        #    idx = self.param_names.index(par)
+        #    q.append(x[idx])
+        #
+        ## only active parameters enter likelihood
+        #active_lnlike = self.models[nmodel].get_lnlikelihood(q)
         # only active parameters enter likelihood
-        active_lnlike = self.models[nmodel].get_lnlikelihood(q)
+        active_lnlike = self.models[nmodel].get_lnlikelihood(q[self.active_par_mask[nmodel])
 
         if self.log_weights is not None:
             active_lnlike += self.log_weights[nmodel]
