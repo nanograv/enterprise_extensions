@@ -651,7 +651,11 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
 
-    cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
+    if gp_kernel == 'nondiag' and nondiag_kernel == 'dmx_like':
+        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp_ridge',
+                             coefficients=coefficients)
+    else:
+        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
                              coefficients=coefficients)
 
     if include_quadratic:
