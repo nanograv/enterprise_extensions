@@ -507,9 +507,9 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             if vary:
-                log10_sigma_ridge = parameter.Uniform(-10, -4)
+                log10_sigma_ridge = parameter.Uniform(-10, -4)("log10_sigma_ridge")
             else:
-                log10_sigma_ridge = parameter.Constant()
+                log10_sigma_ridge = parameter.Constant()("log10_sigma_ridge")
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt*const.day)
             dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
@@ -644,9 +644,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             if vary:
-                log10_sigma_ridge = parameter.Uniform(-10, -4)
+                log10_sigma_ridge = parameter.Uniform(-10, -4)("log10_sigma_ridge")
             else:
-                log10_sigma_ridge = parameter.Constant()
+                log10_sigma_ridge = parameter.Constant()("log10_sigma_ridge")
 
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
