@@ -47,9 +47,9 @@ def linear_interp_basis_freq(freqs, df=64):
 
 
 @signal_base.function
-def dmx_ridge_prior(avetoas, log10_sigma=-7):
+def dmx_ridge_prior(avetoas, log10_sigma_ridge=-7):
     """DMX-like signal with Gaussian prior"""
-    sigma = 10**log10_sigma
+    sigma = 10**log10_sigma_ridge
     return sigma**2 * np.ones_like(avetoas)
 
 

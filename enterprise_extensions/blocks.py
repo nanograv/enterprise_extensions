@@ -512,14 +512,10 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
                 log10_sigma_ridge = parameter.Constant()
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt*const.day)
-            dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
+            dm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
 
-    if nondiag_kernel == 'dmx_like' and gp_kernel == 'nondiag':
-        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp_ridge',
-                                coefficients=coefficients)
-    else:
-        dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
-                                coefficients=coefficients) 
+    dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
+                            coefficients=coefficients) 
 
     return dmgp
 
@@ -653,14 +649,10 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 log10_sigma_ridge = parameter.Constant()
 
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
-            chm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
+            chm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
 
-    if gp_kernel == 'nondiag' and nondiag_kernel == 'dmx_like':
-        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp_ridge',
-                             coefficients=coefficients)
-    else:
-        cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
-                             coefficients=coefficients)
+    cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
+                            coefficients=coefficients)
 
     if include_quadratic:
         # quadratic piece
