@@ -221,7 +221,7 @@ class HyperModel(object):
 
         save_runtime_info(self, sampler.outDir, human)
         
-        # save log_weights to a json in a way that is readable by la_forge
+        # save log_weights to a json file in a way that is compatible with la_forge
         if self.log_weights is not None:
             with open(sampler.outDir+'/model_log_weights.json' , 'w') as fout:
                 json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(self.num_models)}, 
