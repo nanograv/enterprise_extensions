@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import os
+import os, json
 
 import numpy as np
 import scipy.linalg as sl
@@ -220,6 +220,13 @@ class HyperModel(object):
                          loglkwargs=loglkwargs, logpkwargs=logpkwargs)
 
         save_runtime_info(self, sampler.outDir, human)
+        
+        # save log_weights to a json in a way that is readable by la_forge
+        if self.log_weights is not None:
+            with open(sampler.outDir+'/model_log_weights.json' , 'w') as fout:
+                json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(self.num_models)}, 
+                    fout, sort_keys=False,
+                    indent=4, separators=(',', ': '))
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
