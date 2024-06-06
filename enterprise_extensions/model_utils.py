@@ -11,8 +11,6 @@ try:
 except ImportError:
     from emcee.autocorr import integrated_time as acor
 
-from enterprise_extensions import models
-
 # Log-spaced frequncies
 
 

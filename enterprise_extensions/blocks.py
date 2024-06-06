@@ -15,7 +15,7 @@ from . import chromatic as chrom
 from . import dropout as drop
 from . import gp_kernels as gpk
 from . import model_orfs
-from . import model_utils
+# from . import model_utils
 
 
 __all__ = [
@@ -276,7 +276,8 @@ def red_noise_block(
     :param name: Define the signal name.
     """
     if tnfreq and Tspan is not None:
-        components = model_utils.get_tncoeff(Tspan, components)
+        # components = model_utils.get_tncoeff(Tspan, components)
+        components = int(Tspan / 86400 / components)
 
     # red noise parameters that are common
     if psd in [
