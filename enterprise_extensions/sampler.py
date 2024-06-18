@@ -1321,7 +1321,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
     # free spectrum prior draw
-    if np.any(['log10_rho' in par for par in pta.param_names]):
+    if np.any(['gw_log10_rho' in par for par in pta.param_names]):
         print('Adding free spectrum prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
