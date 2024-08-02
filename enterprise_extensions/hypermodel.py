@@ -95,9 +95,9 @@ class HyperModel(object):
         nmodel = int(np.rint(x[self.nmodel_idx]))
         active_lnlike = self.models[nmodel].get_lnlikelihood(x[self.active_par_masks[nmodel]])
 
-        if self.log_weights is not None:
-            active_lnlike += self.log_weights[nmodel]
-
+        #if self.log_weights is not None:
+        #    active_lnlike += self.log_weights[nmodel]
+        # MOVING this to the PRIOR as it is applied incorrectly in Parallel Tempering
         return active_lnlike
 
     def get_lnprior(self, x):
@@ -117,7 +117,10 @@ class HyperModel(object):
                     idx = self.param_names.index(par)
                     q.append(x[idx])
                 lnP += p.get_lnprior(np.array(q))
-
+            
+            if self.log_weights is not None:
+                lnP += self.log_weights[nmodel]
+            
             return lnP
 
     def get_parameter_groups(self):
@@ -221,7 +224,7 @@ class HyperModel(object):
 
         save_runtime_info(self, sampler.outDir, human)
         
-        # save log_weights to a json file in a way that is compatible with la_forge
+        # save log_weights to a json file in a way that will be loaded into la_forge
         if self.log_weights is not None:
             with open(sampler.outDir+'/model_log_weights.json' , 'w') as fout:
                 json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(self.num_models)}, 
