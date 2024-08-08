@@ -289,7 +289,7 @@ class JumpProposal(object):
                     self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
                                                             save_ext_dists=save_ext_dists, outdir=outdir)
                 else:
-                    self.empirical_distr = none
+                    self.empirical_distr = None
 
         if empirical_distr is not None and self.empirical_distr is None:
             # if an emp dist path is provided, but fails the code, this helpful msg is provided
