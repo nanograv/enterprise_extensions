@@ -25,6 +25,14 @@ enterprise\_extensions.frequentist.Fe\_statistic module
    :undoc-members:
    :show-inheritance:
 
+enterprise\_extensions.frequentist.chi\_squared module
+------------------------------------------------------
+
+.. automodule:: enterprise_extensions.frequentist.chi_squared
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 enterprise\_extensions.frequentist.optimal\_statistic module
 ------------------------------------------------------------
 
