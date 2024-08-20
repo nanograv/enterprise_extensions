@@ -1734,7 +1734,9 @@ def save_runtime_info(pta, outdir='chains', human=None):
 
 def setup_sampler(pta, outdir='chains', resume=False,
                   empirical_distr=None, groups=None, human=None,
-                  save_ext_dists=False, loglkwargs={}, logpkwargs={}):
+                  save_ext_dists=False, timing=False, psr=None,
+                  restrict_mass=True,
+                  loglkwargs=None, logpkwargs=None):
     """
     Sets up an instance of PTMCMC sampler.
 
@@ -1758,6 +1760,12 @@ def setup_sampler(pta, outdir='chains', resume=False,
     be loaded later as distributions to save a minute at the start
     of the run.
     """
+
+    if loglkwargs is None:
+        loglkwargs = {}
+
+    if logpkwargs is None:
+        logpkwargs = {}
 
     # dimension of parameter space
     params = pta.param_names
@@ -1783,6 +1791,11 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if groups is None:
         groups = get_parameter_groups(pta)
 
+    if timing:
+        groups.extend(get_timing_groups(pta))
+        groups.append(group_from_params(pta,
+                      [x for x in pta.param_names if any(y in x for y in ["timing_model", "ecorr"])]))
+
     sampler = ptmcmc(ndim, pta.get_lnlikelihood, pta.get_lnprior, cov, groups=groups,
                      outDir=outdir, resume=resume, loglkwargs=loglkwargs,
                      logpkwargs=logpkwargs)
@@ -1790,16 +1803,17 @@ def setup_sampler(pta, outdir='chains', resume=False,
     save_runtime_info(pta, sampler.outDir, human)
 
     # additional jump proposals
-    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists, outdir=outdir)
+    jp = JumpProposal(pta, empirical_distr=empirical_distr, save_ext_dists=save_ext_dists,
+                      outdir=outdir, timing=timing, psr=psr, sampler=sampler, restrict_mass=restrict_mass)
     sampler.jp = jp
 
     # always add draw from prior
-    sampler.addProposalToCycle(jp.draw_from_prior, 5)
+    sampler.addProposalToCycle(jp.draw_from_prior, 15)
 
     # try adding empirical proposals
     if empirical_distr is not None:
         print('Attempting to add empirical proposals...\n')
-        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 10)
+        sampler.addProposalToCycle(jp.draw_from_empirical_distr, 30)
 
     # Red noise prior draw
     if 'red noise' in jp.snames:
@@ -1874,6 +1888,31 @@ def setup_sampler(pta, outdir='chains', resume=False,
         print('Adding CW prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
+    # Non Linear Timing Draws
+    if "timing_model" in jp.snames:
+        print("Adding timing model jump proposal...\n")
+        sampler.addProposalToCycle(jp.draw_from_timing_model, 25)
+    if "timing_model" in jp.snames:
+        print("Adding timing model prior draw...\n")
+        sampler.addProposalToCycle(jp.draw_from_timing_model_prior, 25)
+
+    # DM Model Draws
+    if "dm_model" in jp.snames and len(jp.snames["dm_model"]):
+        print("Adding dm model prior draw...\n")
+        sampler.addProposalToCycle(jp.draw_from_signal("dm_model"), 10)
+
+    if timing:
+        if jp.restrict_mass:
+            # SCAM and AM Draws
+            # add SCAM
+            print("Adding SCAM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalSCAM, 20)
+
+            # add AM
+            print("Adding AM Jump Proposal...\n")
+            sampler.addProposalToCycle(jp.covarianceJumpProposalAM, 20)
+
+            # DE does not work well with restricting the pulsar mass
     # free spectrum prior draw
     if np.any(['log10_rho' in par for par in pta.param_names]):
         print('Adding free spectrum prior draws...\n')
