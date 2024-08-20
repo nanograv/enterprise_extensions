@@ -683,7 +683,8 @@ def model_2a(psrs, psd='powerlaw', noisedict=None, components=30,
         return pta
 
 
-def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
+def model_general(psrs, tm_var=False, tm_linear=False, tm_param_list=None, ltm_list=None,
+                  tm_param_dict=None, tm_prior="uniform", normalize_prior_bound=5.0, fit_remaining_pars=True,
                   tm_svd=False, tm_norm=True, noisedict=None, white_vary=False,
                   Tspan=None, modes=None, wgts=None, logfreq=False, nmodes_log=10,
                   common_psd='powerlaw', common_components=30, tnequad=False,
@@ -707,7 +708,7 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
         [default = False]
     :param tm_linear: boolean to vary timing model under linear approximation.
         [default = False]
-    :param tmparam_list: list of timing model parameters to vary.
+    :param tm_param_list: list of timing model parameters to vary.
         [default = None]
     :param tm_svd: stabilize timing model designmatrix with SVD.
         [default = False]
@@ -840,6 +841,15 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
            30 sampling frequencies. (global)
     """
 
+    if tm_param_list is None:
+        tm_param_list = []
+
+    if ltm_list is None:
+        ltm_list = []
+
+    if tm_param_dict is None:
+        tm_param_dict = {}
+
     amp_prior = 'uniform' if upper_limit else 'log-uniform'
     gp_priors = [upper_limit_red, upper_limit_dm, upper_limit_common]
     if all(ii is None for ii in gp_priors):
@@ -875,14 +885,37 @@ def model_general(psrs, tm_var=False, tm_linear=False, tmparam_list=None,
     else:
         # create new attribute for enterprise pulsar object
         for p in psrs:
-            p.tmparams_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
-            for key in p.tmparams_orig:
-                p.tmparams_orig[key] = (p.t2pulsar[key].val,
-                                        p.t2pulsar[key].err)
+            p.tm_params_orig = OrderedDict.fromkeys(p.t2pulsar.pars())
+            for key in p.tm_params_orig:
+                p.tm_params_orig[key] = (p.t2pulsar[key].val, p.t2pulsar[key].err)
         if not tm_linear:
-            s = timing_block(tmparam_list=tmparam_list)
+            s = timing_block(tm_param_list=tm_param_list)
         else:
-            pass
+            for i, p in enumerate(psrs):
+                if i == 0:
+                    s = timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
+                else:
+                    s += timing_block(
+                        psrs,
+                        tm_param_list=tm_param_list,
+                        ltm_list=ltm_list,
+                        prior_type=tm_prior,
+                        prior_sigma=2.0,
+                        prior_lower_bound=-5.0,
+                        prior_upper_bound=5.0,
+                        tm_param_dict=tm_param_dict,
+                        fit_remaining_pars=fit_remaining_pars,
+                    )
 
     # find the maximum time span to set GW frequency sampling
     if Tspan is not None:
