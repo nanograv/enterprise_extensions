@@ -8,6 +8,7 @@ Welcome to enterprise_extensions's documentation!
    readme
    installation
    usage
+   nonlinear_timing_example
    modules
    contributing
    authors
