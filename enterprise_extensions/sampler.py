@@ -1058,6 +1058,87 @@ def get_cw_groups(pta):
     return groups
 
 
+def get_timing_groups(pta):
+    """Utility function to get parameter groups for timing sampling.
+    These groups should be appended to the usual get_parameter_groups()
+    output.
+    """
+    pos_pars = ["RAJ", "DECJ", "ELONG", "ELAT", "BETA", "LAMBDA", "PX"]
+    spin_pars = ["F", "F0", "F1", "F2", "P", "P1", "Offset"]
+    mass_pars = ["PB", "A1", "SINI", "COSI", "M2"]
+    kep_pars = [
+        "PB",
+        "T0",
+        "A1",
+        "OM",
+        "E",
+        "ECC",
+        "EPS1",
+        "EPS2",
+        "EPS1DOT",
+        "EPS2DOT",
+        "FB",
+        "SINI",
+        "COSI",
+        "MTOT",
+        "M2",
+        "A1DOT",
+        "XDOT",
+        "X2DOT",
+        "EDOT",
+        "KOM",
+        "KIN",
+        "TASC",
+    ]
+    gr_pars = [
+        "H3",
+        "H4",
+        "OMDOT",
+        "OM2DOT",
+        "XOMDOT",
+        "PBDOT",
+        "XPBDOT",
+        "GAMMA",
+        "PPNGAMMA",
+        "DR",
+        "DTHETA",
+    ]
+    pm_pars = [
+        "PMDEC",
+        "PMRA",
+        "PMELONG",
+        "PMELAT",
+        "PMRV",
+        "PMBETA",
+        "PMLAMBDA",
+    ]
+
+    groups = []
+    for pars in [pos_pars, spin_pars, kep_pars, gr_pars, pm_pars, mass_pars]:
+        group = []
+        for p in pars:
+            for q in pta.param_names:
+                if p == q.split("_")[-1]:
+                    group.append(pta.param_names.index(q))
+        if len(group):
+            groups.append(group)
+
+    dmx_group = group_from_partial_par_name(pta, part="DMX")
+    if len(dmx_group):
+        groups.append(dmx_group)
+    jump_fd_group = group_from_partial_par_name(pta, part="FD")
+    jump_fd_group.extend(group_from_partial_par_name(pta, part="JUMP"))
+    jump_fd_group.extend(group_from_partial_par_name(pta, part="dm_model"))
+    if len(jump_fd_group):
+        groups.append(jump_fd_group)
+
+    return groups
+
+
+def group_from_partial_par_name(pta, part="DMX"):
+    return [pta.param_names.index(q) for q in pta.param_names if part in q]
+
+
 def group_from_params(pta, params):
     gr = []
     for p in params:
