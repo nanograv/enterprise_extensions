@@ -4,9 +4,12 @@ import glob
 import os
 import pickle
 import platform
+import warnings
 
 import healpy as hp
 import numpy as np
+from scipy.stats import multivariate_normal as mv_norm
+
 from PTMCMCSampler import __version__ as __vPTMCMC__
 from PTMCMCSampler.PTMCMCSampler import PTSampler as ptmcmc
 
@@ -158,7 +161,10 @@ def extend_emp_dists(pta, emp_dists, npoints=100_000, save_ext_dists=False, outd
 
 class JumpProposal(object):
 
-    def __init__(self, pta, snames=None, empirical_distr=None, f_stat_file=None, save_ext_dists=False, outdir='./chains'):
+    def __init__(
+            self, pta, snames=None, empirical_distr=None,
+            f_stat_file=None, save_ext_dists=False, outdir='./chains',
+            timing=False, psr=None, sampler=None, restrict_mass=True):
         """Set up some custom jump proposals"""
         self.params = pta.params
         self.pnames = pta.param_names
@@ -282,6 +288,65 @@ class JumpProposal(object):
             self.fe_freqs = npzfile['freqs']
             self.fe = npzfile['fe']
 
+        if timing:
+            self.restrict_mass = restrict_mass
+            self.max_emergency_iter = 1000  # Prevents infinite loop and from sample taking too long
+            self.sampler = sampler
+
+            if not psr:
+                raise ValueError("Must include a pulsar object in JumpProposal.")
+            if not sampler:
+                raise ValueError("Must include a sampler object in JumpProposal.")
+
+            tm_groups = get_timing_groups(pta)
+            tm_idx = np.unique([inner for outer in tm_groups for inner in outer])
+            tm_groups.extend(tm_idx)
+            self.tm_groups = np.array(tm_groups, dtype=object)
+
+            self.mass_pars = ["A1", "M2", "PB", "SINI", "COSI"]
+            self.inclination_flag = "SINI"
+            mass_dict = {}
+            for par, ii in self.pimap.items():
+                if par.split('_')[-1] in self.mass_pars:
+                    mass_dict[par] = ii
+                if "COSI" in par:
+                    self.inclination_flag = "COSI"
+            self.mass_idxs = []
+            self.unscaled_mass_values = []
+            for m_p in self.mass_pars:
+                if m_p in psr.tm_params_orig.keys():
+                    self.unscaled_mass_values.append((psr.tm_params_orig[m_p][0], psr.tm_params_orig[m_p][1]))
+                    for mass_key, mass_idx in mass_dict.items():
+                        if m_p in mass_key:
+                            self.mass_idxs.append(mass_idx)
+
+            if len(mass_dict.keys()) > len(self.mass_pars):
+                raise ValueError("There are the wrong amount of mass parameters being used. Check the dictionary: ", mass_dict)
+            # special_pars = ["PX", "SINI", "COSI", "ECC"]
+            # Any parameter not centered around zero is considered a "special parameter" that does not draw from a zero-centered Gaussian
+            special_pars = []
+            for x in [str(y) for y in pta.params if "timing_model" in str(y)]:
+                if "Uniform" in x:
+                    pmin = float(x.split("Uniform")[-1].split("pmin=")[1].split(",")[0])
+                    pmax = float(x.split("Uniform")[-1].split("pmax=")[-1].split(")")[0])
+                    if pmin + pmax != 0.0:
+                        special_pars.append(x.split(":")[0])
+                elif "BoundedNormal" in x:
+                    pmin = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[0])
+                    pmax = float(x.split("BoundedNormal")[-1].split("[")[-1].split(",")[1].split(']')[0])
+                    if pmin + pmax != 0.0:
+                        special_pars.append(x.split(":")[0])
+                else:
+                    special_pars.append(x.split(":")[0])
+
+            self.special_idxs = [
+                ii
+                for par, ii in self.pimap.items()
+                if np.any([sp in par for sp in special_pars])
+            ]
+        else:
+            self.restrict_mass = False
+
     def draw_from_prior(self, x, iter, beta):
         """Prior draw.
 
@@ -294,18 +359,53 @@ class JumpProposal(object):
         # randomly choose parameter
         param = np.random.choice(self.params)
 
-        # if vector parameter jump in random component
-        if param.size:
-            idx2 = np.random.randint(0, param.size)
-            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+        if self.restrict_mass:
+            # Used to check parameter will change pulsar mass
+            if "timing_model" in str(param).split(":")[0]:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        param = np.random.choice([x for x in self.snames["timing_model"] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
 
-        # scalar parameter
+                    if param.size:
+                        idx2 = np.random.randint(0, param.size)
+                        q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+                    # scalar parameter
+                    else:
+                        q[self.pmap[str(param)]] = param.sample()
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("draw_from_prior")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
+                # if vector parameter jump in random component
+                if param.size:
+                    idx2 = np.random.randint(0, param.size)
+                    q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+                # scalar parameter
+                else:
+                    q[self.pmap[str(param)]] = param.sample()
         else:
-            q[self.pmap[str(param)]] = param.sample()
+            # if vector parameter jump in random component
+            if param.size:
+                idx2 = np.random.randint(0, param.size)
+                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+            # scalar parameter
+            else:
+                q[self.pmap[str(param)]] = param.sample()
 
         # forward-backward jump probability
-        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
-                param.get_logpdf(q[self.pmap[str(param)]]))
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
 
         return q, float(lqxy)
 
@@ -752,7 +852,8 @@ class JumpProposal(object):
 
         q = x.copy()
         lqxy = 0
-        std = ['linear timing model',
+        std = ['timing_model',
+               'linear timing model',
                'red noise',
                'phys_ephem',
                'gw',
@@ -994,6 +1095,461 @@ class JumpProposal(object):
         lqxy = np.log(fe_old_point/fe_new_point * hastings_extra_factor)
 
         return q, float(lqxy)
+
+    def covarianceJumpProposalSCAM(self, x, iter, beta):
+        """
+        Single Component Adaptive Jump Proposal. This function will occasionally
+        jump in more than 1 parameter. It will also occasionally use different
+        jump sizes to ensure proper mixing.
+
+        @param x: Parameter vector at current position
+        @param iter: Iteration of sampler
+        @param beta: Inverse temperature of chain
+        @param sampler: PTMCMCSampler sampler object
+
+        @return: q: New position in parameter space
+        @return: qxy: Forward-Backward jump probability
+
+        """
+
+        q = x.copy()
+        qxy = 0
+
+        # choose group
+        jumpind = np.random.randint(0, len(self.sampler.groups))
+        ndim = len(self.sampler.groups[jumpind])
+        mass_check = any(x in self.mass_idxs for x in self.sampler.groups[jumpind])
+
+        # adjust step size
+        prob = np.random.rand()
+
+        # large jump
+        if prob > 0.97:
+            scale = 10
+
+        # small jump
+        elif prob > 0.9:
+            scale = 0.2
+
+        # small-medium jump
+        # elif prob > 0.6:
+
+        # standard medium jump
+        else:
+            scale = 1.0
+
+        # scale = np.random.uniform(0.5, 10)
+
+        # adjust scale based on temperature
+        if self.sampler.temp <= 100:
+            scale *= np.sqrt(self.sampler.temp)
+
+        # get parmeters in new diagonalized basis
+        # y = np.dot(self.U.T, x[self.covinds])
+
+        # make correlated componentwise adaptive jump
+        ind = np.unique(np.random.randint(0, ndim, 1))
+        neff = len(ind)
+        cd = 2.4 / np.sqrt(2 * neff) * scale
+
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        q = x.copy()
+                        # choose mass group
+                        jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                        # draw different parameter from mass groups model
+                        ndim = len(self.sampler.groups[jumpind])
+                        # make correlated componentwise adaptive jump
+                        ind = np.unique(np.random.randint(0, ndim, 1))
+                        neff = len(ind)
+                        cd = 2.4 / np.sqrt(2 * neff) * scale
+
+                    q[self.sampler.groups[jumpind]] += (np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten())
+
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("covarianceJumpProposalSCAM")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
+                # y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
+                # q[self.covinds] = np.dot(self.U, y)
+                q[self.sampler.groups[jumpind]] += (
+                    np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten()
+                )
+        else:
+            # y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.S[ind])
+            # q[self.covinds] = np.dot(self.U, y)
+            q[self.sampler.groups[jumpind]] += (
+                np.random.randn() * cd * np.sqrt(self.sampler.S[jumpind][ind]) * self.sampler.U[jumpind][:, ind].flatten()
+            )
+
+        return q, qxy
+
+    def covarianceJumpProposalAM(self, x, iter, beta):
+        """
+        Adaptive Jump Proposal. This function will occasionally
+        use different jump sizes to ensure proper mixing.
+
+        @param x: Parameter vector at current position
+        @param iter: Iteration of sampler
+        @param beta: Inverse temperature of chain
+        @param sampler: PTMCMCSampler sampler object
+
+        @return: q: New position in parameter space
+        @return: qxy: Forward-Backward jump probability
+
+        """
+
+        q = x.copy()
+        qxy = 0
+
+        # choose group
+        jumpind = np.random.randint(0, len(self.sampler.groups))
+        mass_check = any(x in self.mass_idxs for x in self.sampler.groups[jumpind])
+
+        # adjust step size
+        prob = np.random.rand()
+
+        # large jump
+        if prob > 0.97:
+            scale = 10
+
+        # small jump
+        elif prob > 0.9:
+            scale = 0.2
+
+        # small-medium jump
+        # elif prob > 0.6:
+        #    scale = 0.5
+
+        # standard medium jump
+        else:
+            scale = 1.0
+
+        # adjust scale based on temperature
+        if self.sampler.temp <= 100:
+            scale *= np.sqrt(self.sampler.temp)
+
+        # get parmeters in new diagonalized basis
+        y = np.dot(self.sampler.U[jumpind].T, x[self.sampler.groups[jumpind]])
+
+        # make correlated componentwise adaptive jump
+        ind = np.arange(len(self.sampler.groups[jumpind]))
+        neff = len(ind)
+        cd = 2.4 / np.sqrt(2 * neff) * scale
+
+        y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.sampler.S[jumpind][ind])
+
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        q = x.copy()
+                        # choose mass group
+                        jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                        # get mass parmeters in new diagonalized basis
+                        y = np.dot(self.sampler.U[jumpind].T, x[self.sampler.groups[jumpind]])
+
+                        # make correlated componentwise adaptive jump
+                        ind = np.arange(len(self.sampler.groups[jumpind]))
+                        neff = len(ind)
+                        cd = 2.4 / np.sqrt(2 * neff) * scale
+
+                        y[ind] = y[ind] + np.random.randn(neff) * cd * np.sqrt(self.sampler.S[jumpind][ind])
+
+                    q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
+
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("covarianceJumpProposalAM")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+            else:
+                q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
+        else:
+            q[self.sampler.groups[jumpind]] = np.dot(self.sampler.U[jumpind], y)
+
+        return q, qxy
+
+    def DEJump(self, x, iter, beta):
+        """
+        Differential Evolution Jump. This function will  occasionally
+        use different jump sizes to ensure proper mixing.
+
+        @param x: Parameter vector at current position
+        @param iter: Iteration of sampler
+        @param beta: Inverse temperature of chain
+        @param sampler: PTMCMCSampler sampler object
+
+        @return: q: New position in parameter space
+        @return: qxy: Forward-Backward jump probability
+
+        """
+
+        # get old parameters
+        q = x.copy()
+        qxy = 0
+
+        # after burn in, actually use DE jumps
+        if (iter - 1) >= self.sampler.burn and self.sampler.MPIrank == 0:
+
+            # choose group
+            jumpind = np.random.randint(0, len(self.sampler.groups))
+            ndim = len(self.sampler.groups[jumpind])
+            mass_check = any(x in self.mass_idxs for x in self.sampler.groups[jumpind])
+
+            bufsize = len(self.sampler._DEbuffer)
+
+            # draw a random integer from 0 - iter
+            mm = np.random.randint(0, bufsize)
+            nn = np.random.randint(0, bufsize)
+
+            # make sure mm and nn are not the same iteration
+            while mm == nn:
+                nn = np.random.randint(0, bufsize)
+
+            # get jump scale size
+            prob = np.random.rand()
+
+            # mode jump
+            if prob > 0.5:
+                scale = 1.0
+
+            else:
+                scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
+
+            if self.restrict_mass:
+                # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+                # Or if the drawn parameter will change the pulsar mass
+                if iter < 10 or mass_check:
+                    accepted = False
+                    emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                    while not accepted and emergency_iter < self.max_emergency_iter:
+                        if emergency_iter > 0:
+                            q = x.copy()
+                            # choose mass group
+                            jumpind = [i for (i, x) in enumerate(self.sampler.groups) if set(x).issubset(self.mass_idxs)][0]
+                            ndim = len(self.sampler.groups[jumpind])
+
+                            # get jump scale size
+                            prob = np.random.rand()
+                            # mode jump
+                            if prob > 0.5:
+                                scale = 1.0
+                            else:
+                                scale = np.random.rand() * 2.4 / np.sqrt(2 * ndim) * np.sqrt(1 / beta)
+
+                        for ii in range(ndim):
+                            # jump size
+                            sigma = self.sampler._DEbuffer[mm, self.sampler.groups[jumpind][ii]] - self.sampler._DEbuffer[nn, self.sampler.groups[jumpind][ii]]
+                            # jump
+                            q[self.sampler.groups[jumpind][ii]] += scale * sigma
+
+                        accepted = self.check_pulsar_mass(q)
+                        emergency_iter += 1
+
+                    if emergency_iter > 500:
+                        print("DEJump")
+                        print("Emergency iter:", emergency_iter)
+                        _ = self.check_pulsar_mass(q, print_mp=True)
+                else:
+                    for ii in range(ndim):
+
+                        # jump size
+                        sigma = self.sampler._DEbuffer[mm, self.sampler.groups[jumpind][ii]] - self.sampler._DEbuffer[nn, self.sampler.groups[jumpind][ii]]
+
+                        # jump
+                        q[self.sampler.groups[jumpind][ii]] += scale * sigma
+            else:
+                for ii in range(ndim):
+
+                    # jump size
+                    sigma = self.sampler._DEbuffer[mm, self.sampler.groups[jumpind][ii]] - self.sampler._DEbuffer[nn, self.sampler.groups[jumpind][ii]]
+
+                    # jump
+                    q[self.sampler.groups[jumpind][ii]] += scale * sigma
+
+        return q, qxy
+
+    def draw_from_timing_model(self, x, iter, beta):
+        """
+        Pull from standard normal distributions (based on the fit timing
+        parameters) as jump proposals. Pull from various timing parameters,
+        based on the groups of parameters in tm_groups, which includes
+        individual parameter proposals.
+        """
+        q = x.copy()
+        lqxy = 0
+
+        # signal_name = "timing_model"
+
+        # draw parameter from signal model
+        idxs = np.random.choice(self.tm_groups)
+        try:
+            L = len(idxs)
+            pidxs = [idx for idx in idxs if idx in self.special_idxs]
+            q[idxs] = np.random.randn(L)
+            for pidx in pidxs:
+                q[pidx] = self.params[pidx].sample()
+            mass_check = any(idx in self.mass_idxs for idx in idxs)
+        except TypeError:
+            L = 1
+            pidxs = []
+            if idxs in self.special_idxs:
+                pidxs = [idxs]
+            q[idxs] = np.random.randn(L)
+            mass_check = idxs in self.mass_idxs
+
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or mass_check:
+                accepted = False
+                emergency_iter = 0  # If the initial sample is bad, the sampler cannot change the mass values
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        idxs = self.mass_idxs
+                        L = len(idxs)
+                        pidxs = [idx for idx in idxs if idx in self.special_idxs]
+                    q[idxs] = np.random.randn(L)
+                    if len(pidxs) == 0:
+                        pass
+                    else:
+                        for pidx in pidxs:
+                            q[pidx] = self.params[pidx].sample()
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("draw_from_timing_model")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+
+        # forward-backward jump probability
+        lqxy = mv_norm.logpdf(x[idxs], mean=np.zeros(L)) - mv_norm.logpdf(
+            q[idxs], mean=np.zeros(L)
+        )
+
+        return q, float(lqxy)
+
+    def draw_from_timing_model_prior(self, x, iter, beta):
+        q = x.copy()
+        lqxy = 0
+
+        signal_name = "timing_model"
+
+        # draw parameter from signal model
+        param = np.random.choice(self.snames[signal_name])
+
+        if param.size:
+            idx2 = np.random.randint(0, param.size)
+            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+
+        # scalar parameter
+        else:
+            q[self.pmap[str(param)]] = param.sample()
+
+        if self.restrict_mass:
+            # If the initial sample is bad, the sampler cannot change the mass values (hence iter<10)
+            # Or if the drawn parameter will change the pulsar mass
+            if iter < 10 or str(param).split(":")[0].split('_')[-1] in self.mass_pars:
+                accepted = False
+                emergency_iter = 0
+                while not accepted and emergency_iter < self.max_emergency_iter:
+                    if emergency_iter > 0:
+                        # draw different parameter from mass groups model
+                        param = np.random.choice([x for x in self.snames[signal_name] if str(x).split(":")[0].split('_')[-1] in self.mass_pars])
+
+                        # scalar parameter
+                        q[self.pmap[str(param)]] = param.sample()
+
+                    accepted = self.check_pulsar_mass(q)
+                    emergency_iter += 1
+
+                if emergency_iter > 500:
+                    print("draw_from_timing_model_prior")
+                    print("Emergency iter:", emergency_iter)
+                    _ = self.check_pulsar_mass(q, print_mp=True)
+
+        # forward-backward jump probability
+        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
+            q[self.pmap[str(param)]]
+        )
+
+        return q, float(lqxy)
+
+    def check_pulsar_mass(self, new_draw, print_mp=False):
+        """
+        Computes the companion mass from the Keplerian mass function,
+        given projected size and orbital period. This function uses a
+        Newton-Raphson method since the equation is transcendental.
+
+        :param new_draw: array of newly drawn parameters
+        """
+
+        for i, mass_idx in enumerate(self.mass_idxs):
+            if mass_idx in self.special_idxs:
+                value = new_draw[mass_idx]
+            else:
+                value = self.unscaled_mass_values[i][0] + self.unscaled_mass_values[i][1] * new_draw[mass_idx]
+
+            # print(self.pnames[mass_idx],"unscaled values:",self.unscaled_mass_values[i][0],"new values:",new_draw[mass_idx],value)
+
+            if i == 0:
+                A1 = value
+            elif i == 1:
+                M2 = value
+            elif i == 2:
+                PB = value
+            elif i == 3:
+                if self.inclination_flag == "SINI":
+                    SINI = value
+                elif self.inclination_flag == "COSI":
+                    with warnings.catch_warnings(record=True) as w:
+                        SINI = np.sqrt(1-value**2)
+                        if len(w) > 0:
+                            # print("Error!!! COSI Value above 1 or below 0:",value)
+                            return False
+                else:
+                    raise ValueError("inclination_flag can only be SINI or COSI")
+
+        T_sun = 4.925490947e-6  # conversion from solar masses to seconds
+        nb = 2 * np.pi / PB / 86400
+        mf = nb**2 * A1**3 / T_sun
+
+        with warnings.catch_warnings(record=True) as w:
+            mp = np.sqrt((M2 * SINI) ** 3 / mf) - M2
+            if len(w) > 0:
+                # print("Error!!! M2 Value is negative:",M2)
+                # print("SINI Value",SINI)
+                # print("M2 Value",M2)
+                # print("mf Value",mf)
+                return False
+
+        if print_mp:
+            print("Pulsar Mass:", mp)
+
+        # If newly sampled pulsar mass is between 0 and 3 solar masses, accept it
+        if mp < 0. or mp > 3.:
+            return False
+        else:
+            return True
 
 
 def get_global_parameters(pta):
