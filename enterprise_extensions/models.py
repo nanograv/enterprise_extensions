@@ -28,7 +28,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           tmparam_list=None,
                           red_var=True, psd='powerlaw', red_select=None,
                           noisedict=None, tm_svd=False, tm_norm=True,
-                          white_vary=True, components=30, upper_limit=False,
+                          white_vary=True, gp_ecorr=False, components=30, upper_limit=False,
                           is_wideband=False, use_dmdata=False, tnequad=False,
                           dmjump_var=False, gamma_val=None, dm_var=False,
                           dm_type='gp', dmgp_kernel='diag', dm_psd='powerlaw',
@@ -73,6 +73,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param tm_svd: boolean for svd-stabilised timing model design matrix
     :param tm_norm: normalize the timing model, or provide custom normalization
     :param white_vary: boolean for varying white noise or keeping fixed
+    :param gp_ecorr: whether to use GP (kernel) model for ECORR (true) or basis ecorr (false, default)
     :param components: number of modes in Fourier domain processes
     :param dm_components: number of modes in Fourier domain DM processes
     :param upper_limit: whether to do an upper-limit analysis
@@ -329,13 +330,13 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
 
     # adding white-noise, and acting on psr objects
     if ('NANOGrav' in psr.flags['pta'] or 'CHIME' in psr.flags['f']) and not is_wideband:
-        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True,
+        s2 = s + white_noise_block(vary=white_vary, inc_ecorr=True, gp_ecorr=gp_ecorr,
                                    tnequad=tnequad, select=select)
         model = s2(psr)
         if psr_model:
             Model = s2
     else:
-        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False,
+        s3 = s + white_noise_block(vary=white_vary, inc_ecorr=False, gp_ecorr=gp_ecorr,
                                    tnequad=tnequad, select=select, ng_twg_setup=ng_twg_setup, wb_efac_sigma=wb_efac_sigma)
         model = s3(psr)
         if psr_model:
