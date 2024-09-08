@@ -299,7 +299,7 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
 
 
 def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
-                     symmetric=False, name='dual_dm_cusp'):
+                     symmetric=False, name='dual_dm_cusp', vary=True):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -362,7 +362,7 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     return dm_cusp
 
 
-def dmx_signal(dmx_data, name='dmx_signal'):
+def dmx_signal(dmx_data, name='dmx_signal', vary=True):
     """
     Returns DMX signal:
 
