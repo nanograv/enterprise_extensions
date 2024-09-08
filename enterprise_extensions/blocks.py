@@ -515,7 +515,7 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
             dm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
 
     dmgp = gp_signals.BasisGP(dm_prior, dm_basis, name='dm_gp',
-                            coefficients=coefficients) 
+                              coefficients=coefficients)
 
     return dmgp
 
@@ -621,12 +621,11 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                 log10_p = parameter.Constant()
                 log10_gam_p = parameter.Constant()
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day,idx=idx)
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
                                             log10_gam_p=log10_gam_p,
                                             log10_p=log10_p)
-
 
         elif nondiag_kernel == 'sq_exp':
             # squared-exponential kernel for DM
@@ -640,7 +639,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                          log10_ell=log10_ell)
-            
+
         elif nondiag_kernel == 'dmx_like':
             # DMX-like signal
             if vary:
@@ -652,7 +651,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
             chm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
 
     cgp = gp_signals.BasisGP(chm_prior, chm_basis, name=name+'_gp',
-                            coefficients=coefficients)
+                             coefficients=coefficients)
 
     if include_quadratic:
         # quadratic piece
