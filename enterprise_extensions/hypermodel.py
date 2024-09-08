@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import os, json
+import os
+import json
 
 import numpy as np
 import scipy.linalg as sl
@@ -74,37 +75,17 @@ class HyperModel(object):
 
         # set up a parameter mask to get only the active model parameters from a sample
         self.active_par_masks = \
-	    [[par in model.param_names for par in self.param_names] for model in self.models.values()]
+            [[par in model.param_names for par in self.param_names] for model in self.models.values()]
 
     def get_lnlikelihood(self, x):
-
-        # find model index variable
-        # idx = list(self.param_names).index('nmodel')
-        # nmodel = int(np.rint(x[idx]))
-
-        ### jgb tryna take this outta the likelihood calls
-        ## find parameters of active model
-        #q = []
-        #for par in self.models[nmodel].param_names:
-        #    idx = self.param_names.index(par)
-        #    q.append(x[idx])
-        #
-        ## only active parameters enter likelihood
-        #active_lnlike = self.models[nmodel].get_lnlikelihood(q)
         # only active parameters enter likelihood
         nmodel = int(np.rint(x[self.nmodel_idx]))
         active_lnlike = self.models[nmodel].get_lnlikelihood(x[self.active_par_masks[nmodel]])
 
-        #if self.log_weights is not None:
-        #    active_lnlike += self.log_weights[nmodel]
-        # MOVING this to the PRIOR as it is applied incorrectly in Parallel Tempering
         return active_lnlike
 
     def get_lnprior(self, x):
-
-        # find model index variable
-        #idx = list(self.param_names).index('nmodel')
-        #nmodel = int(np.rint(x[idx]))
+        # determine which model we are sampling in
         nmodel = int(np.rint(x[self.nmodel_idx]))
 
         if nmodel not in self.models.keys():
@@ -117,10 +98,10 @@ class HyperModel(object):
                     idx = self.param_names.index(par)
                     q.append(x[idx])
                 lnP += p.get_lnprior(np.array(q))
-            
+
             if self.log_weights is not None:
                 lnP += self.log_weights[nmodel]
-            
+
             return lnP
 
     def get_parameter_groups(self):
@@ -223,13 +204,13 @@ class HyperModel(object):
                          loglkwargs=loglkwargs, logpkwargs=logpkwargs)
 
         save_runtime_info(self, sampler.outDir, human)
-        
+
         # save log_weights to a json file in a way that will be loaded into la_forge
         if self.log_weights is not None:
             with open(sampler.outDir+'/model_log_weights.json' , 'w') as fout:
-                json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(range(self.num_models))}, 
-                    fout, sort_keys=False,
-                    indent=4, separators=(',', ': '))
+                json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(range(self.num_models))},
+                          fout, sort_keys=False,
+                          indent=4, separators=(',', ': '))
 
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
