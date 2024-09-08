@@ -208,14 +208,10 @@ class JumpProposal(object):
         if isinstance(empirical_distr, list):
             # check if a list of emp dists is provided
             self.empirical_distr = empirical_distr
-
-        # jeremy is adding functionality for a hypermodel empirical distribution
+        # pass a dictionary of of lists of empirical distributions for a hypermodel
         elif isinstance(empirical_distr, dict):
             # save the dictionary of empirical distributions to self
             self.empirical_distr = empirical_distr
-            # get the index of the nmodel param
-            #print(self.plist)
-            #self.nmodel_param_idx = list(self.pta_params).index('nmodel')
             # get the dictionary keys
             self.emp_dist_dict_keys = list(empirical_distr.keys())
 
@@ -280,8 +276,7 @@ class JumpProposal(object):
                         # extend empirical_distr here:
                         print(f'extending {key}\'s empirical distributions to priors...\n')
                         self.empirical_distr[key] = extend_emp_dists(pta, self.empirical_distr[key], npoints=100_000,
-                                                                save_ext_dists=save_ext_dists, outdir=outdir)
-                    
+                                                                     save_ext_dists=save_ext_dists, outdir=outdir)
             else:
                 mask = []
                 for idx, d in enumerate(self.empirical_distr):
@@ -455,15 +450,10 @@ class JumpProposal(object):
 
         if self.empirical_distr is not None:
 
-            # get nmodel value for the proposed sample
-            #print(" q: ",  q)
-            # i guess the nmodel parameter is always the last in the q array
+            # get nmodel value for the proposed sample (always the last param)
             hm_idx = int(np.rint(q[-1]))
             # get the empirical distribution dictionary key corresponding to proposed sample nmodel
             key = self.emp_dist_dict_keys[hm_idx]
-            # empirical_distr = self.empirical_distr[key]
-            # maybe we don't need to create a variable for the above ^^
-
             # continue as an empiricial distribution jump proposal, but with the dictionary keyed appropriately
             # randomly choose one of the empirical distributions
             distr_idx = np.random.randint(0, len(self.empirical_distr[key]))
@@ -498,7 +488,6 @@ class JumpProposal(object):
 
         return q, float(lqxy)
 
-    
     def draw_from_dm_gp_prior(self, x, iter, beta):
 
         q = x.copy()
@@ -1268,7 +1257,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
     if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
-        
+
     # DM dip prior draw
     if 'dmexp' in jp.snames and len(jp.snames['dmexp'])!=0:
         print('Adding DM exponential dip prior draws...\n')
