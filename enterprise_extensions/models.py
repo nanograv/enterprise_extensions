@@ -236,7 +236,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                     coefficients=coefficients,
                                     vary=vary_dm)
         elif dm_type == 'dmx':
-            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name],vary=vary_dm)
+            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name], vary=vary_dm)
         if dm_annual:
             s += chrom.dm_annual_signal(vary=vary_dm)
 
@@ -314,7 +314,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
             s += solar_wind_block(ACE_prior=True, include_swgp=dm_sw_gp,
                                   swgp_prior=swgp_prior, swgp_basis=swgp_basis,
                                   Tspan=Tspan)
-            
+
     if chrom_gp:
         s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
                                    psd=chrom_psd, idx=chrom_idx,
