@@ -227,7 +227,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
 
         rn = gp_signals.FourierBasisGP(pl, components=components_low,
                                        Tspan=Tspan, coefficients=coefficients,
-                                       combine=combine, selection=selection)
+                                       combine=combine, selection=selection,
+                                       name='red_noise')
 
         rn_flat = gp_signals.FourierBasisGP(pl_flat,
                                             modes=freqs[components_low:],
@@ -242,7 +243,8 @@ def red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=None,
                                        combine=combine,
                                        coefficients=coefficients,
                                        selection=selection,
-                                       modes=modes)
+                                       modes=modes,
+                                       name='red_noise')
 
     if select == 'band+':  # Add the common component as well
         rn = rn + gp_signals.FourierBasisGP(pl, components=components,
@@ -419,13 +421,13 @@ def dm_noise_block(gp_kernel='diag', psd='powerlaw', nondiag_kernel='periodic',
 
         if psd == 'spectrum':
             if not vary:
-                log10_rho_dm = parameter.Constant()
+                log10_rho = parameter.Constant()
             elif prior == 'uniform':
-                log10_rho_dm = parameter.LinearExp(-10, -4, size=components)
+                log10_rho = parameter.LinearExp(-10, -4, size=components)
             elif prior == 'log-uniform':
-                log10_rho_dm = parameter.Uniform(-10, -4, size=components)
+                log10_rho = parameter.Uniform(-10, -4, size=components)
 
-            dm_prior = gpp.free_spectrum(log10_rho=log10_rho_dm)
+            dm_prior = gpp.free_spectrum(log10_rho=log10_rho)
 
         dm_basis = utils.createfourierdesignmatrix_dm(nmodes=components,
                                                       Tspan=Tspan)
@@ -603,13 +605,12 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
         if psd == 'spectrum':
             if not vary:
-                log10_rho_chrom = parameter.Constant()
+                log10_rho = parameter.Constant()
             elif prior == 'uniform':
-                log10_rho_chrom = parameter.LinearExp(-10, -4, size=components)
+                log10_rho = parameter.LinearExp(-10, -4, size=components)
             elif prior == 'log-uniform':
-                log10_rho_chrom = parameter.Uniform(-10, -4, size=components)
-                print(log10_rho_chrom)
-            chm_prior = gpp.free_spectrum(log10_rho=log10_rho_chrom)
+                log10_rho = parameter.Uniform(-10, -4, size=components)
+            chm_prior = gpp.free_spectrum(log10_rho=log10_rho)
 
     elif gp_kernel == 'nondiag':
         if nondiag_kernel == 'periodic':
