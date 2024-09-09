@@ -525,7 +525,8 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
                           prior='log-uniform', dt=15, df=200,
                           idx=4, include_quadratic=False,
                           Tspan=None, name='chrom', components=30,
-                          coefficients=False, vary=True):
+                          coefficients=False, vary=True,
+                          idx_prior_upper_bound=7):
     """
     Returns GP chromatic noise model :
 
@@ -549,7 +550,9 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         frequency-scale for linear interpolation basis (MHz)
     :param idx:
         Index of radio frequency dependence (i.e. DM is 2). Any float will
-        work or 'vary' will vary between [2.5,5]
+        work or 'vary' will vary between [2.5, idx_prior_upper_bound]
+    :param idx_prior_upper_bound:
+        Upper bound on the chromatic index prior. default = 5
     :param include_quadratic:
         Whether to include a quadratic fit.
     :param name: Name of signal
@@ -567,7 +570,7 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
         if not vary:
             idx = parameter.Constant()
         else:
-            idx = parameter.Uniform(2.5, 5)
+            idx = parameter.Uniform(2.5, idx_prior_upper_bound)
 
     if gp_kernel == 'diag':
         chm_basis = gpb.createfourierdesignmatrix_chromatic(nmodes=components,
@@ -600,12 +603,13 @@ def chromatic_noise_block(gp_kernel='nondiag', psd='powerlaw',
 
         if psd == 'spectrum':
             if not vary:
-                log10_rho = parameter.Constant()
+                log10_rho_chrom = parameter.Constant()
             elif prior == 'uniform':
-                log10_rho = parameter.LinearExp(-10, -4, size=components)
+                log10_rho_chrom = parameter.LinearExp(-10, -4, size=components)
             elif prior == 'log-uniform':
-                log10_rho = parameter.Uniform(-10, -4, size=components)
-            chm_prior = gpp.free_spectrum(log10_rho=log10_rho)
+                log10_rho_chrom = parameter.Uniform(-10, -4, size=components)
+                print(log10_rho_chrom)
+            chm_prior = gpp.free_spectrum(log10_rho=log10_rho_chrom)
 
     elif gp_kernel == 'nondiag':
         if nondiag_kernel == 'periodic':
