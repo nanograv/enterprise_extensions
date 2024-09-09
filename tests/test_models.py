@@ -194,7 +194,7 @@ def test_model_singlepsr_noise_chrom_nondiag(nodmx_psrs, caplog):
     m.get_lnlikelihood(x0)
 
 
-#FIXME: currently there are not any dm gp free spec params in the pulsars
+# FIXME: currently there are not any dm gp free spec params in the pulsars
 def test_model_singlepsr_noise_dm_diag(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[0], vary_dm=True,
