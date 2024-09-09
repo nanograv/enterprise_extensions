@@ -59,7 +59,7 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                           Tspan=None, fact_like_gamma=13./3, gw_components=10,
                           fact_like_logmin=None, fact_like_logmax=None,
                           select='backend', tm_marg=False, dense_like=False, ng_twg_setup=False, wb_efac_sigma=0.25,
-                          vary_dm=True, vary_chrom=True):
+                          vary_dm=True, vary_chrom=True, chrom_gp_idx_prior_upper_bound=7):
     """
     Single pulsar noise model.
 
@@ -97,7 +97,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
     :param chrom_psd: power-spectral density of chromatic noise
         ['powerlaw','tprocess','free_spectrum']
     :param chrom_idx: frequency scaling of chromatic noise. use 'vary' to vary
-        between [2.5,5].
+        between [2.5,chrom_gp_idx_prior_upper_bound].
+    :param chrom_gp_idx_prior_upper_bound: upper bound on the prior for chromatic index. default is 7.
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
@@ -324,7 +325,8 @@ def model_singlepsr_noise(psr, tm_var=False, tm_linear=False,
                                    include_quadratic=chrom_quad,
                                    coefficients=coefficients,
                                    Tspan=Tspan,
-                                   vary=vary_chrom)
+                                   vary=vary_chrom,
+                                   idx_prior_upper_bound=chrom_gp_idx_prior_upper_bound)
     if extra_sigs is not None:
         s += extra_sigs
 
