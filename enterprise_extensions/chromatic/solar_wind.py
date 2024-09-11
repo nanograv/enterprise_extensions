@@ -186,7 +186,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
         Prior function for solar wind Gaussian process. Default is a power law.
     :param swgp_basis:
         Basis to be used for solar wind Gaussian process.
-        Options includes ['powerlaw'.'periodic','sq_exp']
+        Options includes ['powerlaw','periodic','sq_exp','triangular']
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for individual pulsar. Default is to use 15
@@ -240,6 +240,12 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
             sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
             sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
+            
+        elif swgp_basis == 'triangular':
+            # white noise kernel for SW DM, using delta n_earth as coefficients
+            log10_sigma_ne = parameter.Uniform(-4, 2)
+            sw_basis = gpk.sw_dm_triangular_basis()
+            sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
 
         gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
         sw_model += gp_sw
