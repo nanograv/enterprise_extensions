@@ -240,7 +240,7 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
             sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
             sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                         log10_ell=log10_ell)
-            
+
         elif swgp_basis == 'triangular':
             # white noise kernel for SW DM, using delta n_earth as coefficients
             log10_sigma_ne = parameter.Uniform(-4, 2)

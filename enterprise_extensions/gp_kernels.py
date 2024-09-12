@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from enterprise.signals import signal_base, utils
+from enterprise.signals import signal_base, utils, parameter
 import enterprise.constants as const
+from enterprise_extensions import chromatic as chrom
 
 __all__ = ['linear_interp_basis_dm',
            'linear_interp_basis_freq',
@@ -93,6 +94,7 @@ def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     K = sigma**2 * np.exp(-r**2/2/l**2) + d
     return K
 
+
 @signal_base.function
 def sw_dm_triangular_basis(toas, planetssb, sunssb, pos_t, freqs, fref=1400):
     """
@@ -106,28 +108,29 @@ def sw_dm_triangular_basis(toas, planetssb, sunssb, pos_t, freqs, fref=1400):
     :return: V: Nc x Ntoa design matrix
     :return: Tc: SW conjunctions
     """
-    
+
     # First get SW conjunctions
     theta, R_earth, _, _ = chrom.solar_wind.theta_impact(planetssb, sunssb, pos_t)
     # Estimate conjunction times using TOA of closest approach
     toa_min_theta = toas[np.argmin(theta)]
-    Tc = toa_min_theta + np.arange(100)*const.yr - 50*const.yr # This might break after the NANOGrav 50 yr dataset
+    Tc = toa_min_theta + np.arange(100)*const.yr - 50*const.yr  # This might break after the NANOGrav 50 yr dataset
     Tc = Tc[(Tc > np.min(toas))*(Tc < np.max(toas))]
-    
+
     # Set up triangular basis matrix functions
     Nc = len(Tc)
     Nt = len(toas)
-    Lambda = np.max(np.array([1 - np.abs(toas[:,None] - Tc[None,:])/const.yr, np.zeros((Nt,Nc))]), axis=0)
-    
+    Lambda = np.max(np.array([1 - np.abs(toas[:, None] - Tc[None, :])/const.yr, np.zeros((Nt, Nc))]), axis=0)
+
     # Geometric factor (units of DM)
     S_theta = chrom.solar_wind.dm_solar(1.0, theta, R_earth)
-    
+
     # Convert from DM to a time delay
     S_theta *= 1e-12/const.DM_K/freqs**2
-    
+
     # return basis and conjunctions
-    V = S_theta[:,None]*Lambda
+    V = S_theta[:, None]*Lambda
     return V, Tc
+
 
 @parameter.function
 def sw_dm_wn_prior(Tc, log10_sigma_ne=-4):
