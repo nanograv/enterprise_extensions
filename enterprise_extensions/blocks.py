@@ -107,9 +107,12 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
                                                 selection=backend_ng, name=name)
 
         else:
-            ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
-                                                selection=backend_ng,
-                                                name=name)
+            if name is None:
+                ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                    selection=backend_ng, name=name)
+            else:
+                ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                    selection=backend_ng)
     # combine signals
     if inc_ecorr:
         s = efeq + ec
