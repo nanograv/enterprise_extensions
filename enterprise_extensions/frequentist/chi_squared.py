@@ -6,8 +6,8 @@ import scipy.linalg as sl
 
 def get_chi2(pta, xs):
     """Compute generalize chisq for pta:
-        chisq = y^T (N + F phi F^T)^-1 y
-              = y^T N^-1 y - y^T N^-1 F (F^T N^-1 F + phi^-1)^-1 F^T N^-1 y
+    chisq = y^T (N + F phi F^T)^-1 y
+          = y^T N^-1 y - y^T N^-1 F (F^T N^-1 F + phi^-1)^-1 F^T N^-1 y
     """
 
     params = xs if isinstance(xs, dict) else pta.map_params(xs)
@@ -17,7 +17,7 @@ def get_chi2(pta, xs):
 
     TNrs = pta.get_TNr(params)
     TNTs = pta.get_TNT(params)
-    phiinvs = pta.get_phiinv(params, logdet=True, method='cliques')
+    phiinvs = pta.get_phiinv(params, logdet=True, method="cliques")
 
     chi2 = np.sum(ell[0] for ell in pta.get_rNr_logdet(params))
 
@@ -47,9 +47,9 @@ def get_reduced_chi2(pta, xs):
     Compute Generalized Reduced Chi Square for PTA using degrees of freedom
     (DOF), defined by dof= NTOAs - N Timing Parameters - N Model Params.
     """
-    keys = [ky for ky in pta._signal_dict.keys() if 'timing_model' in ky]
+    keys = [ky for ky in pta._signal_dict.keys() if "timing_model" in ky]
     chi2 = get_chi2(pta, xs)
     degs = np.array([pta._signal_dict[ky].get_basis().shape for ky in keys])
     dof = np.sum(degs[:, 0]) - np.sum(degs[:, 1])
     dof -= len(pta.param_names)
-    return chi2/dof
+    return chi2 / dof
