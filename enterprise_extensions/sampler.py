@@ -248,6 +248,15 @@ class JumpProposal(object):
         self.ndim = sum(p.size or 1 for p in pta.params)
         self.plist = [p.name for p in pta.params]
 
+        # parameter dictionary
+        self.params_dict = {}
+        for p in self.params:
+            if p.size:
+                for ii in range(0, p.size):
+                    self.params_dict.update({p.name + "_{}".format(ii): p})
+            else:
+                self.params_dict.update({p.name: p})
+
         # parameter map
         self.pmap = {}
         ct = 0
@@ -643,22 +652,19 @@ class JumpProposal(object):
         lqxy = 0
 
         # draw parameter from signal model
-        signal_name = [
-            par for par in self.pnames if ("gw" in par and "log10_A" in par)
-        ][0]
-        idx = list(self.pnames).index(signal_name)
-        param = self.params[idx]
+        signal_name = [par for par in self.pnames
+                       if ('gw' in par and 'log10_A' in par)][0]
 
-        q[self.pmap[str(param)]] = np.random.uniform(
-            param.prior._defaults["pmin"], param.prior._defaults["pmax"]
-        )
+        param = self.params_dict[signal_name]
+
+        q[self.pmap[str(param)]] = np.random.uniform(param.prior._defaults['pmin'], param.prior._defaults['pmax'])
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
-            q[self.pmap[str(param)]]
-        )
+        lqxy = (param.get_logpdf(x[self.pmap[str(param)]]) -
+                param.get_logpdf(q[self.pmap[str(param)]]))
 
         return q, float(lqxy)
+
 
     def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
 
