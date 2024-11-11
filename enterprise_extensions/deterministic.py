@@ -239,7 +239,7 @@ def cw_delay(toas, pos, pdist,
              phase0=0, psi=0,
              psrTerm=False, p_dist=1, p_phase=None,
              evolve=False, phase_approx=False, check=False,
-             tref=0):
+             tref=0, scale_shift_pdists=True):
     """
     Function to create GW incuced residuals from a SMBMB as
     defined in Ellis et. al 2012,2013.
@@ -285,6 +285,10 @@ def cw_delay(toas, pos, pdist,
         Check if frequency evolves significantly over obs. time [boolean]
     :param tref:
         Reference time for phase and frequency [s]
+    :param scale_shift_pdists:
+        Toggle to scale and shift input p_dist param by distances in
+        enterprise pulsar. False to just use the input p_dist param directly.
+        Default True [boolean]
 
     :return: Vector of induced residuals
 
@@ -295,7 +299,10 @@ def cw_delay(toas, pos, pdist,
     fgw = 10**log10_fgw
     gwtheta = np.arccos(cos_gwtheta)
     inc = np.arccos(cos_inc)
-    p_dist = (pdist[0] + pdist[1]*p_dist)*const.kpc/const.c
+    if scale_shift_pdists:
+        p_dist = (pdist[0] + pdist[1]*p_dist)*const.kpc/const.c
+    else:
+        p_dist = p_dist*const.kpc/const.c
 
     if log10_h is None and log10_dist is None:
         raise ValueError("one of log10_dist or log10_h must be non-None")
