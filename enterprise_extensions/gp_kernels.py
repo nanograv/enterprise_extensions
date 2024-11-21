@@ -66,7 +66,7 @@ def periodic_kernel(avetoas, log10_sigma=-7, log10_ell=2,
     l = 10**log10_ell * 86400
     p = 10**log10_p * 3.16e7
     gam_p = 10**log10_gam_p
-    d = np.eye(r.shape[0]) * (sigma/500)**2
+    d = np.eye(r.shape[0]) * (sigma/50000.)**2
     K = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2) + d
     return K
 
@@ -78,7 +78,7 @@ def se_kernel(avefreqs, log10_sigma=-7, log10_lam=3):
 
     lam = 10**log10_lam
     sigma = 10**log10_sigma
-    d = np.eye(tm.shape[0]) * (sigma/500)**2
+    d = np.eye(tm.shape[0]) * (sigma/50000.)**2
     return sigma**2 * np.exp(-tm**2/2/lam) + d
 
 
@@ -90,7 +90,7 @@ def se_dm_kernel(avetoas, log10_sigma=-7, log10_ell=2):
     # Convert everything into seconds
     l = 10**log10_ell * 86400
     sigma = 10**log10_sigma
-    d = np.eye(r.shape[0]) * (sigma/500)**2
+    d = np.eye(r.shape[0]) * (sigma/50000.)**2
     K = sigma**2 * np.exp(-r**2/2/l**2) + d
     return K
 
@@ -212,7 +212,7 @@ def tf_kernel(labels, log10_sigma=-7, log10_ell=2, log10_gam_p=0,
     gam_p = 10**log10_gam_p
     alpha_wgt = 10**log10_alpha_wgt
 
-    d = np.eye(r.shape[0]) * (sigma/500)**2
+    d = np.eye(r.shape[0]) * (sigma/50000.)**2
     Kt = sigma**2 * np.exp(-r**2/2/l**2 - gam_p*np.sin(np.pi*r/p)**2)
     Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
 
@@ -238,7 +238,7 @@ def sf_kernel(labels, log10_sigma=-7, log10_ell=2,
     l2 = 10**log10_ell2
     alpha_wgt = 10**log10_alpha_wgt
 
-    d = np.eye(r.shape[0]) * (sigma/500)**2
+    d = np.eye(r.shape[0]) * (sigma/50000.)**2
     Kt = sigma**2 * np.exp(-r**2/2/l**2)
     Kv = (1+r2**2/2/alpha_wgt/l2**2)**(-alpha_wgt)
 
