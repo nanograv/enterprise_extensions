@@ -47,8 +47,10 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
 
     :param vary:
         If set to true we vary these parameters
-        with uniform priors. Otherwise they are set to constants
-        with values to be set later.
+        with uniform priors. Otherwise they are set to constants, that default
+        to EFAC=1.0, (log10) EQUAD=-inf and (log10) ECORR=-inf, i.e.,
+        uncorrelated noise with a standard deviation as given by the TOA
+        errors. These can be set to other alternative values later.
     :param inc_ecorr:
         include ECORR, needed for NANOGrav channelized TOAs
     :param gp_ecorr:
@@ -82,10 +84,10 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
     else:
-        efac = parameter.Constant()
-        equad = parameter.Constant()
+        efac = parameter.Constant(1.0)
+        equad = parameter.Constant(-np.inf)
         if inc_ecorr:
-            ecorr = parameter.Constant()
+            ecorr = parameter.Constant(-np.inf)
 
     # white noise signals
     if tnequad:
