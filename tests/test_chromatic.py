@@ -18,7 +18,6 @@ from enterprise.signals import parameter, gp_bases, signal_base, gp_priors, gp_s
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
 
-
 psr_names = ['J0613-0200', 'J1944+0907']
 
 
@@ -27,7 +26,7 @@ def nodmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng11yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
+        with open(datadir + f'/{p}_ng11yr_nodmx_DE436_epsr.pkl', 'rb') as fin:
             psrs.append(pickle.load(fin))
 
     return psrs
@@ -36,14 +35,15 @@ def nodmx_psrs(caplog):
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_sw_r_to_p(nodmx_psrs):
     p0 = nodmx_psrs[0]
-    dt_sw1 = sw.solar_wind_r_to_p(p0.toas, p0.freqs, p0.planetssb,
-                                  p0.sunssb, p0.pos_t,
-                                  n_earth=5, power=2, log10_ne=False)
+    dt_sw1 = sw.solar_wind_r_to_p(
+        p0.toas, p0.freqs, p0.planetssb, p0.sunssb, p0.pos_t,
+        n_earth=5, power=2, log10_ne=False
+    )
 
-    dt_sw2 = sw.solar_wind(p0.toas, p0.freqs, p0.planetssb,
-                           p0.sunssb, p0.pos_t, n_earth=5)
+    dt_sw2 = sw.solar_wind(
+        p0.toas, p0.freqs, p0.planetssb, p0.sunssb, p0.pos_t, n_earth=5
+    )
     assert all(np.isclose(dt_sw1, dt_sw2, atol=1e-8))
-
 
 
 def test_chromatic_fourier_basis_varied_idx(nodmx_psrs):
@@ -78,7 +78,7 @@ def test_chromatic_fourier_basis_varied_idx(nodmx_psrs):
     assert "J0613-0200_chrom_gp_idx" in cached_pta.param_names, msg
 
     # test to make sure the likelihood evaluations agree for 10 calls
-    msg = "the likelihood from cached chromatic basis disagrees with the uncached chroamtic basis likelihood"
+    msg = "the likelihood from cached chromatic basis disagrees with the uncached chromatic basis likelihood"
     x0 = [np.hstack([p.sample() for p in cached_pta.params]) for _ in range(10)]
     no_cache_lnlike = [uncached_pta.get_lnlikelihood(x0[i]) for i in range(10)]
     cache_lnlike = [cached_pta.get_lnlikelihood(x0[i]) for i in range(10)]
