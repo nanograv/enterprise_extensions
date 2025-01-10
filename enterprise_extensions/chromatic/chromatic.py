@@ -421,15 +421,15 @@ def dm_annual_signal(idx=2, name='dm_s1yr', vary=True):
 
 @parameter.function
 def construct_chromatic_cached_parts(
-     toas,
-     freqs,
-     nmodes=30,
-     Tspan=None,
-     logf=False,
-     fmin=None,
-     fmax=None,
-     modes=None,
-     fref=1400,
+    toas,
+    freqs,
+    nmodes=30,
+    Tspan=None,
+    logf=False,
+    fmin=None,
+    fmax=None,
+    modes=None,
+    fref=1400,
     ):
     """
     Using this function alongside `createfourierdesignmatrix_chromatic_with_additional_caching()`
