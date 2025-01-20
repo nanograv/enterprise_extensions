@@ -7,7 +7,7 @@ import scipy.stats as sps
 import scipy.special as spsf
 
 from enterprise import constants as const
-from enterprise.signals import (deterministic_signals, gp_signals, parameter,
+from enterprise.signals import (deterministic_signals, gp_priors, gp_signals, parameter,
                                 signal_base, utils)
 
 from .. import gp_kernels as gpk
@@ -168,8 +168,10 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
     return F * dt_DM[:, None], Ffreqs
 
 
-def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
-                     swgp_prior=None, swgp_basis=None, Tspan=None):
+def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
+                     n_earth_bins=None, t_init=None, t_final=None,
+                     include_swgp=True, swgp_prior='powerlaw', swgp_basis='fourier', gp_name="sw_gp",
+                     Tspan=None, modes=None, nmodes=15, dt=3,):
     """
     Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
         Contains a single mean electron density with an auxiliary perturbation
@@ -182,72 +184,106 @@ def solar_wind_block(n_earth=None, ACE_prior=False, include_swgp=True,
         Solar electron density at 1 AU.
     :param ACE_prior:
         Whether to use the ACE SWEPAM data as an astrophysical prior.
+    :param name:
+        Name of the signal.
     :param swgp_prior:
         Prior function for solar wind Gaussian process. Default is a power law.
+        Options for 'Fourier' swgp basis: ['powerlaw','spectrum']
+        Options for 'triangular' swgp basis: ['ridge']
+        Options for 'linear_interp' swgp basis: ['periodic','sq_exp', 'ridge']
     :param swgp_basis:
         Basis to be used for solar wind Gaussian process.
-        Options includes ['powerlaw','periodic','sq_exp','triangular']
+        Options includes ['fourier','linear_interp','triangular']
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for individual pulsar. Default is to use 15
         frequencies (1/Tspan,15/Tspan).
+    :param nmodes:
+        Number of Fourier modes to use for the SW Fourier design matrix.
+    :param dt:
+        Time interval for linear interpolation basis in days.
+        Only needed if swgp_basis is 'linear_interp'.
 
     """
 
-    if n_earth is None and not ACE_prior:
+    if n_earth is None and n_earth_bins is None and not ACE_prior:
         n_earth = parameter.Uniform(0, 30)('n_earth')
-    elif n_earth is None and ACE_prior:
+    elif n_earth is None and n_earth_bins is None and ACE_prior:
         n_earth = ACE_SWEPAM_Parameter()('n_earth')
+    elif n_earth is None and (isinstance(n_earth_bins, list) or
+                              isinstance(n_earth_bins, np.ndarray)) and ACE_prior:
+        n_earth = ACE_SWEPAM_Parameter(size=n_earth_bins.size-1)('n_earth')
+    elif n_earth is None and (isinstance(n_earth_bins, list) or
+                              isinstance(n_earth_bins, np.ndarray)) and not ACE_prior:
+        n_earth = parameter.Uniform(0,30,size=n_earth_bins.size-1)('n_earth')
     else:
-        pass
+        pass # set n_earth to the provided value(s) below
 
-    deter_sw = solar_wind(n_earth=n_earth)
-    mean_sw = deterministic_signals.Deterministic(deter_sw, name='n_earth')
+    deter_sw = solar_wind(n_earth=n_earth, n_earth_bins=n_earth_bins, t_init=t_init, t_final=t_final)
+    mean_sw = deterministic_signals.Deterministic(deter_sw, name=det_name)
     sw_model = mean_sw
 
     if include_swgp:
-        if swgp_basis == 'powerlaw':
-            # dm noise parameters that are common
-            log10_A_sw = parameter.Uniform(-10, 1)
-            gamma_sw = parameter.Uniform(-2, 1)
-            sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
-
+        if swgp_basis == 'fourier':
             if Tspan is not None:
-                freqs = np.linspace(1/Tspan, 30/Tspan, 30)
-                freqs = freqs[1/freqs > 1.5*yr_in_sec]
-                sw_basis = createfourierdesignmatrix_solar_dm(modes=freqs)
+                    sw_basis = createfourierdesignmatrix_solar_dm(nmodes=nmodes,
+                                                                  Tspan=Tspan)
+            elif modes is not None:
+                    sw_basis = createfourierdesignmatrix_solar_dm(modes=modes)
+                    nmodes = len(modes)
+            if swgp_prior == 'powerlaw':
+                log10_A_sw = parameter.Uniform(-10, 1)
+                gamma_sw = parameter.Uniform(-3, 5)
+                sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw, components=nmodes)
+
+            elif swgp_prior == 'spectrum':
+                # free spectrum GP for SW DM
+                log10_rho_sw = parameter.Uniform(-10, 1, size=nmodes)
+                sw_prior = gp_priors.free_spectrum(log10_rho=log10_rho_sw)
+
             else:
-                sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15,
-                                                              Tspan=Tspan)
+                raise ValueError('Invalid Fourier SWGP prior specified.')
 
-        elif swgp_basis == 'periodic':
-            # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+        elif swgp_basis == 'linear_interp':
+            # linear interpolation basis in time with nu^-2 * geometric factor scaling
+            # units of dt are days. Probably choose something between ~1 and 30 days.
+            sw_basis = linear_interp_basis_sw_dm(dt=dt*86400)
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
-            sw_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
-                                           log10_ell=log10_ell,
-                                           log10_gam_p=log10_gam_p,
-                                           log10_p=log10_p)
-        elif swgp_basis == 'sq_exp':
-            # squared-exponential GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
+            if swgp_prior == 'periodic':
+                # Periodic GP kernel for DM
+                log10_sigma = parameter.Uniform(-10, -4) # units are log10(seconds)
+                log10_ell = parameter.Uniform(1, 4) # units are log10(days)
+                log10_p = parameter.Uniform(-4, 1.5) # units are log10(years)
+                log10_gam_p = parameter.Uniform(-3, 2)
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=6*86400)
-            sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
-                                        log10_ell=log10_ell)
+                sw_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
+                                            log10_ell=log10_ell,
+                                            log10_gam_p=log10_gam_p,
+                                            log10_p=log10_p)
+            elif swgp_prior == 'sq_exp':
+                # squared-exponential GP kernel for DM
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 4)
+
+                sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                            log10_ell=log10_ell)
+            elif swgp_prior == 'ridge':
+                # white noise kernel for SW DM, using delta n_earth as coefficients
+                log10_sigma_ridge = parameter.Uniform(-4, 3)
+                sw_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
+            else:
+                raise ValueError('Invalid linear_interp SWGP prior specified.')
 
         elif swgp_basis == 'triangular':
-            # white noise kernel for SW DM, using delta n_earth as coefficients
-            log10_sigma_ne = parameter.Uniform(-4, 2)
-            sw_basis = gpk.sw_dm_triangular_basis()
-            sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
+            if swgp_prior == 'ridge':
+                # white noise kernel for SW DM, using delta n_earth as coefficients
+                log10_sigma_ne = parameter.Uniform(-4, 2)
+                sw_basis = gpk.sw_dm_triangular_basis()
+                sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
+            else:
+                raise ValueError('Invalid triangular-basis SWGP prior specified.')
 
-        gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name='gp_sw')
+        gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name=gp_name)
         sw_model += gp_sw
 
     return sw_model
