@@ -3,6 +3,7 @@
 import numpy as np
 from enterprise import constants as const
 from enterprise.signals import deterministic_signals, parameter, signal_base, gp_bases
+from .solar_wind import solar_wind
 
 __all__ = ['chrom_exp_decay',
            'chrom_exp_cusp',
