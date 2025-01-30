@@ -282,6 +282,9 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
                 sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
             else:
                 raise ValueError('Invalid triangular-basis SWGP prior specified.')
+        
+        else:
+            raise ValueError('Invalid SWGP basis specified.')
 
         gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name=gp_name)
         sw_model += gp_sw
