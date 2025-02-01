@@ -171,7 +171,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
 def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
                      n_earth_bins=None, t_init=None, t_final=None,
                      include_swgp=True, swgp_prior='powerlaw', swgp_basis='fourier', gp_name="sw_gp",
-                     Tspan=None, modes=None, nmodes=15, dt=3,):
+                     Tspan=None, modes=None, nmodes=15, dt=3, vary_swgp=True):
     """
     Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
         Contains a single mean electron density with an auxiliary perturbation
@@ -203,7 +203,8 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
     :param dt:
         Time interval for linear interpolation basis in days.
         Only needed if swgp_basis is 'linear_interp'.
-
+    :param vary_swgp:
+        Whether to vary the SW GP hyperparameters or set them constant.
     """
 
     if n_earth is None and n_earth_bins is None and not ACE_prior:
@@ -232,15 +233,21 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
                     sw_basis = createfourierdesignmatrix_solar_dm(modes=modes)
                     nmodes = len(modes)
             if swgp_prior == 'powerlaw':
-                log10_A_sw = parameter.Uniform(-10, 1)
-                gamma_sw = parameter.Uniform(-3, 5)
+                if vary_swgp:
+                    log10_A_sw = parameter.Uniform(-10, 0)
+                    gamma_sw = parameter.Uniform(-3, 5)
+                else:
+                    log10_A_sw = parameter.Constant()
+                    gamma_sw = parameter.Constant()
                 sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw, components=nmodes)
 
             elif swgp_prior == 'spectrum':
                 # free spectrum GP for SW DM
-                log10_rho_sw = parameter.Uniform(-10, 1, size=nmodes)
+                if vary_swgp:
+                    log10_rho_sw = parameter.Uniform(-10, 1, size=nmodes)
+                else:
+                    log10_rho_sw = parameter.Constant(size=nmodes)
                 sw_prior = gp_priors.free_spectrum(log10_rho=log10_rho_sw)
-
             else:
                 raise ValueError('Invalid Fourier SWGP prior specified.')
 
@@ -251,10 +258,16 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
 
             if swgp_prior == 'periodic':
                 # Periodic GP kernel for DM
-                log10_sigma = parameter.Uniform(-10, -4) # units are log10(seconds)
-                log10_ell = parameter.Uniform(1, 4) # units are log10(days)
-                log10_p = parameter.Uniform(-4, 1.5) # units are log10(years)
-                log10_gam_p = parameter.Uniform(-3, 2)
+                if vary_swgp:
+                    log10_sigma = parameter.Uniform(-10, -4) # units are log10(seconds)
+                    log10_ell = parameter.Uniform(1, 4) # units are log10(days)
+                    log10_p = parameter.Uniform(-4, 1.5) # units are log10(years)
+                    log10_gam_p = parameter.Uniform(-3, 2)
+                else:
+                    log10_sigma = parameter.Constant()
+                    log10_ell = parameter.Constant()
+                    log10_p = parameter.Constant()
+                    log10_gam_p = parameter.Constant()
 
                 sw_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell,
@@ -262,14 +275,21 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
                                             log10_p=log10_p)
             elif swgp_prior == 'sq_exp':
                 # squared-exponential GP kernel for DM
-                log10_sigma = parameter.Uniform(-10, -4)
-                log10_ell = parameter.Uniform(0, 4)
+                if vary_swgp:
+                    log10_sigma = parameter.Uniform(-10, -4)
+                    log10_ell = parameter.Uniform(0, 4)
+                else:
+                    log10_sigma = parameter.Constant()
+                    log10_ell = parameter.Constant()
 
                 sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
                                             log10_ell=log10_ell)
             elif swgp_prior == 'ridge':
                 # white noise kernel for SW DM, using delta n_earth as coefficients
-                log10_sigma_ridge = parameter.Uniform(-4, 3)
+                if vary_swgp:
+                    log10_sigma_ridge = parameter.Uniform(-4, 3)
+                else:
+                    log10_sigma_ridge = parameter.Constant()
                 sw_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
             else:
                 raise ValueError('Invalid linear_interp SWGP prior specified.')
@@ -277,7 +297,10 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
         elif swgp_basis == 'triangular':
             if swgp_prior == 'ridge':
                 # white noise kernel for SW DM, using delta n_earth as coefficients
-                log10_sigma_ne = parameter.Uniform(-4, 2)
+                if vary_swgp:
+                    log10_sigma_ne = parameter.Uniform(-4, 2)
+                else:
+                    log10_sigma_ne = parameter.Constant()
                 sw_basis = gpk.sw_dm_triangular_basis()
                 sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
             else:
