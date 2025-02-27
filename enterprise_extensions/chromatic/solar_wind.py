@@ -141,6 +141,7 @@ def createfourierdesignmatrix_solar_dm(toas, freqs, planetssb, sunssb, pos_t,
                                        fmax=None):
     """
     Construct DM-Solar Model fourier design matrix.
+    Note that the units of the output are in pc/cm^3.
 
     :param toas: vector of time series in seconds
     :param planetssb: solar system bayrcenter positions
@@ -173,17 +174,19 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
                      include_swgp=True, swgp_prior='powerlaw', swgp_basis='fourier', gp_name="sw_gp",
                      Tspan=None, modes=None, nmodes=15, dt=3, vary_swgp=True):
     """
-    Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
-        Contains a single mean electron density with an auxiliary perturbation
-        modeled using a gaussian process. The GP has common prior parameters
-        between all pulsars, but the realizations are different for all pulsars.
+    Returns Solar Wind DM noise model. Recommended is a time-independent, deterministic model with
+    Gaussian Process perturbations. Can choose from a variety of GP bases, basis sizes, and priors.
 
-    Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
+    Alternatively, could construct a time-dependent, binned model which fits a deterministic n_earth value for each bin.
+
+    The GP has common prior parameters between all pulsars,
+    but the realizations are different for all pulsars.
 
     :param n_earth:
         Solar electron density at 1 AU.
     :param ACE_prior:
         Whether to use the ACE SWEPAM data as an astrophysical prior.
+        Only for deterministic models.
     :param name:
         Name of the signal.
     :param swgp_prior:
@@ -226,16 +229,17 @@ def solar_wind_block(n_earth=None, ACE_prior=False, det_name='n_earth',
 
     if include_swgp:
         if swgp_basis == 'fourier':
-            if Tspan is not None:
+            if modes is not None:
+                sw_basis = createfourierdesignmatrix_solar_dm(modes=modes)
+                nmodes = len(modes)
+            elif Tspan is not None:
                     sw_basis = createfourierdesignmatrix_solar_dm(nmodes=nmodes,
                                                                   Tspan=Tspan)
-            elif modes is not None:
-                    sw_basis = createfourierdesignmatrix_solar_dm(modes=modes)
-                    nmodes = len(modes)
             if swgp_prior == 'powerlaw':
                 if vary_swgp:
-                    log10_A_sw = parameter.Uniform(-10, 0)
-                    gamma_sw = parameter.Uniform(-3, 5)
+                    # sometimes amplitudes larger than 1 break the likelihood
+                    log10_A_sw = parameter.Uniform(-12, 0) # sometimes positive amplitudes break this
+                    gamma_sw = parameter.Uniform(-6, 5) # priors from susurla et al. 2024
                 else:
                     log10_A_sw = parameter.Constant()
                     gamma_sw = parameter.Constant()
