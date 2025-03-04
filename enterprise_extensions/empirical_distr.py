@@ -10,8 +10,8 @@ try:
 
     sklearn_available = True
 except ModuleNotFoundError:
-    sklearn_available = False
-from scipy.interpolate import interp1d, interp2d
+    sklearn_available=False
+from scipy.interpolate import interp1d, RegularGridInterpolator
 
 logger = logging.getLogger(__name__)
 
@@ -184,15 +184,10 @@ class EmpiricalDistribution2DKDE(object):
         xvals = np.linspace(minvals[0], maxvals[0], num=nbins)
         yvals = np.linspace(minvals[1], maxvals[1], num=nbins)
         self._Nbins = [yvals.size for ii in range(xvals.size)]
-        scores = np.array(
-            [
-                self.kde.score(np.array([xvals[ii], yvals[jj]]).reshape((1, 2)))
-                for ii in range(xvals.size)
-                for jj in range(yvals.size)
-            ]
-        )
+
+        scores = np.array([self.kde.score(np.array([xvals[ii], yvals[jj]]).reshape((1, 2))) for ii in range(xvals.size) for jj in range(yvals.size)]).reshape(len(xvals), len(yvals))
         # interpolate within prior
-        self._logpdf = interp2d(xvals, yvals, scores, kind="linear", fill_value=-1000)
+        self._logpdf = RegularGridInterpolator((xvals, yvals), scores, method='linear', bounds_error=False, fill_value=-1000)
 
     def draw(self):
         params = self.kde.sample(1).T

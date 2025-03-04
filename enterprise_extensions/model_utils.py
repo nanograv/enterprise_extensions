@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +10,6 @@ try:
 except ImportError:
     from emcee.autocorr import integrated_time as acor
 
-from enterprise_extensions import models
 
 # Log-spaced frequncies
 
@@ -420,3 +418,4 @@ class CompareTimingModels:
         print("Maximum absolute error:", np.max(self.abs_err))
         print("Maximum relative error:", np.max(self.rel_err))
         return self.abs_err, self.rel_err
+
