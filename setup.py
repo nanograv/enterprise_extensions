@@ -19,6 +19,7 @@ requirements = [
     "scikit-sparse>=0.4.5",
     "enterprise-pulsar>=3.4.3",
     "scikit-learn>=0.24",
+    "six",
     "emcee",
     "ptmcmcsampler",
 ]
