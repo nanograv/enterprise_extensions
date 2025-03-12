@@ -7,7 +7,8 @@ import numpy as np
 
 try:
     from sklearn.neighbors import KernelDensity
-    sklearn_available=True
+
+    sklearn_available = True
 except ModuleNotFoundError:
     sklearn_available=False
 from scipy.interpolate import interp1d, RegularGridInterpolator
@@ -25,10 +26,11 @@ class EmpiricalDistribution1D(object):
         cover whole prior!
 
     """
+
     def __init__(self, param_name, samples, bins):
         self.ndim = 1
         self.param_name = param_name
-        self._Nbins = len(bins)-1
+        self._Nbins = len(bins) - 1
         hist, x_bins = np.histogram(samples, bins=bins)
 
         self._edges = x_bins
@@ -37,16 +39,16 @@ class EmpiricalDistribution1D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / float(counts) / self._wids
-        self._cdf = np.cumsum((self._pdf*self._wids).ravel())
+        self._cdf = np.cumsum((self._pdf * self._wids).ravel())
 
         self._logpdf = np.log(self._pdf)
 
     def draw(self):
         draw = np.random.rand()
-        draw_bin = np.searchsorted(self._cdf, draw, side='right')
+        draw_bin = np.searchsorted(self._cdf, draw, side="right")
 
         idx = np.unravel_index(draw_bin, self._Nbins)[0]
-        samp = self._edges[idx] + self._wids[idx]*np.random.rand()
+        samp = self._edges[idx] + self._wids[idx] * np.random.rand()
         return np.array(samp)
 
     def prob(self, params):
@@ -61,7 +63,9 @@ class EmpiricalDistribution1D(object):
 
 
 class EmpiricalDistribution1DKDE(object):
-    def __init__(self, param_name, samples, minval=None, maxval=None, bandwidth=0.1, nbins=40):
+    def __init__(
+        self, param_name, samples, minval=None, maxval=None, bandwidth=0.1, nbins=40
+    ):
         """
         Minvals and maxvals should specify priors for these. Should make these required.
         """
@@ -71,7 +75,9 @@ class EmpiricalDistribution1DKDE(object):
         # code below  relies on samples axes being swapped. but we
         # want to keep inputs the same
         # create a 2D KDE from which to evaluate
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.reshape((samples.size, 1)))
+        self.kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(
+            samples.reshape((samples.size, 1))
+        )
         if minval is None:
             # msg = "minvals for KDE empirical distribution were not supplied. Resulting distribution may not have support over full prior"
             # logger.warning(msg)
@@ -86,7 +92,7 @@ class EmpiricalDistribution1DKDE(object):
         self._Nbins = nbins
         scores = np.array([self.kde.score(np.atleast_2d(xval)) for xval in xvals])
         # interpolate within prior
-        self._logpdf = interp1d(xvals, scores, kind='linear', fill_value=-1000)
+        self._logpdf = interp1d(xvals, scores, kind="linear", fill_value=-1000)
 
     def draw(self):
         params = self.kde.sample(1).T
@@ -105,10 +111,11 @@ class EmpiricalDistribution2D(object):
         make sure bins cover whole prior!
 
     """
+
     def __init__(self, param_names, samples, bins):
         self.ndim = 2
         self.param_names = param_names
-        self._Nbins = [len(b)-1 for b in bins]
+        self._Nbins = [len(b) - 1 for b in bins]
         hist, x_bins, y_bins = np.histogram2d(*samples, bins=bins)
 
         self._edges = np.array([x_bins, y_bins])
@@ -118,7 +125,7 @@ class EmpiricalDistribution2D(object):
         hist += 1  # add a sample to every bin
         counts = np.sum(hist)
         self._pdf = hist / counts / area
-        self._cdf = np.cumsum((self._pdf*area).ravel())
+        self._cdf = np.cumsum((self._pdf * area).ravel())
 
         self._logpdf = np.log(self._pdf)
 
@@ -126,8 +133,10 @@ class EmpiricalDistribution2D(object):
         draw = np.random.rand()
         draw_bin = np.searchsorted(self._cdf, draw)
         idx = np.unravel_index(draw_bin, self._Nbins)
-        samp = [self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]]*np.random.rand()
-                for ii in range(2)]
+        samp = [
+            self._edges[ii, idx[ii]] + self._wids[ii, idx[ii]] * np.random.rand()
+            for ii in range(2)
+        ]
         return np.array(samp)
 
     def prob(self, params):
@@ -142,7 +151,9 @@ class EmpiricalDistribution2D(object):
 
 
 class EmpiricalDistribution2DKDE(object):
-    def __init__(self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1, nbins=40):
+    def __init__(
+        self, param_names, samples, minvals=None, maxvals=None, bandwidth=0.1, nbins=40
+    ):
         """
         Minvals and maxvals should specify priors for these. Should make these required.
 
@@ -159,7 +170,7 @@ class EmpiricalDistribution2DKDE(object):
         # want to keep inputs the same
         # create a 2D KDE from which to evaluate
 
-        self.kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(samples.T)
+        self.kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(samples.T)
         if minvals is None:
             msg = "minvals for KDE empirical distribution were not supplied. Resulting distribution may not have support over full prior"
             logger.warning(msg)
@@ -173,6 +184,7 @@ class EmpiricalDistribution2DKDE(object):
         xvals = np.linspace(minvals[0], maxvals[0], num=nbins)
         yvals = np.linspace(minvals[1], maxvals[1], num=nbins)
         self._Nbins = [yvals.size for ii in range(xvals.size)]
+
         scores = np.array([self.kde.score(np.array([xvals[ii], yvals[jj]]).reshape((1, 2))) for ii in range(xvals.size) for jj in range(yvals.size)]).reshape(len(xvals), len(yvals))
         # interpolate within prior
         self._logpdf = RegularGridInterpolator((xvals, yvals), scores, method='linear', bounds_error=False, fill_value=-1000)
@@ -195,23 +207,30 @@ class EmpiricalDistribution2DKDE(object):
         return self._logpdf(*params)[0]
 
 
-def make_empirical_distributions(pta, paramlist, params, chain,
-                                 burn=0, nbins=81, filename='distr.pkl',
-                                 return_distribution=True,
-                                 save_dists=True):
+def make_empirical_distributions(
+    pta,
+    paramlist,
+    params,
+    chain,
+    burn=0,
+    nbins=81,
+    filename="distr.pkl",
+    return_distribution=True,
+    save_dists=True,
+):
     """
-        Utility function to construct empirical distributions.
+    Utility function to construct empirical distributions.
 
-        :param pta: the pta object used to generate the posteriors
-        :param paramlist: a list of parameter names,
-                          either single parameters or pairs of parameters
-        :param chain: MCMC chain from a previous run
-        :param burn: desired number of initial samples to discard
-        :param nbins: number of bins to use for the empirical distributions
+    :param pta: the pta object used to generate the posteriors
+    :param paramlist: a list of parameter names,
+                      either single parameters or pairs of parameters
+    :param chain: MCMC chain from a previous run
+    :param burn: desired number of initial samples to discard
+    :param nbins: number of bins to use for the empirical distributions
 
-        :return distr: list of empirical distributions
+    :return distr: list of empirical distributions
 
-        """
+    """
 
     distr = []
 
@@ -228,8 +247,8 @@ def make_empirical_distributions(pta, paramlist, params, chain,
         if len(pl) == 1:
             idx = pta.param_names.index(pl[0])
 
-            prior_min = pta.params[idx].prior._defaults['pmin']
-            prior_max = pta.params[idx].prior._defaults['pmax']
+            prior_min = pta.params[idx].prior._defaults["pmin"]
+            prior_max = pta.params[idx].prior._defaults["pmax"]
 
             # get the bins for the histogram
             bins = np.linspace(prior_min, prior_max, nbins)
@@ -244,51 +263,68 @@ def make_empirical_distributions(pta, paramlist, params, chain,
             idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
-                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
+            bins = [
+                np.linspace(
+                    pta.params[i].prior._defaults["pmin"],
+                    pta.params[i].prior._defaults["pmax"],
+                    nbins,
+                )
+                for i in idx
+            ]
 
             new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
             distr.append(new_distr)
 
         else:
-            msg = 'WARNING: only 1D and 2D empirical distributions are currently allowed.'
+            msg = (
+                "WARNING: only 1D and 2D empirical distributions are currently allowed."
+            )
             logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file
     if save_dists:
         if len(distr) > 0:
-            with open(filename, 'wb') as f:
+            with open(filename, "wb") as f:
                 pickle.dump(distr, f)
 
-            msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+            msg = "The empirical distributions have been pickled to {0}.".format(
+                filename
+            )
             logger.info(msg)
         else:
-            msg = 'WARNING: No empirical distributions were made!'
+            msg = "WARNING: No empirical distributions were made!"
             logger.warning(msg)
 
     if return_distribution:
         return distr
 
 
-def make_empirical_distributions_KDE(pta, paramlist, params, chain,
-                                     burn=0, nbins=41, filename='distr.pkl',
-                                     bandwidth=0.1,
-                                     return_distribution=True,
-                                     save_dists=True):
+def make_empirical_distributions_KDE(
+    pta,
+    paramlist,
+    params,
+    chain,
+    burn=0,
+    nbins=41,
+    filename="distr.pkl",
+    bandwidth=0.1,
+    return_distribution=True,
+    save_dists=True,
+):
     """
-        Utility function to construct empirical distributions.
+    Utility function to construct empirical distributions.
 
-        :param paramlist: a list of parameter names,
-                          either single parameters or pairs of parameters
-        :param params: list of all parameter names for the MCMC chain
-        :param chain: MCMC chain from a previous run, has dimensions Nsamples x Nparams
-        :param burn: desired number of initial samples to discard
-        :param nbins: number of bins to use for the empirical distributions
+    :param paramlist: a list of parameter names,
+                      either single parameters or pairs of parameters
+    :param params: list of all parameter names for the MCMC chain
+    :param chain: MCMC chain from a previous run, has dimensions Nsamples x Nparams
+    :param burn: desired number of initial samples to discard
+    :param nbins: number of bins to use for the empirical distributions
 
-        :return distr: list of empirical distributions
+    :return distr: list of empirical distributions
 
-        """
+    """
 
     distr = []
     if not save_dists and not return_distribution:
@@ -305,12 +341,18 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
 
             # get the parameter index
             idx = pta.param_names.index(pl[0])
-            prior_min = pta.params[idx].prior._defaults['pmin']
-            prior_max = pta.params[idx].prior._defaults['pmax']
+            prior_min = pta.params[idx].prior._defaults["pmin"]
+            prior_max = pta.params[idx].prior._defaults["pmax"]
 
             # get the bins for the histogram
 
-            new_distr = EmpiricalDistribution1DKDE(pl[0], chain[burn:, idx], bandwidth=bandwidth, minval=prior_min, maxval=prior_max)
+            new_distr = EmpiricalDistribution1DKDE(
+                pl[0],
+                chain[burn:, idx],
+                bandwidth=bandwidth,
+                minval=prior_min,
+                maxval=prior_max,
+            )
 
             distr.append(new_distr)
 
@@ -320,34 +362,58 @@ def make_empirical_distributions_KDE(pta, paramlist, params, chain,
             idx = [pta.param_names.index(pl1) for pl1 in pl]
 
             # get the bins for the histogram
-            bins = [np.linspace(pta.params[i].prior._defaults['pmin'],
-                                pta.params[i].prior._defaults['pmax'], nbins) for i in idx]
-            minvals = [pta.params[0].prior._defaults['pmin'], pta.params[1].prior._defaults['pmin']]
-            maxvals = [pta.params[0].prior._defaults['pmax'], pta.params[1].prior._defaults['pmax']]
+            bins = [
+                np.linspace(
+                    pta.params[i].prior._defaults["pmin"],
+                    pta.params[i].prior._defaults["pmax"],
+                    nbins,
+                )
+                for i in idx
+            ]
+            minvals = [
+                pta.params[0].prior._defaults["pmin"],
+                pta.params[1].prior._defaults["pmin"],
+            ]
+            maxvals = [
+                pta.params[0].prior._defaults["pmax"],
+                pta.params[1].prior._defaults["pmax"],
+            ]
 
             # get the bins for the histogram
             if sklearn_available:
-                new_distr = EmpiricalDistribution2DKDE(pl, chain[burn:, idx].T, bandwidth=bandwidth, minvals=minvals, maxvals=maxvals)
+                new_distr = EmpiricalDistribution2DKDE(
+                    pl,
+                    chain[burn:, idx].T,
+                    bandwidth=bandwidth,
+                    minvals=minvals,
+                    maxvals=maxvals,
+                )
             else:
-                logger.warn('`sklearn` package not available. Fall back to using histgrams for empirical distribution')
+                logger.warn(
+                    "`sklearn` package not available. Fall back to using histgrams for empirical distribution"
+                )
                 new_distr = EmpiricalDistribution2D(pl, chain[burn:, idx].T, bins)
 
             distr.append(new_distr)
 
         else:
-            msg = 'WARNING: only 1D and 2D empirical distributions are currently allowed.'
+            msg = (
+                "WARNING: only 1D and 2D empirical distributions are currently allowed."
+            )
             logger.warning(msg)
 
     # save the list of empirical distributions as a pickle file
     if save_dists:
         if len(distr) > 0:
-            with open(filename, 'wb') as f:
+            with open(filename, "wb") as f:
                 pickle.dump(distr, f)
 
-            msg = 'The empirical distributions have been pickled to {0}.'.format(filename)
+            msg = "The empirical distributions have been pickled to {0}.".format(
+                filename
+            )
             logger.info(msg)
         else:
-            msg = 'WARNING: No empirical distributions were made!'
+            msg = "WARNING: No empirical distributions were made!"
             logger.warning(msg)
     if return_distribution:
         return distr
