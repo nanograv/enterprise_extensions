@@ -645,7 +645,7 @@ def dm_noise_block(
     :param name: Define the signal name.
     """
     if tnfreq and Tspan is not None:
-        components = get_tncoeff(Tspan, components)
+        components = model_utils.get_tncoeff(Tspan, components)
 
     # dm noise parameters that are common
     if gp_kernel == "diag":
@@ -971,7 +971,7 @@ def chromatic_noise_block(
     :param name: Define the signal name.
     """
     if tnfreq and Tspan is not None:
-        components = get_tncoeff(Tspan, components)
+        components = model_utils.get_tncoeff(Tspan, components)
 
     if idx is None:
         idx = parameter.Uniform(idxmin, idxmax)
@@ -1347,7 +1347,7 @@ def common_red_noise_block(
     }
 
     if tnfreq and Tspan is not None:
-        components = get_tncoeff(Tspan, components)
+        components = model_utils.get_tncoeff(Tspan, components)
 
     # common red noise parameters
     if psd in [
