@@ -527,7 +527,6 @@ def bwm_sglpsr_block(
     name="ramp",
     fixed_sign=None,
 ):
-
     if fixed_sign is None:
         sign = parameter.Uniform(-1, 1)("sign")
     else:

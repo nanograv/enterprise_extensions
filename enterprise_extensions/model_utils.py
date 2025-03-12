@@ -4,6 +4,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scistats
+import time
+from . import models
+
 
 try:
     import acor
@@ -118,7 +121,6 @@ def get_tspan(psrs):
 
 
 class PostProcessing(object):
-
     def __init__(self, chain, pars, burn_percentage=0.25):
         burn = int(burn_percentage * chain.shape[0])
         self.chain = chain[burn:]
@@ -215,7 +217,6 @@ def bayes_fac(samples, ntol=200, logAmin=-18, logAmax=-14):
 
 
 def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
-
     if thin:
         indep_samples = np.rint(chain.shape[0] / acor.acor(chain)[0])
         samples = np.random.choice(chain.copy(), int(indep_samples))
@@ -236,7 +237,6 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
         bf = top / bot
 
     if uncertainty:
-
         if bot == 0.0 or top == 0.0:
             sigma = 0.0
         else:
@@ -265,7 +265,6 @@ def odds_ratio(chain, models=[0, 1], uncertainty=True, thin=False):
         return bf, sigma
 
     elif not uncertainty:
-
         return bf
 
 
@@ -418,4 +417,3 @@ class CompareTimingModels:
         print("Maximum absolute error:", np.max(self.abs_err))
         print("Maximum relative error:", np.max(self.rel_err))
         return self.abs_err, self.rel_err
-
