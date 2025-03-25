@@ -20,6 +20,7 @@ requirements = [
     "enterprise-pulsar>=3.4.3",
     "pyarrow>=16.1.0",
     "scikit-learn>=0.24",
+    "matplotlib>=3.1.0",
     "six",
     "emcee",
     "ptmcmcsampler",
