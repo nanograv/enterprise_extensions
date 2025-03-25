@@ -17,7 +17,7 @@ requirements = [
     "ephem>=3.7.6.0",
     "healpy>=1.14.0",
     "scikit-sparse>=0.4.5",
-    "enterprise-pulsar>=3.4.2",
+    "enterprise-pulsar>=3.4.3",
     "pyarrow>=16.1.0",
     "scikit-learn>=0.24",
     "emcee",
