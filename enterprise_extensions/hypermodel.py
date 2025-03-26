@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import json
 
 import numpy as np
 import scipy.linalg as sl
@@ -27,6 +28,7 @@ class HyperModel(object):
                                           return_index=True)
         self.param_names = self.param_names[np.argsort(ind)]
         self.param_names = np.append(self.param_names, 'nmodel').tolist()
+        self.nmodel_idx = list(self.param_names).index('nmodel')
         #########
 
         self.pulsars = np.unique(np.concatenate([p.pulsars
@@ -71,31 +73,20 @@ class HyperModel(object):
                                                            for q in uniq_params]].tolist()
         #########
 
+        # set up a parameter mask to get only the active model parameters from a sample
+        self.active_par_masks = \
+            [[par in model.param_names for par in self.param_names] for model in self.models.values()]
+
     def get_lnlikelihood(self, x):
-
-        # find model index variable
-        idx = list(self.param_names).index('nmodel')
-        nmodel = int(np.rint(x[idx]))
-
-        # find parameters of active model
-        q = []
-        for par in self.models[nmodel].param_names:
-            idx = self.param_names.index(par)
-            q.append(x[idx])
-
         # only active parameters enter likelihood
-        active_lnlike = self.models[nmodel].get_lnlikelihood(q)
-
-        if self.log_weights is not None:
-            active_lnlike += self.log_weights[nmodel]
+        nmodel = int(np.rint(x[self.nmodel_idx]))
+        active_lnlike = self.models[nmodel].get_lnlikelihood(x[self.active_par_masks[nmodel]])
 
         return active_lnlike
 
     def get_lnprior(self, x):
-
-        # find model index variable
-        idx = list(self.param_names).index('nmodel')
-        nmodel = int(np.rint(x[idx]))
+        # determine which model we are sampling in
+        nmodel = int(np.rint(x[self.nmodel_idx]))
 
         if nmodel not in self.models.keys():
             return -np.inf
@@ -107,6 +98,9 @@ class HyperModel(object):
                     idx = self.param_names.index(par)
                     q.append(x[idx])
                 lnP += p.get_lnprior(np.array(q))
+
+            if self.log_weights is not None:
+                lnP += self.log_weights[nmodel]
 
             return lnP
 
@@ -211,6 +205,13 @@ class HyperModel(object):
 
         save_runtime_info(self, sampler.outDir, human)
 
+        # save log_weights to a json file in a way that will be loaded into la_forge
+        if self.log_weights is not None:
+            with open(sampler.outDir+'/model_log_weights.json' , 'w') as fout:
+                json.dump({int(nmod): self.log_weights[nmod] for nmod, _ in enumerate(range(self.num_models))},
+                          fout, sort_keys=False,
+                          indent=4, separators=(',', ': '))
+
         # additional jump proposals
         jp = JumpProposal(self, self.snames, empirical_distr=empirical_distr)
         sampler.jp = jp
@@ -229,44 +230,40 @@ class HyperModel(object):
             sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
         # DM GP noise prior draw
-        if 'dm_gp' in self.snames:
+        if 'dm_gp' in self.snames and len(jp.snames['dm_gp'])!=0:
             print('Adding DM GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
         # DM annual prior draw
-        if 'dm_s1yr' in jp.snames:
+        if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
             print('Adding DM annual prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
         # DM dip prior draw
-        if 'dmexp' in '\t'.join(jp.snames):
+        dmexp_nm = [nm for nm in jp.snames if 'dmexp' in nm]
+        if len(dmexp_nm)!=0 and all([len(jp.snames[nm])!=0 for nm in dmexp_nm]):
             print('Adding DM exponential dip prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
         # DM cusp prior draw
-        if 'dm_cusp' in jp.snames:
+        if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
             print('Adding DM exponential cusp prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
         # DMX prior draw
-        if 'dmx_signal' in jp.snames:
+        if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
             print('Adding DMX prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
         # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
+        if 'chrom_gp' in self.snames and len(jp.snames['chrom_gp'])!=0:
             print('Adding Chromatic GP noise prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # SW prior draw
-        if 'gp_sw' in jp.snames:
+        if 'gp_sw' in jp.snames and len(jp.snames['gp_sw'])!=0:
             print('Adding Solar Wind DM GP prior draws...\n')
             sampler.addProposalToCycle(jp.draw_from_dm_sw_prior, 10)
-
-        # Chromatic GP noise prior draw
-        if 'chrom_gp' in self.snames:
-            print('Adding Chromatic GP noise prior draws...\n')
-            sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
 
         # Ephemeris prior draw
         if 'd_jupiter_mass' in self.param_names:

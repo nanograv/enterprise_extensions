@@ -2,7 +2,8 @@
 
 import numpy as np
 from enterprise import constants as const
-from enterprise.signals import deterministic_signals, parameter, signal_base
+from enterprise.signals import deterministic_signals, parameter, signal_base, gp_bases
+from .solar_wind import solar_wind
 
 __all__ = ['chrom_exp_decay',
            'chrom_exp_cusp',
@@ -16,6 +17,8 @@ __all__ = ['chrom_exp_decay',
            'dm_dual_exp_cusp',
            'dmx_signal',
            'dm_annual_signal',
+           'construct_chromatic_cached_parts',
+           'createfourierdesignmatrix_chromatic_with_additional_caching'
            ]
 
 
@@ -204,7 +207,7 @@ def dmx_delay(toas, freqs, dmx_ids, **kwargs):
     return wf
 
 
-def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
+def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp', vary=True):
     """
     Returns chromatic exponential dip (i.e. TOA advance):
 
@@ -216,15 +219,24 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dmexp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dmexp = parameter.Uniform(-10, -2)
-    log10_tau_dmexp = parameter.Uniform(0, 2.5)
-    if sign == 'vary':
+    if vary:
+        t0_dmexp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dmexp = parameter.Uniform(-10, -2)
+        log10_tau_dmexp = parameter.Uniform(0, 2.5)
+    else:
+        t0_dmexp = parameter.Constant()
+        log10_Amp_dmexp = parameter.Constant()
+        log10_tau_dmexp = parameter.Constant()
+
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -238,7 +250,7 @@ def dm_exponential_dip(tmin, tmax, idx=2, sign='negative', name='dmexp'):
 
 
 def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
-                        symmetric=False, name='dm_cusp'):
+                        symmetric=False, name='dm_cusp', vary=True):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -250,16 +262,24 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dm_cusp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
-    log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
+    if vary:
+        t0_dm_cusp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dm_cusp = parameter.Uniform(-10, -2)
+        log10_tau_dm_cusp_pre = parameter.Uniform(0, 2.5)
+    else:
+        t0_dm_cusp = parameter.Constant()
+        log10_Amp_dm_cusp = parameter.Constant()
+        log10_tau_dm_cusp_pre = parameter.Constant()
 
-    if sign == 'vary':
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -267,8 +287,10 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
 
     if symmetric:
         log10_tau_dm_cusp_post = 1
-    else:
+    elif vary:
         log10_tau_dm_cusp_post = parameter.Uniform(0, 2.5)
+    else:
+        log10_tau_dm_cusp_post = parameter.Constant()
 
     wf = chrom_exp_cusp(log10_Amp=log10_Amp_dm_cusp, sign_param=sign_param,
                         t0=t0_dm_cusp, log10_tau_pre=log10_tau_dm_cusp_pre,
@@ -280,7 +302,7 @@ def dm_exponential_cusp(tmin, tmax, idx=2, sign='negative',
 
 
 def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
-                     symmetric=False, name='dual_dm_cusp'):
+                     symmetric=False, name='dual_dm_cusp', vary=True):
     """
     Returns chromatic exponential cusp (i.e. TOA advance):
 
@@ -292,18 +314,28 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     :param sign:
         set sign of dip: 'positive', 'negative', or 'vary'
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmexp:
         chromatic exponential dip waveform.
     """
-    t0_dual_cusp = parameter.Uniform(tmin, tmax)
-    log10_Amp_dual_cusp_1 = parameter.Uniform(-10, -2)
-    log10_Amp_dual_cusp_2 = parameter.Uniform(-10, -2)
-    log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
-    log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
+    if vary:
+        t0_dual_cusp = parameter.Uniform(tmin, tmax)
+        log10_Amp_dual_cusp_1 = parameter.Uniform(-10, -2)
+        log10_Amp_dual_cusp_2 = parameter.Uniform(-10, -2)
+        log10_tau_dual_cusp_pre_1 = parameter.Uniform(0, 2.5)
+        log10_tau_dual_cusp_pre_2 = parameter.Uniform(0, 2.5)
+    else:
+        t0_dual_cusp = parameter.Constant()
+        log10_Amp_dual_cusp_1 = parameter.Constant()
+        log10_Amp_dual_cusp_2 = parameter.Constant()
+        log10_tau_dual_cusp_pre_1 = parameter.Constant()
+        log10_tau_dual_cusp_pre_2 = parameter.Constant()
 
-    if sign == 'vary':
+    if sign == 'vary' and vary:
         sign_param = parameter.Uniform(-1.0, 1.0)
+    elif sign == 'vary' and not vary:
+        sign_param = parameter.Constant()
     elif sign == 'positive':
         sign_param = 1.0
     else:
@@ -312,9 +344,12 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     if symmetric:
         log10_tau_dual_cusp_post_1 = 1
         log10_tau_dual_cusp_post_2 = 1
-    else:
+    elif vary:
         log10_tau_dual_cusp_post_1 = parameter.Uniform(0, 2.5)
         log10_tau_dual_cusp_post_2 = parameter.Uniform(0, 2.5)
+    else:
+        log10_tau_dual_cusp_post_1 = parameter.Constant()
+        log10_tau_dual_cusp_post_2 = parameter.Constant()
 
     wf = chrom_dual_exp_cusp(t0=t0_dual_cusp, sign_param=sign_param,
                              symmetric=symmetric,
@@ -330,28 +365,35 @@ def dm_dual_exp_cusp(tmin, tmax, idx1=2, idx2=4, sign='negative',
     return dm_cusp
 
 
-def dmx_signal(dmx_data, name='dmx_signal'):
+def dmx_signal(dmx_data, name='dmx_signal', vary=True):
     """
     Returns DMX signal:
 
     :param dmx_data: dictionary of DMX data for each pulsar from parfile.
     :param name: Name of signal.
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dmx_sig:
         dmx signal waveform.
     """
     dmx = {}
-    for dmx_id in sorted(dmx_data):
-        dmx_data_tmp = dmx_data[dmx_id]
-        dmx.update({dmx_id: parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
-                                             sigma=dmx_data_tmp['DMX_ERR'])})
+    if vary:
+        for dmx_id in sorted(dmx_data):
+            dmx_data_tmp = dmx_data[dmx_id]
+            dmx.update({dmx_id: parameter.Normal(mu=dmx_data_tmp['DMX_VAL'],
+                                                 sigma=dmx_data_tmp['DMX_ERR'])})
+    else:
+        for dmx_id in sorted(dmx_data):
+            dmx_data_tmp = dmx_data[dmx_id]
+            dmx.update({dmx_id: parameter.Constant()})
+
     wf = dmx_delay(dmx_ids=dmx_data, **dmx)
     dmx_sig = deterministic_signals.Deterministic(wf, name=name)
 
     return dmx_sig
 
 
-def dm_annual_signal(idx=2, name='dm_s1yr'):
+def dm_annual_signal(idx=2, name='dm_s1yr', vary=True):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 
@@ -359,15 +401,91 @@ def dm_annual_signal(idx=2, name='dm_s1yr'):
         index of radio frequency dependence (i.e. DM is 2). If this is set
         to 'vary' then the index will vary from 1 - 6
     :param name: Name of signal
+    :param vary: Whether to vary the parameters or use constant values.
 
     :return dm1yr:
         chromatic annual waveform.
     """
-    log10_Amp_dm1yr = parameter.Uniform(-10, -2)
-    phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+    if vary:
+        log10_Amp_dm1yr = parameter.Uniform(-10, -2)
+        phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+    else:
+        log10_Amp_dm1yr = parameter.Constant()
+        phase_dm1yr = parameter.Constant()
 
     wf = chrom_yearly_sinusoid(log10_Amp=log10_Amp_dm1yr,
                                phase=phase_dm1yr, idx=idx)
     dm1yr = deterministic_signals.Deterministic(wf, name=name)
 
     return dm1yr
+
+
+@parameter.function
+def construct_chromatic_cached_parts(
+    toas,
+    freqs,
+    nmodes=30,
+    Tspan=None,
+    logf=False,
+    fmin=None,
+    fmax=None,
+    modes=None,
+    fref=1400,
+    ):
+    """
+    Using this function alongside `createfourierdesignmatrix_chromatic_with_additional_caching()`
+    enables caching of the achromatic portion of the chromatic Fourier designmatrix as well as caching
+    the division of the reference radio frequency (fref) and observational radio frequency vector (freqs).
+    The actual caching occurs via the @function decorator on the
+    `createfourierdesignmatrix_chromatic_with_additional_caching()`, where the decorator is defined in
+    `enterprise.signals.parameter.function`.
+    Note that the "achromatic portion of the chromatic Fourier designmatrix" is not related to
+    the red noise and curn Fourier design matrices.
+
+    :param toas: vector of time series in seconds
+    :param freqs: radio frequencies of observations [MHz], vector N_toa in length.
+    :param nmodes: number of fourier coefficients to use
+    :param Tspan: option to some other Tspan
+    :param logf: use log frequency spacing
+    :param fmin: lower sampling frequency
+    :param fmax: upper sampling frequency
+    :param modes: option to provide explicit list or array of
+                   sampling frequencies
+    :param idx: Index of chromatic effects
+    :param fref: reference radio frequency (default 1400 MHz)
+    :return fmat_red: the achromatic Fmat to build the chromatic Fourier designmatrix from
+    :return: F: Chromatic-variation fourier design matrix
+    :return: f: Sampling frequencies
+    """
+
+    # get base achromatic Fourier design matrix and Fourier frequencies
+    fmat_red, Ffreqs = gp_bases.createfourierdesignmatrix_red(
+        toas, nmodes=nmodes, Tspan=Tspan, logf=logf, fmin=fmin, fmax=fmax, modes=modes
+    )
+    # compute the reference frequency/toa observational frequency vector
+    fref_over_radio_freqs = fref / freqs
+
+    return fmat_red, Ffreqs, fref_over_radio_freqs
+
+
+@parameter.function
+def createfourierdesignmatrix_chromatic_with_additional_caching(
+    fmat_red=None, Ffreqs=None, fref_over_radio_freqs=None, idx=4.0
+):
+    """
+    Construct Scattering-variation fourier design matrix with a cached achromatic component of the
+    Fourier design matrix (fmat_red). (Note this is independent of the actual achroamtic basis.)
+    As a quirk of the @function decorator (which provides the caching) you must pass arguments explicitly
+    e.g. fmat_red=fmatred, Ffreqs=Ffreqs... etc.
+    In this construction, the `fmat_red` and `Ffreqs`, and `fref_over_radio_freqs` are not recomputed at every call,
+    allowing for faster sampling in the chromatic index, alpha.
+    :param fmat_red: (constant) achromatic Fourier design matrix
+    :param Ffreqs: Fourier frequencies
+    :param fref_over_radio_freqs: Reference radio frequency (in MHz) over toa radio frequencies (in MHz)
+    :param idx: Index of chromatic effects (aka alpha or chi). Pass either a float, Constant, or Parameter
+    :return: Fmat_chromatic: Chromatic-variation Fourier design matrix
+    :return: Ffreqs: Fourier modes of the chromatic basis
+    """
+    # give radio frequencies over reference frequency -idx chromatic index
+    CM = fref_over_radio_freqs**idx
+    return fmat_red * CM[:, None], Ffreqs

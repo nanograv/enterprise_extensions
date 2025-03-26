@@ -208,6 +208,12 @@ class JumpProposal(object):
         if isinstance(empirical_distr, list):
             # check if a list of emp dists is provided
             self.empirical_distr = empirical_distr
+        # pass a dictionary of of lists of empirical distributions for a hypermodel
+        elif isinstance(empirical_distr, dict):
+            # save the dictionary of empirical distributions to self
+            self.empirical_distr = empirical_distr
+            # get the dictionary keys
+            self.emp_dist_dict_keys = list(empirical_distr.keys())
 
         # check if a directory of empirical dist pkl files are provided
         elif empirical_distr is not None and os.path.isdir(empirical_distr):
@@ -232,7 +238,7 @@ class JumpProposal(object):
             self.empirical_distr = pickled_distr
 
         # check if single pkl file provided
-        elif empirical_distr is not None and os.path.isfile(empirical_distr):  # checking for single file
+        elif empirical_distr is not None and os.path.isfile(empirical_distr):
             try:
                 # try opening the file
                 with open(empirical_distr, 'rb') as f:
@@ -255,22 +261,39 @@ class JumpProposal(object):
 
         if self.empirical_distr is not None:
             # only save the empirical distributions for parameters that are in the model
-            mask = []
-            for idx, d in enumerate(self.empirical_distr):
-                if d.ndim == 1:
-                    if d.param_name in pta.param_names:
-                        mask.append(idx)
-                else:
-                    if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
-                        mask.append(idx)
-            if len(mask) >= 1:
-                self.empirical_distr = [self.empirical_distr[m] for m in mask]
-                # extend empirical_distr here:
-                print('Extending empirical distributions to priors...\n')
-                self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
-                                                        save_ext_dists=save_ext_dists, outdir=outdir)
+            if isinstance(self.empirical_distr, dict):
+                for key in self.emp_dist_dict_keys:
+                    mask = []
+                    for idx, d in enumerate(self.empirical_distr[key]):
+                        if d.ndim == 1:
+                            if d.param_name in pta.param_names:
+                                mask.append(idx)
+                        else:
+                            if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                                mask.append(idx)
+                    if len(mask) >= 1:
+                        self.empirical_distr[key] = [self.empirical_distr[key][m] for m in mask]
+                        # extend empirical_distr here:
+                        print(f'extending {key}\'s empirical distributions to priors...\n')
+                        self.empirical_distr[key] = extend_emp_dists(pta, self.empirical_distr[key], npoints=100_000,
+                                                                     save_ext_dists=save_ext_dists, outdir=outdir)
             else:
-                self.empirical_distr = None
+                mask = []
+                for idx, d in enumerate(self.empirical_distr):
+                    if d.ndim == 1:
+                        if d.param_name in pta.param_names:
+                            mask.append(idx)
+                    else:
+                        if d.param_names[0] in pta.param_names and d.param_names[1] in pta.param_names:
+                            mask.append(idx)
+                if len(mask) >= 1:
+                    self.empirical_distr = [self.empirical_distr[m] for m in mask]
+                    # extend empirical_distr here:
+                    print('extending empirical distributions to priors...\n')
+                    self.empirical_distr = extend_emp_dists(pta, self.empirical_distr, npoints=100_000,
+                                                            save_ext_dists=save_ext_dists, outdir=outdir)
+                else:
+                    self.empirical_distr = None
 
         if empirical_distr is not None and self.empirical_distr is None:
             # if an emp dist path is provided, but fails the code, this helpful msg is provided
@@ -337,7 +360,7 @@ class JumpProposal(object):
         q = x.copy()
         lqxy = 0
 
-        if self.empirical_distr is not None:
+        if self.empirical_distr is not None and not isinstance(self.empirical_distr, dict):
 
             # randomly choose one of the empirical distributions
             distr_idx = np.random.randint(0, len(self.empirical_distr))
@@ -411,6 +434,57 @@ class JumpProposal(object):
 
                     lqxy += (self.empirical_distr[idx].logprob(oldsample) -
                              self.empirical_distr[idx].logprob(newsample))
+
+        return q, float(lqxy)
+
+    def draw_from_hypermodel_empirical_distr(self, x, iter, beta):
+        """
+        Defines a jump proposal which draws from different empirical distributions for
+        different submodels in a hypermodel.
+        Note that the models must be put in the dictionary in the order corresponding to
+        the models of the hypermodel -- don't sort dictionary keys!
+
+        """
+        q = x.copy()
+        lqxy = 0
+
+        if self.empirical_distr is not None:
+
+            # get nmodel value for the proposed sample (always the last param)
+            hm_idx = int(np.rint(q[-1]))
+            # get the empirical distribution dictionary key corresponding to proposed sample nmodel
+            key = self.emp_dist_dict_keys[hm_idx]
+            # continue as an empiricial distribution jump proposal, but with the dictionary keyed appropriately
+            # randomly choose one of the empirical distributions
+            distr_idx = np.random.randint(0, len(self.empirical_distr[key]))
+
+            if self.empirical_distr[key][distr_idx].ndim == 1:
+
+                idx = self.pnames.index(self.empirical_distr[key][distr_idx].param_name)
+                q[idx] = self.empirical_distr[key][distr_idx].draw()
+
+                lqxy = (self.empirical_distr[key][distr_idx].logprob(x[idx]) -
+                        self.empirical_distr[key][distr_idx].logprob(q[idx]))
+
+                dist = self.empirical_distr[key][distr_idx]
+                # if we fall outside the emp distr support, pull from prior instead
+                if x[idx] < dist._edges[0] or x[idx] > dist._edges[-1]:
+                    q, lqxy = self.draw_from_prior(x, iter, beta)
+
+            else:
+                dist = self.empirical_distr[key][distr_idx]
+                oldsample = [x[self.pnames.index(p)] for p in dist.param_names]
+                newsample = dist.draw()
+
+                lqxy = (dist.logprob(oldsample) - dist.logprob(newsample))
+
+                for p, n in zip(dist.param_names, newsample):
+                    q[self.pnames.index(p)] = n
+
+                # if we fall outside the emp distr support, pull from prior instead
+                for ii in range(len(oldsample)):
+                    if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
+                        q, lqxy = self.draw_from_prior(x, iter, beta)
 
         return q, float(lqxy)
 
@@ -1169,28 +1243,33 @@ def setup_sampler(pta, outdir='chains', resume=False,
         print('Adding red noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_red_prior, 10)
 
+    # Chromatic GP noise prior draw
+    if 'chrom_gp' in jp.snames and len(jp.snames['chrom_gp'])!=0:
+        print('Adding Chromatic GP noise prior draws...\n')
+        sampler.addProposalToCycle(jp.draw_from_chrom_gp_prior, 10)
+
     # DM GP noise prior draw
-    if 'dm_gp' in jp.snames:
+    if 'dm_gp' in jp.snames and len(jp.snames['dm_gp'])!=0:
         print('Adding DM GP noise prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm_gp_prior, 10)
 
     # DM annual prior draw
-    if 'dm_s1yr' in jp.snames:
+    if 'dm_s1yr' in jp.snames and len(jp.snames['dm_s1yr'])!=0:
         print('Adding DM annual prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dm1yr_prior, 10)
 
     # DM dip prior draw
-    if 'dmexp' in jp.snames:
+    if 'dmexp' in jp.snames and len(jp.snames['dmexp'])!=0:
         print('Adding DM exponential dip prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpdip_prior, 10)
 
     # DM cusp prior draw
-    if 'dm_cusp' in jp.snames:
+    if 'dm_cusp' in jp.snames and len(jp.snames['dm_cusp'])!=0:
         print('Adding DM exponential cusp prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmexpcusp_prior, 10)
 
     # DMX prior draw
-    if 'dmx_signal' in jp.snames:
+    if 'dmx_signal' in jp.snames and len(jp.snames['dmx_signal'])!=0:
         print('Adding DMX prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_dmx_prior, 10)
 
@@ -1238,7 +1317,7 @@ def setup_sampler(pta, outdir='chains', resume=False,
         sampler.addProposalToCycle(jp.draw_from_cw_distribution, 10)
 
     # free spectrum prior draw
-    if np.any(['log10_rho' in par for par in pta.param_names]):
+    if np.any(['gw_log10_rho' in par for par in pta.param_names]):
         print('Adding free spectrum prior draws...\n')
         sampler.addProposalToCycle(jp.draw_from_gw_rho_prior, 25)
 
