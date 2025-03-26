@@ -12,6 +12,8 @@ import pytest
 
 from enterprise_extensions.chromatic import solar_wind as sw
 
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
 
@@ -30,6 +32,7 @@ def nodmx_psrs(caplog):
     return psrs
 
 
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="macos-latest fails because of pickle file data type (f16).")
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_sw_r_to_p(nodmx_psrs):
     p0 = nodmx_psrs[0]
