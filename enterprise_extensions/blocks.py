@@ -37,7 +37,10 @@ def channelized_backends(backend_flags):
 
 
 def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
-                      efac1=False, select='backend', tnequad=False, name=None, ng_twg_setup=False, wb_efac_sigma=0.25):
+                      efac1=False, select='backend', tnequad=False,
+                      name=None, ng_twg_setup=False, wb_efac_sigma=0.25,
+                      init_const_efac=None, init_const_equad=None,
+                      init_const_ecorr=None):
     """
     Returns the white noise block of the model:
 
@@ -46,11 +49,10 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         3. ECORR per backend/receiver system
 
     :param vary:
-        If set to true we vary these parameters
-        with uniform priors. Otherwise they are set to constants, that default
-        to EFAC=1.0, (log10) EQUAD=-inf and (log10) ECORR=-inf, i.e.,
-        uncorrelated noise with a standard deviation as given by the TOA
-        errors. These can be set to other alternative values later.
+        If set to true we vary these parameters with uniform priors. Otherwise they
+        are set to constants with values to be set later, or via the
+        ``init_const_efac``, ``init_const_equad``, and ``init_const_ecorr``
+        keyword arguments.
     :param inc_ecorr:
         include ECORR, needed for NANOGrav channelized TOAs
     :param gp_ecorr:
@@ -60,6 +62,18 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
     :param tnequad:
         Whether to use the TempoNest definition of EQUAD. Defaults to False to
         follow Tempo, Tempo2 and Pint definition.
+    :param init_const_efac:
+        If ``vary`` is false, use this to set the constant value for EFAC,
+        otherwise the constant value will be uninitialised and must be set
+        later.
+    :param init_const_equad:
+        If ``vary`` is false, use this to set the constant value for EQAUD,
+        otherwise the constant value will be uninitialised and must be set
+        later.
+    :param init_const_ecorr:
+        If ``vary`` is false, and ``inc_corr`` is true, use this to set the
+        constant value for EQAUD, otherwise the constant value will be
+        uninitialised and must be set later.
     """
 
     if select == 'backend':
@@ -84,10 +98,22 @@ def white_noise_block(vary=False, inc_ecorr=False, gp_ecorr=False,
         if inc_ecorr:
             ecorr = parameter.Uniform(-8.5, -5)
     else:
-        efac = parameter.Constant(1.0)
-        equad = parameter.Constant(-np.inf)
+        efac = (
+            parameter.Constant()
+            if init_const_efac is None
+            else parameter.Constant(init_const_efac)
+        )
+        equad = (
+            parameter.Constant()
+            if init_const_equad is None
+            else parameter.Constant(init_const_equad)
+        )
         if inc_ecorr:
-            ecorr = parameter.Constant(-np.inf)
+            ecorr = (
+                parameter.Constant()
+                if init_const_ecorr is None
+                else parameter.Constant(init_const_ecorr)
+            )
 
     # white noise signals
     if tnequad:
