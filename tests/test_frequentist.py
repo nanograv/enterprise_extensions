@@ -13,6 +13,7 @@ import pytest
 
 from enterprise_extensions import models
 from enterprise_extensions.frequentist import chi_squared as chisqr
+from enterprise.pulsar import FeatherPulsar
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
@@ -29,8 +30,7 @@ def dmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng11yr_dmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
-            psrs.append(pickle.load(fin))
+        psrs.append(FeatherPulsar.read_feather(datadir+'/{0}_ng11yr_dmx_DE436_epsr.feather'.format(p)))
 
     return psrs
 

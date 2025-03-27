@@ -14,6 +14,7 @@ import enterprise.signals.parameter as parameter
 import numpy as np
 import pytest
 from enterprise.signals import gp_signals, signal_base
+from enterprise.pulsar import FeatherPulsar
 
 from enterprise_extensions import model_orfs, models
 from enterprise_extensions.frequentist import optimal_statistic as optstat
@@ -36,8 +37,7 @@ def nodmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
-            psrs.append(pickle.load(fin))
+        psrs.append(FeatherPulsar.read_feather(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.feather'.format(p)))
 
     return psrs
 

@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from enterprise_extensions.chromatic import solar_wind as sw
+from enterprise.pulsar import FeatherPulsar
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
@@ -24,8 +25,7 @@ def nodmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng11yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
-            psrs.append(pickle.load(fin))
+        psrs.append(FeatherPulsar.read_feather(datadir+'/{0}_ng11yr_nodmx_DE436_epsr.feather'.format(p)))
 
     return psrs
 
