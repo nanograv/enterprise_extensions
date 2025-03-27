@@ -8,7 +8,6 @@ Tests for altpol functions in e_e Code.
 import json
 import logging
 import os
-import pickle
 
 import enterprise.signals.parameter as parameter
 import numpy as np

@@ -5,7 +5,6 @@
 
 import logging
 import os
-import pickle
 
 import numpy as np
 import pytest

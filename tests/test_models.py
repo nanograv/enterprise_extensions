@@ -6,7 +6,6 @@
 import json
 import logging
 import os
-import pickle
 
 import pytest
 from enterprise import constants as const
