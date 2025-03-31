@@ -29,33 +29,30 @@ def load_feathers_from_folder(folder, time_span_cut_yr=None, pulsar_name_list=No
         # Get the filename for filtering
         feather_name = os.path.basename(feather_file)
         pulsar_name = feather_name.split('_')[0]
-        
+
         # Check if the feather file is in pulsar_name_list if provided
         if pulsar_name_list is not None and pulsar_name not in pulsar_name_list:
             continue
-            
+
         # Check if the file should be excluded based on pattern
         if exclude_pattern is not None and exclude_pattern in feather_name:
             continue
-            
+
         # Load the feather file into a Pulsar object
         psr = Pulsar(feather_file)
-        
+
         # Check if the time span cut is provided and filter the pulsars
         if time_span_cut_yr is not None:
             years_observed = (psr.toas.max() - psr.toas.min()) / (525600 * 60)
             if years_observed < time_span_cut_yr:
                 print(f"Skipping {psr.name} because it has been observed for {years_observed:.2f} years (< {time_span_cut_yr} years).")
                 continue
-                
+
         # Append the Pulsar object to the list
         pulsars.append(psr)
 
     # Check for duplicate names
     if len(pulsars) != len(set([p.name for p in pulsars])):
         print("Warning: Duplicate pulsar names found.")
-    
-    return pulsars
-
 
     return pulsars
