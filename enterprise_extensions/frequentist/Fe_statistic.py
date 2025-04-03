@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Feb 2019, Bence Becsy (NANOGrav):   created file, implemented FeStatistics
-
-Dec 2023, Kathrin Grunthal (EPTA):  code not suitable for Sherman-Morrison
-
-Jan 2024, Kathrin Grunthal (EPTA):  corrected matrix operations and implementation
-                                    code works with Sherman-Morrison
-
-Mar 2024, Kathrin Grunthal (EPTA):  assure backward-compatibility
-                                    remove nuisance code
-"""
 
 import numpy as np
 import scipy.linalg as sl
