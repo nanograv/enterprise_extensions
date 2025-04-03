@@ -98,7 +98,7 @@ jobs:
         venv-wheel/bin/python -m pip install --upgrade pip setuptools
         venv-wheel/bin/python -m pip install ../dist/enterprise_extensions*.whl
         venv-wheel/bin/python -c "import enterprise_extensions;print(enterprise_extensions.__version__)"
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist/*
