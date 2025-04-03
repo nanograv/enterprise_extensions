@@ -51,8 +51,8 @@ class HyperModel(object):
         #########
         # get signal collections
         self.snames = dict.fromkeys(np.unique(sum(sum([[[qq.signal_name for qq in pp._signals]
-                                for pp in self.models[mm]._signalcollections]
-                               for mm in self.models], [],), [],)))
+                                                        for pp in self.models[mm]._signalcollections]
+                                                       for mm in self.models], []), [])))
         for key in self.snames:
             self.snames[key] = []
 
