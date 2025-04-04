@@ -110,7 +110,7 @@ jobs:
    if: github.event_name == 'release'
    environment:
       name: pypi
-      url: https://pypi.org/p/<package-name>  # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/project/enterprise-extensions/ # Replace <package-name> with your PyPI project name
    permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
    steps:
