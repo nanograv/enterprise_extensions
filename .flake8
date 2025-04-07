@@ -1,0 +1,33 @@
+[flake8]
+max-line-length = 120
+max-complexity = 45
+ignore =
+  C901,
+  # function is too complex
+  E203,
+  # missing whitespace around operator
+  E225,
+  # missing whitespace around arithmetic operator
+  E226,
+  # line break before binary operator; conflicts with black
+  W503,
+  # Don't want to change with code frozen...
+  W504,
+  # bare except ok
+  E722,
+  # lambda expressions ok
+  E731,
+  # block comments
+  E266,
+  # ambiguous variable names
+  E741,
+  # lines
+  E501
+exclude =
+    .git,
+    .tox,
+    __pycache__,
+    build,
+    dist,
+    docs/*,
+    .enterprise_extensions/*

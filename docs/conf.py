@@ -20,7 +20,17 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+
+# sys.path.insert(0, os.path.abspath('..'))
+
+# Get the project root dir, which is the parent dir of this
+cwd = os.getcwd()
+project_root = os.path.dirname(cwd)
+
+# Insert the project root dir as the first element in the PYTHONPATH.
+# This lets us ensure that the source package is imported, and that its
+# version is used.
+sys.path.insert(0, project_root)
 
 import enterprise_extensions
 
@@ -33,6 +43,15 @@ import enterprise_extensions
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+
+# get doctrings for __init__ method
+autoclass_content = "both"
+
+# make order or docs 'groupwise'
+autodoc_member_order = "groupwise"
+
+# we won't even try installing these
+autodoc_mock_imports = ["enterprise","libstempo", "PINT", "astropy", "healpy", "sksparse", "ephem"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -48,8 +67,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'enterprise_extensions'
-copyright = u"2019, Stephen R. Taylor"
-author = u"Stephen R. Taylor"
+copyright = u"2019, Stephen R. Taylor, Jeffrey S. Hazboun, Paul T. Baker, Sarah J. Vigeland"
+author = u"Stephen R. Taylor, Jeffrey S. Hazboun, Paul T. Baker, Sarah J. Vigeland"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -84,7 +103,7 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'#'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
@@ -158,6 +177,3 @@ texinfo_documents = [
      'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
