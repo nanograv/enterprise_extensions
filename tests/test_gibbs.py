@@ -6,7 +6,7 @@ Tests for the gibbs sampling code.
 
 import logging
 import os
-import pickle
+from enterprise.pulsar import FeatherPulsar
 from enterprise_extensions.gibbs_sampling import gibbs
 import pytest
 
@@ -19,14 +19,10 @@ psr_names = ['J0613-0200']
 
 @pytest.fixture
 def nodmx_psrs(caplog):
-    """Sample pytest fixture.
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng9yr_nodmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
-            psrs.append(pickle.load(fin))
+        psrs.append(FeatherPulsar.read_feather(datadir+'/{0}_ng11yr_nodmx_DE436_epsr.feather'.format(p)))
 
     return psrs
 
