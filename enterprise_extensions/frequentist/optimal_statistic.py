@@ -657,7 +657,7 @@ class DetectionStatistic(object):
         den2 = 0.0
         ddmat = np.zeros((npsrs, npsrs))
         Q = np.zeros_like(Phi)
-        for i, (Si) in enumerate(S):   # The error is likely here
+        for i, (Si) in enumerate(S):
             for j, (Sj) in enumerate(S):
                 SPS = Si @ Phi_blocks[i][j] @ Sj.T
                 Q[idx[i] : idx[i + 1], idx[j] : idx[j + 1]] = SPS
