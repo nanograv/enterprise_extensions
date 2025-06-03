@@ -532,10 +532,12 @@ class DetectionStatistic(object):
     def __init__(
         self,
         pta_h0,
-        pta_h1
+        pta_h1,
+        npopt=False
     ):
         # set up cache
         self._set_cache_parameters(pta_h0, pta_h1)
+        self._npopt = nptop
 
     def _set_cache_parameters(self, pta_h0, pta_h1):
         """Set the cache parameters according to the Equations in van Haasteren (2025)"""
@@ -662,12 +664,18 @@ class DetectionStatistic(object):
                 SPS = Si @ Phi_blocks[i][j] @ Sj.T
                 Q[idx[i] : idx[i + 1], idx[j] : idx[j + 1]] = SPS
 
-                num += chi[i].dot(SPS @ chi[j])
-                ddmat[i, j] = np.trace(SPS @ SPS.T)
-                den2 += ddmat[i, j]
-                
-        den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
-        Q = Q / den
+                if not: self._npopt:
+                    num += chi[i].dot(SPS @ chi[j])
+                    ddmat[i, j] = np.trace(SPS @ SPS.T)
+                    den2 += ddmat[i, j]
+
+        if not self._npopt:
+            den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
+            Q = Q / den
+
+        else:
+            # Calculate the Neyman-Pearson-optimal statistic
+            pass
 
         return num/den, chi_tot, Q
 
