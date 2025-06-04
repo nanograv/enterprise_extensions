@@ -527,15 +527,18 @@ class DetectionStatistic(object):
 
     :param pta_h0: The enterprise PTA object for the null hypothesis.
     :param pta_h1: The enterprise PTA object for the signal hypothesis.
+    :param nptopt: Whether to use the Neyman-Pearson statistic
     """
 
     def __init__(
         self,
         pta_h0,
-        pta_h1
+        pta_h1,
+        npwopt=False
     ):
         # set up cache
         self._set_cache_parameters(pta_h0, pta_h1)
+        self._npwopt = npwopt
 
     def _set_cache_parameters(self, pta_h0, pta_h1):
         """Set the cache parameters according to the Equations in van Haasteren (2025)"""
@@ -662,12 +665,29 @@ class DetectionStatistic(object):
                 SPS = Si @ Phi_blocks[i][j] @ Sj.T
                 Q[idx[i] : idx[i + 1], idx[j] : idx[j + 1]] = SPS
 
-                num += chi[i].dot(SPS @ chi[j])
-                ddmat[i, j] = np.trace(SPS @ SPS.T)
-                den2 += ddmat[i, j]
-                
-        den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
-        Q = Q / den
+                if not self._npwopt:
+                    num += chi[i].dot(SPS @ chi[j])
+                    ddmat[i, j] = np.trace(SPS @ SPS.T)
+                    den2 += ddmat[i, j]
+
+        if not self._npwopt:
+            den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
+            Q = Q / den
+
+        else:
+            # Transform what we have into a Neyman-Pearson-optimal statistic
+            B = Q
+            cfB = sl.cho_factor(B + np.identity(len(B)), lower=True)
+            BBi = sl.cho_solve(cfB, B)
+
+            for i, (Si) in enumerate(S):
+                BBi[idx[i] : idx[i + 1], idx[i] : idx[i + 1]] = 0
+
+
+            BBBi = np.dot(BBi, BBi)
+            num = np.sum(chi_tot * np.dot(BBBi, chi_tot))
+            den = np.sqrt(2 * np.trace(BBBi))
+            Q = BBi / den
 
         return num/den, chi_tot, Q
 
@@ -688,7 +708,7 @@ class DetectionStatistic(object):
         return xs, cdf
 
 
-    def get_fixedpar_pval(self, params, cutoff=1e-6, limit=100, epsabs=1e-6):
+    def get_fixedpar_pval(self, params, cutoff=1e-6, limit=200, epsabs=1e-9):
         os, _, Q = self._get_compressed_coordinates(params)
         eigen_values = sl.eigvalsh(Q)
         cdf_val = gx2cdf(eigen_values, [os], cutoff=cutoff, limit=limit, epsabs=epsabs)[0]
