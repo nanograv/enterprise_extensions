@@ -675,7 +675,12 @@ class DetectionStatistic(object):
             Q = Q / den
 
         else:
-            # Transform what we have into a Neyman-Pearson-optimal statistic
+            # Transform what we have into a Neyman-Pearson-Weighted-optimal statistic
+            # This is all allowed here at this stage, because B commutes with (B + I)
+            # That means they have a common set of eigenvectors, and we can use the
+            # same low-rank basis for B and B + I. That was really really fortunate
+            # and cool!
+            B = Q
             B = Q
             cfB = sl.cho_factor(B + np.identity(len(B)), lower=True)
             BBi = sl.cho_solve(cfB, B)
@@ -685,7 +690,7 @@ class DetectionStatistic(object):
 
 
             BBBi = np.dot(BBi, BBi)
-            num = np.sum(chi_tot * np.dot(BBBi, chi_tot))
+            num = np.sum(chi_tot * np.dot(BBi, chi_tot))
             den = np.sqrt(2 * np.trace(BBBi))
             Q = BBi / den
 
