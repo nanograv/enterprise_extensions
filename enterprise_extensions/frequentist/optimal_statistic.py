@@ -525,23 +525,35 @@ class DetectionStatistic(object):
     keep the white noise fixed and that the only difference between the two
     hypotheses is in the way we model the Phi prior matrix.
 
-    :param pta_h0: The enterprise PTA object for the null hypothesis.
-    :param pta_h1: The enterprise PTA object for the signal hypothesis.
-    :param nptopt: Whether to use the Neyman-Pearson statistic
+    :param pta_h0:  The enterprise PTA object for the null hypothesis.
+    :param pta_hs:  The enterprise PTA object for the signal hypothesis.
+    :param np_stat: Whether to use the Neyman-Pearson statistic
+    :param inc_auto_terms: Whether to include the auto-correlations
+
+    References:
+     - Section 9, van Haasteren (2025), https://arxiv.org/abs/2506.10811
     """
 
     def __init__(
         self,
         pta_h0,
-        pta_h1,
-        npwopt=False
+        pta_hs,
+        np_stat=False,
+        inc_auto_terms=False
     ):
+        """Initialize the Detection statistic object."""
         # set up cache
-        self._set_cache_parameters(pta_h0, pta_h1)
-        self._npwopt = npwopt
+        self._set_cache_parameters(pta_h0, pta_hs)
+        self._np_stat = np_stat
+        self._inc_auto_terms = inc_auto_terms
 
-    def _set_cache_parameters(self, pta_h0, pta_h1):
-        """Set the cache parameters according to the Equations in van Haasteren (2025)"""
+    def _set_cache_parameters(self, pta_h0, pta_hs):
+        """Set the cache parameters according to the Section 9 in van Haasteren (2025)
+
+        :param pta_h0:  The enterprise PTA object for the null hypothesis
+        :param pta_hs:  The enterprise PTA object for the signal hypothesis.
+
+        """
         # N = L_N L_N^T  ==> L_N^{-T} L_N^{-1} = N^{-1}
         # T^{prime} = L_N^{-1} Tmat         ( Tprime = NT in code )
         # P_T T^{prime} = T^{prime}   ===> P_T = G_T G_T^T    (G_T = NU in code?)
@@ -554,7 +566,7 @@ class DetectionStatistic(object):
         # chi = U_A^T @ L_0 @ G_T @ L_N^{-1} @ Tmat
         # Q = U_A^T @ L_0^T @ G_T^T @ L_N^{-1} @ F @ DeltaPhi @ F^T L_N^{-T} @ G_T @ L_0 @ U_A
         self.pta_h0 = pta_h0
-        self.pta_h1 = pta_h1
+        self.pta_hs = pta_hs
 
         # Calculate lists of H0 quantities (11 seconds, only need it once)
         Tmat = pta_h0.get_basis({})           # List of 2D matrices
@@ -571,9 +583,9 @@ class DetectionStatistic(object):
 
         # We do this here so we can avoid calculating the mask later
         xs = np.array([par_val for p in pta_h0.params for par_val in np.atleast_1d(p.sample())])          # 1D array of all parameters
-        pd = pta_h1.map_params(xs)
+        pd = pta_hs.map_params(xs)
         Phi_0 = [np.diag(p) for p in pta_h0.get_phi(pd)]          # Phi matrix of H0 -- 2D arrays
-        BigPhiDiff = pta_h1.get_phi(pd) - sl.block_diag(*Phi_0)
+        BigPhiDiff = pta_hs.get_phi(pd) - sl.block_diag(*Phi_0)
 
         # Get only the non-zero elements of the BigPhiDiff matrix for selections later
         self.par_msk = (np.sum(np.abs(BigPhiDiff), axis=1)>0)                # Mask for BigPhiDiff
@@ -583,15 +595,21 @@ class DetectionStatistic(object):
         par_inds_slices = [np.arange(p_start, p_end) for (p_start, p_end) in zip(par_inds_start, par_inds_end)]
         self.par_psr_msk = [self.par_msk[slc] for slc in par_inds_slices]         # Mask per psr for Phi_0 and Tmat
 
-    def _get_compressed_coordinates(self, params):
-        """Returns OS, chi, and Q for the given parameters"""
+    def _get_compressed_coordinates(self, params, normalize_Q=True):
+        """Returns OS, chi, and Q for the given parameters
+        
+        :param params:  The parameters to use for the calculation.
+        :param normalize_Q:  Whether to normalize the Q matrix or not.
+        :return:  A tuple of (chi, Q, Phi, os_rank_reduced
+
+        """
 
         # These quantities have to be re-calculated for new hyperparameters
         Phi_0 = [np.diag(p) for p in self.pta_h0.get_phi(params)]          # Phi matrix of H0 -- 2D arrays
 
         # This is a BIG matrix, but it's sparse. Not using that right now though
         # It's currently 0.4 secdonds for NG15
-        BigPhiDiff = self.pta_h1.get_phi(params) - sl.block_diag(*Phi_0)                   # 2D prior diff array
+        BigPhiDiff = self.pta_hs.get_phi(params) - sl.block_diag(*Phi_0)                   # 2D prior diff array
 
         # Inverse Noise matrix
         C2i_0 = [inv_RPR(p, r) for (r, p) in zip(self.R, Phi_0)]                  # List of matrix inverses -- 2D arrays
@@ -642,6 +660,7 @@ class DetectionStatistic(object):
         # build the list of block‐sizes and cumulative indices
         block_sizes = [s.shape[0] for s in S]
         idx = np.cumsum([0] + block_sizes)
+        self._idx = idx
 
         npsrs = len(block_sizes)
 
@@ -665,56 +684,208 @@ class DetectionStatistic(object):
                 SPS = Si @ Phi_blocks[i][j] @ Sj.T
                 Q[idx[i] : idx[i + 1], idx[j] : idx[j + 1]] = SPS
 
-                if not self._npwopt:
-                    num += chi[i].dot(SPS @ chi[j])
-                    ddmat[i, j] = np.trace(SPS @ SPS.T)
-                    den2 += ddmat[i, j]
+                num += chi[i].dot(SPS @ chi[j])
+                ddmat[i, j] = np.trace(SPS @ SPS.T)
+                den2 += ddmat[i, j]
 
-        if not self._npwopt:
-            den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
+        den = np.sqrt(2*den2)   # Factor of 2 because of *real* (not complex) data
+
+        if normalize_Q:
             Q = Q / den
-
-        else:
-            # Transform what we have into a Neyman-Pearson-Weighted-optimal statistic
-            # This is all allowed here at this stage, because B commutes with (B + I)
-            # That means they have a common set of eigenvectors, and we can use the
-            # same low-rank basis for B and B + I. That was really really fortunate
-            # and cool!
-            B = Q
-            B = Q
-            cfB = sl.cho_factor(B + np.identity(len(B)), lower=True)
-            BBi = sl.cho_solve(cfB, B)
-
-            for i, (Si) in enumerate(S):
-                BBi[idx[i] : idx[i + 1], idx[i] : idx[i + 1]] = 0
-
-
-            BBBi = np.dot(BBi, BBi)
-            num = np.sum(chi_tot * np.dot(BBi, chi_tot))
-            den = np.sqrt(2 * np.trace(BBBi))
-            Q = BBi / den
 
         return num/den, chi_tot, Q
 
-    def compute_os(self, params):
-        os, _, _ = self._get_compressed_coordinates(params)
-        return os
+    def deflection_to_np(self, Q, remove_auto_terms=True):
+        """
+        Transform what we have into a Neyman-Pearson-Weighted-optimal statistic
+        This is all allowed here at this stage, because B commutes with (B + I)
+        That means they have a common set of eigenvectors, and we can use the
+        same low-rank basis for B and B + I. That was really really fortunate
+        and cool!
 
-    def get_fixedpar_os_distribution(self, params, ds_min=-5, ds_max=20, cutoff=1e-6, limit=100, epsabs=1e-6):
-        """For given parameters, get the OS distribution"""
-        _, _, Q = self._get_compressed_coordinates(params)
+        :param Q: The deflection-optimal detection statistic filter
+        :param remove_auto_terms: If True, remove the auto-terms from the filter
+        :return: The Neyman-Pearson optimal detection statistic filter
+        """
+        cfB = sl.cho_factor(Q + np.identity(len(Q)), lower=True)
+        BBi = sl.cho_solve(cfB, Q)
+
+        if remove_auto_terms:
+            # Only keep the cross-terms
+            for i in range(len(self._idx)-1):
+                BBi[self._idx[i] : self._idx[i + 1], self._idx[i] : self._idx[i + 1]] = 0
+
+        BBBi = np.dot(BBi, BBi)
+        den = np.sqrt(2 * np.trace(BBBi))
+        return BBi / den
+
+    def get_deflection_coordinates(self, params, normalize_Q=True):
+        """Return the deflection-optimal detection statistic and filter
+
+        :param params:  The parameters to use for the calculation.
+        :param normalize_Q:  Whether to normalize the Q matrix or not.
+        :return:  A tuple of (chi, Q, Phi, os_rank_reduced
+        
+        """
+        return self._get_compressed_coordinates(params, normalize_Q=normalize_Q)
+
+    def get_np_coordinates(self, params):
+        """Return the Neyman-Pearson optimal detection statistic
+        
+        The Neyman-Pearson optimal statistic is easily derived from the
+        deflection-optimal statistic. So just use that relationship and
+        re-normalize the filter
+
+        :param params:  The parameters to use for the calculation.
+        :return:  A tuple of (chi, Q, Phi, os_rank_reduced
+        """
+        _, chi_tot, Q = self._get_compressed_coordinates(params)
+        Qnp = self.deflection_to_np(Q, remove_auto_terms=not self._inc_auto_terms)
+        ds = np.sum(chi_tot * np.dot(Qnp, chi_tot))
+
+        return ds, chi_tot, Qnp
+
+    def compute_os(self, params):
+        """Get the optimal statistic value / coordinates
+
+        :param params:  The parameters to use for the calculation.
+        
+        """
+
+        if self._np_stat:
+            return self.get_np_coordinates(params)[0]
+        else:
+            return self.get_deflection_coordinates(params)[0]
+
+    def get_fixedpar_os_distribution(self, params, ds_min=-10, ds_max=20, cutoff=1e-6, limit=100, epsabs=1e-6, Q=None, kind='cdf'):
+        """For given parameters, get the OS distribution PDF/CDF under H0
+
+        :param params:  The parameters to use for the calculation.
+        :param ds_min:  The minimum value of the OS distribution.
+        :param ds_max:  The maximum value of the OS distribution.
+        :param cutoff:  Only eigenvalues above this value are included
+        :param limit:   An upper bound on the number of subintervals used
+                        in the adaptive integration algorithm
+        :param epsabs:  The absolute error tolerance for the integration
+        :param Q:       The Q matrix to use for the calculation. If None,
+                        it will be computed from the parameters.
+        :param kind:    The kind of distribution to return, either 'cdf' or 'pdf'
+
+        :return: A tuple of (ds, dist) where ds are the detection statistic values
+
+        """
+        if Q is None:
+            _, _, Q = self.compute_os(params)
         eigen_values = sl.eigvalsh(Q)
 
         xs = np.linspace(ds_min, ds_max, 1000)
 
-        # pdf = gx2pdf(eigen_values, xs, cutoff=cutoff, limit=limit, epsabs=epsabs)
-        cdf = gx2cdf(eigen_values, xs, cutoff=cutoff, limit=limit, epsabs=epsabs)
+        if kind=='cdf':
+            dist = gx2cdf(eigen_values, xs, cutoff=cutoff, limit=limit, epsabs=epsabs)
+        elif kind=='pdf':
+            dist = gx2pdf(eigen_values, xs, cutoff=cutoff, limit=limit, epsabs=epsabs)
+        else:
+            raise ValueError("Parameter 'kind' has to be cdf/pdf")
 
-        return xs, cdf
+        return xs, dist
 
+    def get_roc_curve(self, params, ds_min=-10, ds_max=20, cutoff=1e-6, limit=100, epsabs=1e-6, calc_pdf=False):
+        """For given parameters, get the ROC curve
+
+        :param params:  The parameters to use for the calculation.
+        :param ds_min:  The minimum value of the OS distribution.
+        :param ds_max:  The maximum value of the OS distribution.
+        :param cutoff:  Only eigenvalues above this value are included
+        :param limit:   An upper bound on the number of subintervals used
+                        in the adaptive integration algorithm
+        :param epsabs:  The absolute error tolerance for the integration
+        :param calc_pdf: Whether to calculate the PDF as well. If False,
+                        only the CDF will be calculated.
+
+        :return: A tuple of (ds, cdf_h0, cdf_hs) if only CDFs are calculated
+                 A tuple of (ds, pdf_h0, cdf_h0, pdf_hs, cdf_hs) if also PFDs
+
+        """
+        _, chi_tot, Q = self.get_deflection_coordinates(params, normalize_Q=False)
+        C = Q + np.identity(len(chi_tot))
+        L = sl.cholesky(C, lower=True)
+
+        if self._np_stat:
+            Q = self.deflection_to_np(Q, remove_auto_terms=not self._inc_auto_terms)
+
+        # Normalize the filter
+        QQ = np.dot(Q, Q)
+        Q = Q / np.sqrt(2 * np.trace(QQ))
+
+        # Whiten filter under H_S (already white under H_0)
+        QH0 = Q
+        #QHS = sl.solve_triangular(L, sl.solve_triangular(L, C, lower=True, trans=0).T, lower=True, trans=0)
+        QHS = L.T @ Q @ L
+
+        xs, cdf_h0 = self.get_fixedpar_os_distribution(
+            params,
+            ds_min=ds_min,
+            ds_max=ds_max,
+            cutoff=cutoff,
+            limit=limit,
+            epsabs=epsabs,
+            Q=QH0)
+
+        _, cdf_hs = self.get_fixedpar_os_distribution(
+            params,
+            ds_min=ds_min,
+            ds_max=ds_max,
+            cutoff=cutoff,
+            limit=limit,
+            epsabs=epsabs,
+            Q=QHS)
+
+        # If we are using auto terms, we need to:
+        if self._inc_auto_terms:
+            #xs += np.trace(Q @ C)
+            xs -= np.trace(QH0)
+
+        if calc_pdf:
+            _, pdf_h0 = self.get_fixedpar_os_distribution(
+                params,
+                ds_min=ds_min,
+                ds_max=ds_max,
+                cutoff=cutoff,
+                limit=limit,
+                epsabs=epsabs,
+                Q=QH0,
+                kind='pdf')
+
+            _, pdf_hs = self.get_fixedpar_os_distribution(
+                params,
+                ds_min=ds_min,
+                ds_max=ds_max,
+                cutoff=cutoff,
+                limit=limit,
+                epsabs=epsabs,
+                Q=QHS,
+                kind='pdf')
+
+            return xs, pdf_h0, cdf_h0, pdf_hs, cdf_hs
+
+        else:
+            return xs, cdf_h0, cdf_hs
 
     def get_fixedpar_pval(self, params, cutoff=1e-6, limit=200, epsabs=1e-9):
-        os, _, Q = self._get_compressed_coordinates(params)
+        """calculate the p-value for the OS under H0
+
+        :param params:  The parameters to use for the calculation.
+        :param ds_min:  The minimum value of the OS distribution.
+        :param ds_max:  The maximum value of the OS distribution.
+        :param cutoff:  Only eigenvalues above this value are included
+        :param limit:   An upper bound on the number of subintervals used
+                        in the adaptive integration algorithm
+        :param epsabs:  The absolute error tolerance for the integration
+
+        :return: The p-value for the OS under H0, which is 1 - CDF(OS)
+
+        """
+        os, _, Q = self.compute_os(params)
         eigen_values = sl.eigvalsh(Q)
         cdf_val = gx2cdf(eigen_values, [os], cutoff=cutoff, limit=limit, epsabs=epsabs)[0]
 
