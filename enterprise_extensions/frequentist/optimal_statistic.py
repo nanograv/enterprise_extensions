@@ -515,6 +515,9 @@ def inv_RPR(phi, r):
     cf = sl.cho_factor(Sigma)
     return I - r @ sl.cho_solve(cf, r.T)
 
+def ensure_2d_covmat(mat):
+    """Make sure that the covariance matrix is 2D"""
+    return mat if len(mat.shape)==2 else np.diag(mat)
 
 class DetectionStatistic(object):
     """
@@ -584,7 +587,7 @@ class DetectionStatistic(object):
         # We do this here so we can avoid calculating the mask later
         xs = np.array([par_val for p in pta_h0.params for par_val in np.atleast_1d(p.sample())])          # 1D array of all parameters
         pd = pta_hs.map_params(xs)
-        Phi_0 = [np.diag(p) for p in pta_h0.get_phi(pd)]          # Phi matrix of H0 -- 2D arrays
+        Phi_0 = [ensure_2d_covmat(p) for p in pta_h0.get_phi(pd)] # Phi matrix of H0 -- 2D arrays
         BigPhiDiff = pta_hs.get_phi(pd) - sl.block_diag(*Phi_0)
 
         # Get only the non-zero elements of the BigPhiDiff matrix for selections later
