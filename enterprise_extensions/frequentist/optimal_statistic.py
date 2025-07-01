@@ -573,19 +573,14 @@ class DetectionStatistic(object):
 
         # Calculate lists of H0 quantities (11 seconds, only need it once)
         Tmat = pta_h0.get_basis({})           # List of 2D matrices
-        Ndiag = pta_h0.get_ndiag({})          # Objects for sqrtsolve
-        NT = [nd.sqrtsolve(tm) for (nd, tm) in zip(Ndiag, Tmat)]        # List of 2D matrices
-        G_T = [sl.svd(nt, full_matrices=False)[0] for nt in NT]        # List of 2D matrices
-        self.R = [gt.T @ nt for (gt, nt) in zip(G_T, NT)]      # List of 2D matrices
-
-        # Transformation 1:
-        Nres = [nd.sqrtsolve(r) for (nd, r) in zip(Ndiag, pta_h0.get_residuals())]   # List of 1D arrays (the weighted data)
-
-        # Transformation 2:
-        self.GTNr = [gt.T @ nr for (gt, nr) in zip(G_T, Nres)]                            # List of 1D arrays (transformed data)
+        self.Ndiag = pta_h0.get_ndiag({})          # Objects for sqrtsolve
+        NT = [nd.sqrtsolve(tm) for (nd, tm) in zip(self.Ndiag, Tmat)]        # List of 2D matrices
+        self.G_T = [sl.svd(nt, full_matrices=False)[0] for nt in NT]        # List of 2D matrices
+        self.R = [gt.T @ nt for (gt, nt) in zip(self.G_T, NT)]      # List of 2D matrices           
 
         # We do this here so we can avoid calculating the mask later
-        xs = np.array([par_val for p in pta_h0.params for par_val in np.atleast_1d(p.sample())])          # 1D array of all parameters
+        # 1D array of all parameters
+        xs = np.array([par_val for p in pta_h0.params for par_val in np.atleast_1d(p.sample())])          
         pd = pta_hs.map_params(xs)
         Phi_0 = [ensure_2d_covmat(p) for p in pta_h0.get_phi(pd)] # Phi matrix of H0 -- 2D arrays
         BigPhiDiff = pta_hs.get_phi(pd) - sl.block_diag(*Phi_0)
@@ -600,7 +595,7 @@ class DetectionStatistic(object):
 
     def _get_compressed_coordinates(self, params, normalize_Q=True):
         """Returns OS, chi, and Q for the given parameters
-        
+
         :param params:  The parameters to use for the calculation.
         :param normalize_Q:  Whether to normalize the Q matrix or not.
         :return:  A tuple of (chi, Q, Phi, os_rank_reduced
@@ -608,14 +603,15 @@ class DetectionStatistic(object):
         """
 
         # These quantities have to be re-calculated for new hyperparameters
-        Phi_0 = [np.diag(p) for p in self.pta_h0.get_phi(params)]          # Phi matrix of H0 -- 2D arrays
+        Phi_0 = [ensure_2d_covmat(p) for p in self.pta_h0.get_phi(params)] # Phi matrix of H0 -- 2D arrays
 
         # This is a BIG matrix, but it's sparse. Not using that right now though
         # It's currently 0.4 secdonds for NG15
         BigPhiDiff = self.pta_hs.get_phi(params) - sl.block_diag(*Phi_0)                   # 2D prior diff array
 
         # Inverse Noise matrix
-        C2i_0 = [inv_RPR(p, r) for (r, p) in zip(self.R, Phi_0)]                  # List of matrix inverses -- 2D arrays
+        # List of matrix inverses -- 2D arrays
+        C2i_0 = [inv_RPR(p, r) for (r, p) in zip(self.R, Phi_0)]          
 
         # Get the Square-Root (we take it from the inv for numerical stability)
         C2i_0_svd = []
@@ -628,9 +624,18 @@ class DetectionStatistic(object):
 
             C2i_0_svd.append(c_svd)
 
-        # Select only non-singular values
-        C2i_sqrt_sing = [np.array([(np.sqrt(sv) if np.abs(sv) > 1e-10 else 0.0) for sv in s[1]]) for s in C2i_0_svd]          # Singular values -- 1D arrays
-        L_0 = [svd[0] @ np.diag(s) @ svd[0].T for (svd, s) in zip(C2i_0_svd, C2i_sqrt_sing)]          # L matrix -- 2D arrays
+        # Select only non-singular values # Singular values -- 1D arrays
+        C2i_sqrt_sing = [np.array([(np.sqrt(sv) if np.abs(sv) > 1e-10 else 0.0) for sv in s[1]])
+                         for s in C2i_0_svd]
+        # L matrix -- 2D arrays
+        L_0 = [svd[0] @ np.diag(s) @ svd[0].T for (svd, s) in zip(C2i_0_svd, C2i_sqrt_sing)]     
+
+        # Transformation 1: # List of 1D arrays (the weighted data)
+        Nres = [nd.sqrtsolve(r - rp) for (nd, r, rp) in zip(self.Ndiag, self.pta_h0.get_residuals(),
+                                                            self.pta_h0.get_delay(params))]
+
+        # Transformation 2: # List of 1D arrays (transformed data)
+        self.GTNr = [gt.T @ nr for (gt, nr) in zip(self.G_T, Nres)]    
 
         # Transformation 3:
         # From now also construct the filter transform, because it is of manaeable size
@@ -644,7 +649,8 @@ class DetectionStatistic(object):
         # T^{prime} = L_N^{-1} Tmat
         # P_T T^{prime} = T^{prime}   ===> P_T = G_T G_T^T
         # S3m = S3 @ G_F (is same thing as selecting the columns of S3)
-        S3m = [s3[:, msk] for (msk, s3) in zip(self.par_psr_msk, S3)]          # S3 matrix with only the relevant columns
+        # S3 matrix with only the relevant columns
+        S3m = [s3[:, msk] for (msk, s3) in zip(self.par_psr_msk, S3)] 
 
         # Need to swap the projector S3m = S3 @ G_F = P_A @ S3 @ G_F = U_A U_A^T
         U_A = [sl.svd(s3m, full_matrices=False)[0][:, :s3m.shape[1]] for s3m in S3m]
@@ -728,13 +734,13 @@ class DetectionStatistic(object):
         :param params:  The parameters to use for the calculation.
         :param normalize_Q:  Whether to normalize the Q matrix or not.
         :return:  A tuple of (chi, Q, Phi, os_rank_reduced
-        
+
         """
         return self._get_compressed_coordinates(params, normalize_Q=normalize_Q)
 
     def get_np_coordinates(self, params):
         """Return the Neyman-Pearson optimal detection statistic
-        
+
         The Neyman-Pearson optimal statistic is easily derived from the
         deflection-optimal statistic. So just use that relationship and
         re-normalize the filter
@@ -752,7 +758,7 @@ class DetectionStatistic(object):
         """Get the optimal statistic value / coordinates
 
         :param params:  The parameters to use for the calculation.
-        
+
         """
 
         if self._np_stat:
@@ -893,3 +899,4 @@ class DetectionStatistic(object):
         cdf_val = gx2cdf(eigen_values, [os], cutoff=cutoff, limit=limit, epsabs=epsabs)[0]
 
         return 1-cdf_val
+
