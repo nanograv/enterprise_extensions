@@ -894,7 +894,12 @@ class DetectionStatistic(object):
         :return: The p-value for the OS under H0, which is 1 - CDF(OS)
 
         """
-        os, _, Q = self.compute_os(params)
+        if self._np_stat:
+            os, _, Q = self.get_np_coordinates(params)
+        else:
+            os, _, Q = self.get_deflection_coordinates(params)
+
+
         eigen_values = sl.eigvalsh(Q)
         cdf_val = gx2cdf(eigen_values, [os], cutoff=cutoff, limit=limit, epsabs=epsabs)[0]
 
