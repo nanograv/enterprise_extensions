@@ -530,8 +530,8 @@ class DetectionStatistic(object):
 
     :param pta_h0:  The enterprise PTA object for the null hypothesis.
     :param pta_hs:  The enterprise PTA object for the signal hypothesis.
-    :param np_stat: Whether to use the Neyman-Pearson statistic
-    :param inc_auto_terms: Whether to include the auto-correlations
+    :param dstype:  The type of detection statistic to use
+                    DF, DFCC, NP, NPMV  -- default: DFCC (traditional OS)
 
     References:
      - Section 9, van Haasteren (2025), https://arxiv.org/abs/2506.10811
@@ -541,14 +541,37 @@ class DetectionStatistic(object):
         self,
         pta_h0,
         pta_hs,
-        np_stat=False,
-        inc_auto_terms=False
+        dstype="DFCC",
     ):
         """Initialize the Detection statistic object."""
         # set up cache
         self._set_cache_parameters(pta_h0, pta_hs)
-        self._np_stat = np_stat
-        self._inc_auto_terms = inc_auto_terms
+        self._np_stat, self._inc_auto_terms = self._get_dstype(dstype=dstype)
+
+    def _get_dstype(self, dstype="DFCC"):
+        """Set the type of detection statistic
+
+        :param type:  The type of detection statistic
+                      DF, DFCC, NP, NPMV
+
+        :return:  None  
+        """
+        np_stat, inc_auto_terms = False, False
+
+        if dstype.upper() in ["DF"]:
+            np_stat = False
+            inc_auto_terms = True
+        elif dstype.upper() in ["DFCC"]:
+            np_stat = False
+            inc_auto_terms = False
+        elif dstype.upper() in ["NP"]:
+            np_stat = True
+            inc_auto_terms = True
+        elif dstype.upper() in ["NPMV"]:
+            np_stat = True
+            inc_auto_terms = False
+
+        return np_stat, inc_auto_terms
 
     def _set_cache_parameters(self, pta_h0, pta_hs):
         """Set the cache parameters according to the Section 9 in van Haasteren (2025)
@@ -828,7 +851,6 @@ class DetectionStatistic(object):
 
         # Whiten filter under H_S (already white under H_0)
         QH0 = Q
-        #QHS = sl.solve_triangular(L, sl.solve_triangular(L, C, lower=True, trans=0).T, lower=True, trans=0)
         QHS = L.T @ Q @ L
 
         xs, cdf_h0 = self.get_fixedpar_os_distribution(
@@ -851,7 +873,6 @@ class DetectionStatistic(object):
 
         # If we are using auto terms, we need to:
         if self._inc_auto_terms:
-            #xs += np.trace(Q @ C)
             xs -= np.trace(QH0)
 
         if calc_pdf:
@@ -898,7 +919,6 @@ class DetectionStatistic(object):
             os, _, Q = self.get_np_coordinates(params)
         else:
             os, _, Q = self.get_deflection_coordinates(params)
-
 
         eigen_values = sl.eigvalsh(Q)
         cdf_val = gx2cdf(eigen_values, [os], cutoff=cutoff, limit=limit, epsabs=epsabs)[0]
