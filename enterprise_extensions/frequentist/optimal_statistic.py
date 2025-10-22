@@ -784,6 +784,14 @@ class DetectionStatistic(object):
 
         return num / den, chi_tot, Q
 
+    def _zero_block_diagonal(self, M):
+        """Zero the (a==b) block-diagonal using self._idx as block boundaries (in place)."""
+        for i in range(len(self._idx) - 1):
+            ii0, ii1 = self._idx[i], self._idx[i + 1]
+            M[ii0:ii1, ii0:ii1] = 0.0
+
+        return M
+
     def deflection_to_np(self, Q, remove_auto_terms=True):
         """
         Transform what we have into a Neyman-Pearson-Weighted-optimal statistic
@@ -801,10 +809,7 @@ class DetectionStatistic(object):
 
         if remove_auto_terms:
             # Only keep the cross-terms
-            for i in range(len(self._idx) - 1):
-                BBi[
-                    self._idx[i] : self._idx[i + 1], self._idx[i] : self._idx[i + 1]
-                ] = 0
+            self._zero_block_diagonal(BBi)
 
         BBBi = np.dot(BBi, BBi)
         den = np.sqrt(2 * np.trace(BBBi))
@@ -1008,3 +1013,4 @@ class DetectionStatistic(object):
         ]
 
         return 1 - cdf_val
+
