@@ -835,7 +835,7 @@ class DetectionStatistic(object):
         :param params:  The parameters to use for the calculation.
         :return:  A tuple of (chi, Q, Phi, os_rank_reduced
         """
-        _, chi_tot, Q = self._get_compressed_coordinates(params)
+        _, chi_tot, Q = self._get_compressed_coordinates(params, normalize_Q=False)
         Qnp = self.deflection_to_np(Q, remove_auto_terms=not self._inc_auto_terms)
         ds = np.sum(chi_tot * np.dot(Qnp, chi_tot))
 
