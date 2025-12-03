@@ -1013,4 +1013,3 @@ class DetectionStatistic(object):
         ]
 
         return 1 - cdf_val
-
