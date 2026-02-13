@@ -39,24 +39,33 @@ class FpStat(object):
     :param bayesephem: Include BayesEphem model. Default=True
     """
 
-    def __init__(self, psrs, noisedict=None,
-                 psrTerm=True, bayesephem=True, pta=None, tnequad=False):
+    def __init__(
+        self,
+        psrs,
+        noisedict=None,
+        psrTerm=True,
+        bayesephem=True,
+        pta=None,
+        tnequad=False,
+    ):
 
         if pta is None:
 
             # initialize standard model with fixed white noise
             # and powerlaw red noise
             # uses the implementation of ECORR in gp_signals
-            print('Initializing the model...')
+            print("Initializing the model...")
 
             tmin = np.min([p.toas.min() for p in psrs])
             tmax = np.max([p.toas.max() for p in psrs])
             Tspan = tmax - tmin
             s = gp_signals.TimingModel(use_svd=True)
-            s += deterministic.cw_block_circ(amp_prior='log-uniform',
-                                             psrTerm=psrTerm, tref=tmin, name='cw')
-            s += blocks.red_noise_block(prior='log-uniform', psd='powerlaw',
-                                        Tspan=Tspan, components=30)
+            s += deterministic.cw_block_circ(
+                amp_prior="log-uniform", psrTerm=psrTerm, tref=tmin, name="cw"
+            )
+            s += blocks.red_noise_block(
+                prior="log-uniform", psd="powerlaw", Tspan=Tspan, components=30
+            )
 
             if bayesephem:
                 s += deterministic_signals.PhysicalEphemerisSignal(use_epoch_toas=True)
@@ -64,19 +73,22 @@ class FpStat(object):
             # adding white-noise, and acting on psr objects
             models = []
             for p in psrs:
-                if 'NANOGrav' in p.flags['pta']:
-                    s2 = s + blocks.white_noise_block(vary=False, inc_ecorr=True,
-                                                      gp_ecorr=True, tnequad=tnequad)
+                if "NANOGrav" in p.flags["pta"]:
+                    s2 = s + blocks.white_noise_block(
+                        vary=False, inc_ecorr=True, gp_ecorr=True, tnequad=tnequad
+                    )
                     models.append(s2(p))
                 else:
-                    s3 = s + blocks.white_noise_block(vary=False, inc_ecorr=False, tnequad=tnequad)
+                    s3 = s + blocks.white_noise_block(
+                        vary=False, inc_ecorr=False, tnequad=tnequad
+                    )
                     models.append(s3(p))
 
             pta = signal_base.PTA(models)
 
             # set white noise parameters
             if noisedict is None:
-                print('No noise dictionary provided!')
+                print("No noise dictionary provided!")
             else:
                 pta.set_default_params(noisedict)
 
@@ -96,7 +108,10 @@ class FpStat(object):
         self.Nvecs = self.pta.get_ndiag(noisedict)
         self.Ts = self.pta.get_basis(noisedict)
         # self.cf_TNT = [sl.cho_factor(TNT + np.diag(phiinv)) for TNT, phiinv in zip(self.TNTs, self.phiinvs)]
-        self.sigmainvs = [np.linalg.pinv(TNT + np.diag(phiinv)) for TNT, phiinv in zip(self.TNTs, self.phiinvs)]
+        self.sigmainvs = [
+            np.linalg.pinv(TNT + np.diag(phiinv))
+            for TNT, phiinv in zip(self.TNTs, self.phiinvs)
+        ]
 
     def compute_Fp(self, fgw):
         """
@@ -111,7 +126,9 @@ class FpStat(object):
         N = np.zeros(2)
         M = np.zeros((2, 2))
         fstat = 0
-        for psr, Nvec, TNT, T, sigmainv in zip(self.psrs, self.Nvecs, self.TNTs, self.Ts, self.sigmainvs):
+        for psr, Nvec, TNT, T, sigmainv in zip(
+            self.psrs, self.Nvecs, self.TNTs, self.Ts, self.sigmainvs
+        ):
 
             ntoa = len(psr.toas)
 
@@ -154,4 +171,6 @@ class FpStat(object):
         N = len(self.psrs)
         n = np.arange(0, N)
 
-        return np.sum(np.exp(n*np.log(fp0)-fp0-np.log(scipy.special.gamma(n+1))))
+        return np.sum(
+            np.exp(n * np.log(fp0) - fp0 - np.log(scipy.special.gamma(n + 1)))
+        )

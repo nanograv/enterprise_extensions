@@ -2,6 +2,8 @@
 max-line-length = 120
 max-complexity = 45
 ignore =
+  C901,
+  # function is too complex
   E203,
   # missing whitespace around operator
   E225,

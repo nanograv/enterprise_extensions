@@ -10,6 +10,7 @@ import pickle
 
 import pytest
 
+from enterprise.pulsar import FeatherPulsar
 from enterprise_extensions import models, sampler
 from enterprise_extensions.empirical_distr import (
     make_empirical_distributions, make_empirical_distributions_KDE)
@@ -33,8 +34,7 @@ def dmx_psrs(caplog):
     caplog.set_level(logging.CRITICAL)
     psrs = []
     for p in psr_names:
-        with open(datadir+'/{0}_ng9yr_dmx_DE436_epsr.pkl'.format(p), 'rb') as fin:
-            psrs.append(pickle.load(fin))
+        psrs.append(FeatherPulsar.read_feather(datadir+'/{0}_ng9yr_dmx_DE436_epsr.feather'.format(p)))
 
     return psrs
 
