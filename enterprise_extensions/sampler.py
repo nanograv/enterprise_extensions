@@ -436,7 +436,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_red_prior(self, x, iter, beta):
 
@@ -460,7 +460,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_empirical_distr(self, x, iter, beta):
 
@@ -504,7 +504,7 @@ class JumpProposal(object):
                     ):
                         q, lqxy = self.draw_from_prior(x, iter, beta)
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_psr_empirical_distr(self, x, iter, beta):
         q = x.copy()
@@ -552,7 +552,7 @@ class JumpProposal(object):
                         oldsample
                     ) - self.empirical_distr[idx].logprob(newsample)
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_hypermodel_empirical_distr(self, x, iter, beta):
         """
@@ -603,7 +603,7 @@ class JumpProposal(object):
                     if oldsample[ii] < dist._edges[ii][0] or oldsample[ii] > dist._edges[ii][-1]:
                         q, lqxy = self.draw_from_prior(x, iter, beta)
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_dm_gp_prior(self, x, iter, beta):
 
@@ -627,7 +627,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_dm1yr_prior(self, x, iter, beta):
 
@@ -699,7 +699,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_chrom_gp_prior(self, x, iter, beta):
 
@@ -723,7 +723,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_gwb_log_uniform_distribution(self, x, iter, beta):
 
@@ -746,7 +746,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_dipole_log_uniform_distribution(self, x, iter, beta):
 
@@ -813,7 +813,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_bwm_prior(self, x, iter, beta):
 
@@ -837,7 +837,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_fdm_prior(self, x, iter, beta):
 
@@ -861,7 +861,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_cw_prior(self, x, iter, beta):
 
@@ -885,7 +885,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_cw_log_uniform_distribution(self, x, iter, beta):
 
@@ -919,7 +919,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_gw_rho_prior(self, x, iter, beta):
         """
@@ -949,7 +949,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_signal_prior(self, x, iter, beta):
 
@@ -986,7 +986,7 @@ class JumpProposal(object):
             q[self.pmap[str(param)]]
         )
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_par_prior(self, par_names):
         # Preparing and comparing par_names with PTA parameters
@@ -1035,7 +1035,7 @@ class JumpProposal(object):
                 q[self.pmap[str(param)]]
             )
 
-            return q, float(lqxy)
+            return q, lqxy.astype(float)
 
         name_string = "_".join(name_list)
         draw.__name__ = "draw_from_{}_prior".format(name_string[:40])
@@ -1172,7 +1172,7 @@ class JumpProposal(object):
 
         lqxy = first - last
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
     def draw_from_signal(self, signal_names):
         # Preparing and comparing signal_names with PTA signals
@@ -1217,7 +1217,7 @@ class JumpProposal(object):
                 q[self.pmap[str(param)]]
             )
 
-            return q, float(lqxy)
+            return q, lqxy.astype(float)
 
         name_string = "_".join(name_list)
         draw.__name__ = "draw_from_{}_signal".format(name_string[:40])
@@ -1294,7 +1294,7 @@ class JumpProposal(object):
 
         lqxy = np.log(fe_old_point / fe_new_point * hastings_extra_factor)
 
-        return q, float(lqxy)
+        return q, lqxy.astype(float)
 
 
 def get_global_parameters(pta):
