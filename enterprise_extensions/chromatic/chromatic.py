@@ -475,7 +475,7 @@ def dm_annual_signal(idx=2, tmin=None, tmax=None, name="dm_s1yr", vary=True, gp=
             log10_rho = parameter.Constant()
         chm_prior = gp_priors.free_spectrum(log10_rho=log10_rho)
         chm_basis = gp_bases.createfourierdesignmatrix_chromatic(idx=idx, modes=np.array([1/const.yr]))
-        dm1yr = gp_signals.BasisGP(chm_prior, chm_basis, name=name, coefficients=False) 
+        dm1yr = gp_signals.BasisGP(chm_prior, chm_basis, name=name, coefficients=False)
     else:
         if vary:
             log10_Amp_dm1yr = parameter.Uniform(-10, -2)

@@ -157,7 +157,7 @@ def model_singlepsr_noise(
     :param dm_nondiag_kernel: type of time-domain DM GP kernel
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
-    :param dm_annual_idx: Set 2 for DM, some other value for other chromatic signals 
+    :param dm_annual_idx: Set 2 for DM, some other value for other chromatic signals
     :param gpdm_annual: Set True to model the annual DM signal as a GP
     :param gamma_dm_val: spectral index of power-law DM variations
     :param dm_dt: time-scale for DM linear interpolation basis (days)
@@ -357,7 +357,8 @@ def model_singlepsr_noise(
                     dmdipname_base = dm_expdip_name
                 elif num_dmdips > 1:
                     dmdipname_base = [dm_expdip_name + "_{0}".format(ii + 1) for ii in range(num_dmdips)]
-                else: dmdipname_base = [dm_expdip_name]
+                else:
+                    dmdipname_base = [dm_expdip_name]
             else:
                 dmdipname_base = [
                     "dmexp_{0}".format(ii + 1) for ii in range(num_dmdips)
