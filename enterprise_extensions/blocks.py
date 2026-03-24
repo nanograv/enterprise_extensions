@@ -873,10 +873,10 @@ def dm_noise_block(
                 log10_ell2 = parameter.Uniform(0, 7)
                 log10_alpha_wgt = parameter.Uniform(-4, 3)
             else:
-                log10_sigma = parameter.Consant()
-                log10_ell = parameter.Consant()
-                log10_ell2 = parameter.Consant()
-                log10_alpha_wgt = parameter.Consant()
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
+                log10_ell2 = parameter.Constant()
+                log10_alpha_wgt = parameter.Constant()
 
             dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt * const.day, dm=True)
             dm_prior = gpk.sf_kernel(
@@ -893,7 +893,7 @@ def dm_noise_block(
                 log10_sigma_ridge = parameter.Constant()
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
-            dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
+            dm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
 
     if select is None:
         dmgp = gp_signals.BasisGP(
@@ -1177,14 +1177,6 @@ def chromatic_noise_block(
                 log10_ell=log10_ell,
                 log10_gam_p=log10_gam_p,
                 log10_p=log10_p
-            )
-
-        elif nondiag_kernel == "sq_exp":
-            # Squared-exponential GP kernel for Chrom
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day)
-            chm_prior = gpk.se_dm_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
             )
 
         elif nondiag_kernel == "periodic_rfband":
