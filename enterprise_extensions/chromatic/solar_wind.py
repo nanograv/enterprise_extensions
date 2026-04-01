@@ -5,6 +5,7 @@ import os
 import numpy as np
 import scipy.stats as sps
 import scipy.special as spsf
+import astropy.units as u
 
 from enterprise import constants as const
 from enterprise.signals import (
@@ -22,7 +23,6 @@ defpath = os.path.dirname(__file__)
 
 yr_in_sec = 365.25 * 24 * 3600
 
-
 @signal_base.function
 def solar_wind(
     toas,
@@ -34,6 +34,9 @@ def solar_wind(
     n_earth_bins=None,
     t_init=None,
     t_final=None,
+    nesw1 = None, 
+    nesw2 = None, 
+    swepoch=None, 
 ):
     """
     Construct DM-Solar Model fourier design matrix.
@@ -52,13 +55,17 @@ def solar_wind(
                 all pulsars.
     :param t_final: Final time of last TOA in entire dataset, including all
                 pulsars.
+    :param nesw1 : First order time-derivative of solar-wind electron density [cm**-3*yr**-1]
+    :param nesw2 : Second order time-derivative of solar-wind electron density [cm**-3*yr**-2]
+    :swepoch : Reference epoch for SW Taylor series [MJD]
 
     :return dt_DM: Chromatic time delay due to solar wind
     """
 
     if n_earth_bins is None:
         theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
-        dm_sol_wind = dm_solar(n_earth, theta, R_earth)
+        dm_sol_wind = dm_solar(n_earth, theta, R_earth, toas, 
+                               nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
         dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
 
     else:
@@ -98,7 +105,8 @@ def solar_wind(
 
 @signal_base.function
 def solar_wind_r_to_p(
-    toas, freqs, planetssb, sunssb, pos_t, n_earth=5, power=4.39, log10_ne=False
+    toas, freqs, planetssb, sunssb, pos_t, toas, n_earth=5, power=4.39, log10_ne=False, 
+    nesw1=nesw1, nesw2=nesw2, swepoch=swepoch,
 ):
     """
     Construct DM-Solar Model fourier design matrix.
@@ -119,7 +127,8 @@ def solar_wind_r_to_p(
         n_earth = 10**n_earth
 
     theta, _, b, z_earth = theta_impact(planetssb, sunssb, pos_t)
-    dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power)
+    dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power, toas, 
+                               nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
     dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
     dt_DM = np.array(dt_DM)
 
@@ -202,7 +211,10 @@ def solar_wind_block(
     modes=None,
     nmodes=15,
     dt=3,
-    vary_swgp=True,
+    vary_swgp=True, 
+    nesw1 = None, 
+    nesw2 = None, 
+    swepoch = None, 
 ):
     """
     Returns Solar Wind DM noise model. Recommended is a time-independent, deterministic model with
@@ -252,6 +264,12 @@ def solar_wind_block(
         Only needed if swgp_basis is 'linear_interp'.
     :param vary_swgp:
         Whether to vary the SW GP hyperparameters or set them constant.
+    :param nesw1 : 
+        First order time-derivative of solar-wind electron density [cm**-3*yr**-1]
+    :param nesw2 : 
+        Second order time-derivative of solar-wind electron density [cm**-3*yr**-2]
+    :swepoch : 
+        Reference epoch for SW Taylor series [MJD]
     """
     if include_deterministic:
         if n_earth is None and n_earth_bins is None and not ACE_prior:
@@ -267,7 +285,9 @@ def solar_wind_block(
         else:
             pass  # set n_earth to the provided value(s) below
 
-        deter_sw = solar_wind(n_earth=n_earth, n_earth_bins=n_earth_bins, t_init=t_init, t_final=t_final)
+        deter_sw = solar_wind(n_earth=n_earth, n_earth_bins=n_earth_bins, 
+                              t_init=t_init, t_final=t_final, 
+                              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
         mean_sw = deterministic_signals.Deterministic(deter_sw, name=det_name)
         sw_model = mean_sw
 
@@ -375,17 +395,34 @@ AU_light_sec = const.AU / const.c  # 1 AU in light seconds
 AU_pc = const.AU / const.pc  # 1 AU in parsecs (for DM normalization)
 
 
-def _dm_solar_close(n_earth, r_earth):
+def _dm_solar_close(n_earth, r_earth, toas, 
+                    nesw1=nesw1, nesw2=nesw2, swepoch=swepoch):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n_earth += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n_earth += 0.5 * nesw2 * (dt/yr_in_sec)**2
     return n_earth * AU_light_sec * AU_pc / r_earth
 
+def _dm_solar(n_earth, theta, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch):    
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n_earth += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n_earth += 0.5 * nesw2 * (dt/yr_in_sec)**2    
+    return (np.pi - theta) * (n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta)))
 
-def _dm_solar(n_earth, theta, r_earth):
-    return (np.pi - theta) * (
-        n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta))
-    )
-
-
-def dm_solar(n_earth, theta, r_earth):
+def dm_solar(n_earth, theta, r_earth, toas, 
+             nesw1=None, nesw2=None, swepoch=None):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
     ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
@@ -395,12 +432,15 @@ def dm_solar(n_earth, theta, r_earth):
     """
     return np.where(
         np.pi - theta >= 1e-5,
-        _dm_solar(n_earth, theta, r_earth),
-        _dm_solar_close(n_earth, r_earth),
+        _dm_solar(n_earth, theta, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch),
+        _dm_solar_close(n_earth, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch),
     )
 
 
-def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
+def dm_solar_r_to_p(n_earth, theta, b, z_earth, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
     """
     Calculates Dispersion measure due to 1/r^p solar wind density model.
     ::param :n_earth Solar wind proton/electron density at Earth (1/cm^3)
@@ -408,14 +448,36 @@ def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
     ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 20007 for more details.
     """
-    return _dm_solar_r_to_p(n_earth, b, z_earth, p)
+    return _dm_solar_r_to_p(n_earth, b, z_earth, p, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
 
 
-def _dm_solar_close_r_to_p(n, z, p):
+def _dm_solar_close_r_to_p(n, z, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n += 0.5 * nesw2 * (dt/yr_in_sec)**2
+
     return n * (AU_light_sec / z) ** (p - 1) * (AU_pc / p)
 
 
-def _dm_solar_r_to_p(n, b, z, p):
+def _dm_solar_r_to_p(n, b, z, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n += 0.5 * nesw2 * (dt/yr_in_sec)**2
     return (
         n
         * (AU_light_sec / b) ** p
@@ -424,7 +486,6 @@ def _dm_solar_r_to_p(n, b, z, p):
         * const.c
         * (_dm_p_int(b, 1e14, p) - _dm_p_int(b, -z, p))
     )
-
 
 def _dm_p_int(b, z, p):
     return z / b * spsf.hyp2f1(0.5, p / 2.0, 1.5, -(z**2) / b**2)
