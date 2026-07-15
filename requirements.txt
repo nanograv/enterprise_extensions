@@ -3,7 +3,8 @@ scipy>=1.2.0
 ephem>=3.7.6.0
 healpy>=1.14.0
 scikit-sparse>=0.4.5
-enterprise-pulsar>=3.4.4
+# 3.5.0+ uses importlib.resources; older releases need pkg_resources (broken on setuptools 82+)
+enterprise-pulsar>=3.5.0
 pyarrow>=16.1.0
 matplotlib>=3.1.0
 six
