@@ -50,10 +50,10 @@ def nodmx_psrs(caplog):
     return psrs
 
 
-@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_model2a(dmx_psrs, caplog):
-    m2a=models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
+    # filterwarnings must not decorate fixtures (pytest>=8 hard-fails).
+    m2a = models.model_2a(dmx_psrs, noisedict=noise_dict, tnequad=True)
     return m2a
 
 
@@ -72,7 +72,6 @@ def test_os(nodmx_psrs, pta_model2a):
     OS.compute_noise_maximized_os(chain, param_names=OS.pta.param_names)
 
 
-@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_pshift(dmx_psrs, caplog):
     Tspan = model_utils.get_tspan(dmx_psrs)

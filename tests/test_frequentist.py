@@ -34,10 +34,10 @@ def dmx_psrs(caplog):
     return psrs
 
 
-@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_model1(dmx_psrs, caplog):
-    m2a=models.model_1(dmx_psrs, noisedict=noise_dict, tnequad=True)
+    # filterwarnings must not decorate fixtures (pytest>=8 hard-fails).
+    m2a = models.model_1(dmx_psrs, noisedict=noise_dict, tnequad=True)
     return m2a
 
 
