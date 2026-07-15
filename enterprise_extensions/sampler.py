@@ -19,6 +19,23 @@ from enterprise_extensions.empirical_distr import (
 )
 
 
+def _draw_parameter_from_prior(param, q, sl):
+    """Mutate q[sl] according to the Parameter prior-draw contract.
+
+    A "joint" vector parameter (correlated prior) must be replaced whole, since
+    updating one component alone leaves the others inconsistent with the
+    replaced one under a non-factorized density. A "component" vector may be
+    updated one entry at a time because its prior factorizes across entries.
+    """
+    if param.size is not None and param.prior_draw_mode == "joint":
+        q[sl] = np.asarray(param.sample(), dtype=float).reshape(param.size)
+    elif param.size is not None:
+        idx2 = np.random.randint(0, param.size)
+        q[sl.start + idx2] = np.asarray(param.sample())[idx2]
+    else:
+        q[sl] = param.sample()
+
+
 def extend_emp_dists(
     pta, emp_dists, npoints=100_000, save_ext_dists=False, outdir="./chains"
 ):
@@ -417,24 +434,18 @@ class JumpProposal(object):
         """
 
         q = x.copy()
-        lqxy = 0
 
         # randomly choose parameter
         param = np.random.choice(self.params)
+        sl = self.pmap[str(param)]
 
-        # if vector parameter jump in random component
-        if param.size:
-            idx2 = np.random.randint(0, param.size)
-            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
-
-        # scalar parameter
-        else:
-            q[self.pmap[str(param)]] = param.sample()
+        # honors param.prior_draw_mode: whole-vector replacement for a
+        # correlated ("joint") prior, single-component for a factorized
+        # ("component") vector prior, direct replacement for a scalar
+        _draw_parameter_from_prior(param, q, sl)
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
-            q[self.pmap[str(param)]]
-        )
+        lqxy = param.get_logpdf(x[sl]) - param.get_logpdf(q[sl])
 
         return q, float(lqxy)
 
@@ -973,18 +984,14 @@ class JumpProposal(object):
         # draw parameter from signal model
         signal_name = np.random.choice(non_std)
         param = np.random.choice(self.snames[signal_name])
-        if param.size:
-            idx2 = np.random.randint(0, param.size)
-            q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+        sl = self.pmap[str(param)]
 
-        # scalar parameter
-        else:
-            q[self.pmap[str(param)]] = param.sample()
+        # `non_std` is open-ended (any signal not in the fixed `std` list), so
+        # this may select a correlated vector parameter: honor prior_draw_mode
+        _draw_parameter_from_prior(param, q, sl)
 
         # forward-backward jump probability
-        lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
-            q[self.pmap[str(param)]]
-        )
+        lqxy = param.get_logpdf(x[sl]) - param.get_logpdf(q[sl])
 
         return q, float(lqxy)
 
@@ -1014,26 +1021,20 @@ class JumpProposal(object):
             """
 
             q = x.copy()
-            lqxy = 0
 
             # randomly choose parameter
             idx_name = np.random.choice(par_list)
             idx = self.plist.index(idx_name)
 
-            # if vector parameter jump in random component
             param = self.params[idx]
-            if param.size:
-                idx2 = np.random.randint(0, param.size)
-                q[self.pmap[str(param)]][idx2] = param.sample()[idx2]
+            sl = self.pmap[str(param)]
 
-            # scalar parameter
-            else:
-                q[self.pmap[str(param)]] = param.sample()
+            # `par_names` is caller-supplied and may match a correlated
+            # vector parameter by name: honor prior_draw_mode
+            _draw_parameter_from_prior(param, q, sl)
 
             # forward-backward jump probability
-            lqxy = param.get_logpdf(x[self.pmap[str(param)]]) - param.get_logpdf(
-                q[self.pmap[str(param)]]
-            )
+            lqxy = param.get_logpdf(x[sl]) - param.get_logpdf(q[sl])
 
             return q, float(lqxy)
 
