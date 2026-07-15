@@ -37,9 +37,14 @@ jobs:
         sudo apt-get install libsuitesparse-dev
     - name: Install dependencies and package
       run: |
-        python -m pip install --upgrade pip setuptools wheel
+        # Pin setuptools: 82+ dropped pkg_resources, which older enterprise-pulsar
+        # releases still import (Requirement, resource_filename). Unbounded
+        # `pip install --upgrade setuptools` pulls the latest and breaks collection.
+        python -m pip install --upgrade pip "setuptools>=68,<81" wheel
         python -m pip install flake8 pytest pytest-cov
         NO_MKL=1 python -m pip install -e .
+        # Fail fast with a clear message if enterprise/setuptools are incompatible.
+        python -c "import enterprise, enterprise.signals.utils; print('enterprise', enterprise.__version__)"
     - name: Display Python, pip, setuptools, and all installed versions
       run: |
         python -c "import sys; print(f'Python {sys.version}')"
@@ -74,7 +79,7 @@ jobs:
         sudo apt-get install libsuitesparse-dev
     - name: Build
       run: |
-        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install --upgrade pip "setuptools>=68,<81" wheel
         pip install -r requirements.txt
         pip install -r requirements_dev.txt
         make dist
@@ -87,7 +92,7 @@ jobs:
         mkdir tmp
         cd tmp
         python -m venv venv-sdist
-        venv-sdist/bin/python -m pip install --upgrade pip setuptools wheel
+        venv-sdist/bin/python -m pip install --upgrade pip "setuptools>=68,<81" wheel
         venv-sdist/bin/python -m pip install ../dist/enterprise_extensions*.tar.gz
         venv-sdist/bin/python -c "import enterprise_extensions;print(enterprise_extensions.__version__)"
     - name: Test the wheel
@@ -95,7 +100,7 @@ jobs:
         mkdir tmp2
         cd tmp2
         python -m venv venv-wheel
-        venv-wheel/bin/python -m pip install --upgrade pip setuptools
+        venv-wheel/bin/python -m pip install --upgrade pip "setuptools>=68,<81"
         venv-wheel/bin/python -m pip install ../dist/enterprise_extensions*.whl
         venv-wheel/bin/python -c "import enterprise_extensions;print(enterprise_extensions.__version__)"
     - uses: actions/upload-artifact@v4

@@ -87,10 +87,10 @@ Tests for altpol functions in OS Code.
 """
 
 
-@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 @pytest.fixture
 def pta_model2a(nodmx_psrs, caplog):
-    m2a=models.model_2a(nodmx_psrs, noisedict=noise_dict)
+    # filterwarnings must not decorate fixtures (pytest>=8 hard-fails).
+    m2a = models.model_2a(nodmx_psrs, noisedict=noise_dict)
     return m2a
 
 

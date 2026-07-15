@@ -27,6 +27,7 @@ __all__ = [
     "common_red_noise_block",
 ]
 
+
 def channelized_backends(backend_flags):
     """Selection function to split by channelized backend flags only. For ECORR"""
     flagvals = np.unique(backend_flags)
