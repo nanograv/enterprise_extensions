@@ -60,6 +60,9 @@ def model_singlepsr_noise(
     dm_nondiag_kernel="periodic",
     dmx_data=None,
     dm_annual=False,
+    dm_annual_idx=2,
+    gp_dm_annual=False,
+    dm_annual_name='dm_s1yr',
     gamma_dm_val=None,
     dm_dt=15,
     dm_df=200,
@@ -76,12 +79,12 @@ def model_singlepsr_noise(
     chrom_Nfreqs=100,
     vary_dm_dips=True,
     dm_expdip=False,
+    dm_expdip_name='dmexp',
     dmexp_sign="negative",
     dm_expdip_idx=2,
     dm_expdip_tmin=None,
     dm_expdip_tmax=None,
     num_dmdips=1,
-    dmdip_seqname=None,
     dm_cusp=False,
     dm_cusp_sign="negative",
     dm_cusp_idx=2,
@@ -154,6 +157,8 @@ def model_singlepsr_noise(
     :param dm_nondiag_kernel: type of time-domain DM GP kernel
     :param dmx_data: supply the DMX data from par files
     :param dm_annual: include an annual DM signal
+    :param dm_annual_idx: Set 2 for DM, some other value for other chromatic signals
+    :param gpdm_annual: Set True to model the annual DM signal as a GP
     :param gamma_dm_val: spectral index of power-law DM variations
     :param dm_dt: time-scale for DM linear interpolation basis (days)
     :param dm_df: frequency-scale for DM linear interpolation basis (MHz)
@@ -179,7 +184,7 @@ def model_singlepsr_noise(
     :param dm_expdip_tmin: sampling minimum of DM dip epoch
     :param dm_expdip_tmax: sampling maximum of DM dip epoch
     :param num_dmdips: number of dm exponential dips
-    :param dmdip_seqname: name of dip sequence
+    :param dm_expdip_name: How to name each dmdip. Default "dmexp", or supply list for multiple
     :param dm_cusp: include a DM exponential cusp
     :param dm_cusp_sign: set the sign parameter for cusp
     :param dm_cusp_idx: chromatic index of exponential cusp
@@ -331,7 +336,7 @@ def model_singlepsr_noise(
         elif dm_type == "dmx":
             s += chrom.dmx_signal(dmx_data=dmx_data[psr.name], vary=vary_dm)
         if dm_annual:
-            s += chrom.dm_annual_signal(vary=vary_dm)
+            s += chrom.dm_annual_signal(vary=vary_dm, idx=dm_annual_idx, gp=gp_dm_annual, name=dm_annual_name)
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = [psr.toas.min() / const.day for ii in range(num_dmdips)]
@@ -347,12 +352,13 @@ def model_singlepsr_noise(
                     if isinstance(dm_expdip_tmax, list)
                     else [dm_expdip_tmax]
                 )
-            if dmdip_seqname is not None:
-                dmdipname_base = (
-                    ["dmexp_" + nm for nm in dmdip_seqname]
-                    if isinstance(dmdip_seqname, list)
-                    else ["dmexp_" + dmdip_seqname]
-                )
+            if dm_expdip_name is not None:
+                if isinstance(dm_expdip_name, list):
+                    dmdipname_base = dm_expdip_name
+                elif num_dmdips > 1:
+                    dmdipname_base = [dm_expdip_name + "_{0}".format(ii + 1) for ii in range(num_dmdips)]
+                else:
+                    dmdipname_base = [dm_expdip_name]
             else:
                 dmdipname_base = [
                     "dmexp_{0}".format(ii + 1) for ii in range(num_dmdips)

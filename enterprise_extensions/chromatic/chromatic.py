@@ -2,7 +2,7 @@
 
 import numpy as np
 from enterprise import constants as const
-from enterprise.signals import deterministic_signals, parameter, signal_base, gp_bases
+from enterprise.signals import deterministic_signals, parameter, signal_base, gp_bases, gp_priors, gp_signals
 
 __all__ = [
     "chrom_exp_decay",
@@ -450,7 +450,7 @@ def dmx_signal(dmx_data, name="dmx_signal", vary=True):
     return dmx_sig
 
 
-def dm_annual_signal(idx=2, tmin=None, tmax=None, name="dm_s1yr", vary=True):
+def dm_annual_signal(idx=2, tmin=None, tmax=None, name="dm_s1yr", vary=True, gp=False):
     """
     Returns chromatic annual signal (i.e. TOA advance):
 
@@ -461,21 +461,32 @@ def dm_annual_signal(idx=2, tmin=None, tmax=None, name="dm_s1yr", vary=True):
     :param tmin: earliest TOA for the sinusoid
     :param tmax: latest TOA for the sinusoid
     :param vary: Whether to vary the parameters or use constant values.
+    :param gp:
+        Set True to model as a GP (marginalize over the phase analytically).
+        Default False to model deterministically
 
     :return dm1yr:
         chromatic annual waveform.
     """
-    if vary:
-        log10_Amp_dm1yr = parameter.Uniform(-10, -2)
-        phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+    if gp:
+        if vary:
+            log10_rho = parameter.Uniform(-10, -2)
+        else:
+            log10_rho = parameter.Constant()
+        chm_prior = gp_priors.free_spectrum(log10_rho=log10_rho)
+        chm_basis = gp_bases.createfourierdesignmatrix_chromatic(idx=idx, modes=np.array([1/const.yr]))
+        dm1yr = gp_signals.BasisGP(chm_prior, chm_basis, name=name, coefficients=False)
     else:
-        log10_Amp_dm1yr = parameter.Constant()
-        phase_dm1yr = parameter.Constant()
-
-    wf = chrom_yearly_sinusoid(
-        log10_Amp=log10_Amp_dm1yr, phase=phase_dm1yr, idx=idx, tmin=tmin, tmax=tmax
-    )
-    dm1yr = deterministic_signals.Deterministic(wf, name=name)
+        if vary:
+            log10_Amp_dm1yr = parameter.Uniform(-10, -2)
+            phase_dm1yr = parameter.Uniform(0, 2*np.pi)
+        else:
+            log10_Amp_dm1yr = parameter.Constant()
+            phase_dm1yr = parameter.Constant()
+        wf = chrom_yearly_sinusoid(
+            log10_Amp=log10_Amp_dm1yr, phase=phase_dm1yr, idx=idx, tmin=tmin, tmax=tmax
+        )
+        dm1yr = deterministic_signals.Deterministic(wf, name=name)
 
     return dm1yr
 
