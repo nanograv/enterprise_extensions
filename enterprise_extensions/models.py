@@ -31,8 +31,6 @@ from enterprise_extensions.blocks import (
 from enterprise_extensions.chromatic.solar_wind import solar_wind_block
 from enterprise_extensions.timing import timing_block
 
-# from enterprise.signals.signal_base import LookupLikelihood
-
 
 def model_singlepsr_noise(
     psr,
@@ -46,6 +44,7 @@ def model_singlepsr_noise(
     tm_svd=False,
     tm_norm=True,
     white_vary=True,
+    gp_ecorr=False,
     components=30,
     upper_limit=False,
     is_wideband=False,
@@ -54,6 +53,7 @@ def model_singlepsr_noise(
     dmjump_var=False,
     gamma_val=None,
     dm_var=False,
+    vary_dm=True,
     dm_type="gp",
     dmgp_kernel="diag",
     dm_psd="powerlaw",
@@ -63,7 +63,9 @@ def model_singlepsr_noise(
     gamma_dm_val=None,
     dm_dt=15,
     dm_df=200,
+    dm_Nfreqs=100,
     chrom_gp=False,
+    vary_chrom=True,
     chrom_gp_kernel="nondiag",
     chrom_psd="powerlaw",
     chrom_idx=4,
@@ -71,6 +73,8 @@ def model_singlepsr_noise(
     chrom_kernel="periodic",
     chrom_dt=15,
     chrom_df=200,
+    chrom_Nfreqs=100,
+    vary_dm_dips=True,
     dm_expdip=False,
     dmexp_sign="negative",
     dm_expdip_idx=2,
@@ -96,9 +100,15 @@ def model_singlepsr_noise(
     num_dm_dual_cusps=1,
     dm_dual_cusp_seqname=None,
     dm_sw_deter=False,
+    deter_n_earth=None,
+    deter_n_earth_bins=None,
     dm_sw_gp=False,
-    swgp_prior=None,
-    swgp_basis=None,
+    swgp_prior='powerlaw',
+    swgp_basis='fourier',
+    swgp_Nfreqs=100,
+    swgp_modes=None,
+    swgp_dt=15,
+    vary_swgp=True,
     coefficients=False,
     extra_sigs=None,
     psr_model=False,
@@ -127,6 +137,7 @@ def model_singlepsr_noise(
     :param tm_svd: boolean for svd-stabilised timing model design matrix
     :param tm_norm: normalize the timing model, or provide custom normalization
     :param white_vary: boolean for varying white noise or keeping fixed
+    :param gp_ecorr: whether to use GP (kernel) model for ECORR (true) or basis ecorr (false, default)
     :param components: number of modes in Fourier domain processes
     :param dm_components: number of modes in Fourier domain DM processes
     :param upper_limit: whether to do an upper-limit analysis
@@ -136,6 +147,7 @@ def model_singlepsr_noise(
            is_wideband
     :param gamma_val: red noise spectral index to fix
     :param dm_var: whether to explicitly model DM-variations
+    :param vary_dm: whether to vary the DM model GP hyperparams or use constant values
     :param dm_type: gaussian process ('gp') or dmx ('dmx')
     :param dmgp_kernel: diagonal in frequency or non-diagonal
     :param dm_psd: power-spectral density of DM variations
@@ -145,16 +157,22 @@ def model_singlepsr_noise(
     :param gamma_dm_val: spectral index of power-law DM variations
     :param dm_dt: time-scale for DM linear interpolation basis (days)
     :param dm_df: frequency-scale for DM linear interpolation basis (MHz)
+    :param dm_Nfreqs: Number of Fourier modes to use for the dm_gp model.
     :param chrom_gp: include general chromatic noise
+    :param vary_chrom: whether to vary the chromatic GP hyperparams or use constant values
     :param chrom_gp_kernel: GP kernel type to use in chrom ['diag','nondiag']
     :param chrom_psd: power-spectral density of chromatic noise
         ['powerlaw','tprocess','free_spectrum']
-    :param chrom_idx: frequency scaling of chromatic noise
+    :param chrom_idx: frequency scaling of chromatic noise. use 'vary' to vary
+        between [2.5,chrom_gp_idx_prior_upper_bound].
+    :param chrom_gp_idx_prior_upper_bound: upper bound on the prior for chromatic index. default is 7.
     :param chrom_kernel: Type of 'nondiag' time-domain chrom GP kernel to use
         ['periodic', 'sq_exp','periodic_rfband', 'sq_exp_rfband']
     :param chrom_quad: Whether to add a quadratic chromatic term. Boolean
     :param chrom_dt: time-scale for chromatic linear interpolation basis (days)
     :param chrom_df: frequency-scale for chromatic linear interpolation basis (MHz)
+    :param chrom_Nfreqs: Number of Fourier modes to use for the chromatic GP.
+    :param vary_dm_dips: whether to vary the DM dip parameters or keep them fixed
     :param dm_expdip: inclue a DM exponential dip
     :param dmexp_sign: set the sign parameter for dip
     :param dm_expdip_idx: chromatic index of exponential dip
@@ -203,6 +221,8 @@ def model_singlepsr_noise(
     :param tm_marg: Use marginalized timing model. In many cases this will speed
         up the likelihood calculation significantly.
     :param dense_like: Use dense or sparse functions to evalute lnlikelihood
+    :param vary_dm: Whether to vary the DM model GP hyperparams or use constant values
+    :param vary_chrom: Whether to vary the Chromatic GP hyperparams or use constant values
 
     :return s: single pulsar noise model
 
@@ -293,9 +313,11 @@ def model_singlepsr_noise(
                     gp_kernel=dmgp_kernel,
                     psd=dm_psd,
                     prior=amp_prior,
-                    components=components,
+                    components=dm_Nfreqs,
                     gamma_val=gamma_dm_val,
+                    Tspan=Tspan,
                     coefficients=coefficients,
+                    vary=vary_dm,
                 )
             elif dmgp_kernel == "nondiag":
                 s += dm_noise_block(
@@ -304,24 +326,12 @@ def model_singlepsr_noise(
                     dt=dm_dt,
                     df=dm_df,
                     coefficients=coefficients,
+                    vary=vary_dm,
                 )
         elif dm_type == "dmx":
-            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name])
+            s += chrom.dmx_signal(dmx_data=dmx_data[psr.name], vary=vary_dm)
         if dm_annual:
-            s += chrom.dm_annual_signal()
-        if chrom_gp:
-            s += chromatic_noise_block(
-                gp_kernel=chrom_gp_kernel,
-                psd=chrom_psd,
-                idx=chrom_idx,
-                components=components,
-                nondiag_kernel=chrom_kernel,
-                dt=chrom_dt,
-                df=chrom_df,
-                include_quadratic=chrom_quad,
-                coefficients=coefficients,
-            )
-
+            s += chrom.dm_annual_signal(vary=vary_dm)
         if dm_expdip:
             if dm_expdip_tmin is None and dm_expdip_tmax is None:
                 tmin = [psr.toas.min() / const.day for ii in range(num_dmdips)]
@@ -358,6 +368,7 @@ def model_singlepsr_noise(
                     idx=dm_expdip_idx[dd],
                     sign=dmexp_sign,
                     name=dmdipname_base[dd],
+                    vary=vary_dm_dips,
                 )
         if dm_cusp:
             if dm_cusp_tmin is None and dm_cusp_tmax is None:
@@ -388,6 +399,7 @@ def model_singlepsr_noise(
                     sign=dm_cusp_sign[dd - 1],
                     symmetric=dm_cusp_sym,
                     name=cusp_name_base + str(dd),
+                    vary=vary_dm,
                 )
         if dm_dual_cusp:
             if dm_dual_cusp_tmin is None and dm_cusp_tmax is None:
@@ -409,16 +421,39 @@ def model_singlepsr_noise(
                     sign=dm_dual_cusp_sign,
                     symmetric=dm_dual_cusp_sym,
                     name=dual_cusp_name_base + str(dd),
+                    vary=vary_dm,
                 )
-        if dm_sw_deter:
-            Tspan = psr.toas.max() - psr.toas.min()
-            s += solar_wind_block(
-                ACE_prior=True,
-                include_swgp=dm_sw_gp,
-                swgp_prior=swgp_prior,
-                swgp_basis=swgp_basis,
-                Tspan=Tspan,
-            )
+    if dm_sw_deter or dm_sw_gp:
+        if (swgp_Nfreqs is None or Tspan is None) and swgp_modes is None and dm_sw_gp and swgp_basis == 'fourier':
+            raise ValueError("Must specify Tspan & swgp_Nfreqs OR swgp_modes for fourier basis swgp model.")
+        s += solar_wind_block(
+            ACE_prior=False,
+            n_earth=deter_n_earth,
+            n_earth_bins=deter_n_earth_bins,
+            include_deterministic=dm_sw_deter,
+            include_swgp=dm_sw_gp,
+            swgp_prior=swgp_prior,
+            swgp_basis=swgp_basis,
+            Tspan=Tspan,
+            nmodes=swgp_Nfreqs,
+            modes=swgp_modes,
+            dt=swgp_dt,
+            vary_swgp=vary_swgp,
+        )
+
+    if chrom_gp:
+        s += chromatic_noise_block(gp_kernel=chrom_gp_kernel,
+                                   psd=chrom_psd,
+                                   idx=chrom_idx,
+                                   components=chrom_Nfreqs,
+                                   nondiag_kernel=chrom_kernel,
+                                   dt=chrom_dt,
+                                   df=chrom_df,
+                                   include_quadratic=chrom_quad,
+                                   coefficients=coefficients,
+                                   Tspan=Tspan,
+                                   vary=vary_chrom,
+                                   )
 
     if extra_sigs is not None:
         s += extra_sigs
@@ -428,7 +463,7 @@ def model_singlepsr_noise(
         "NANOGrav" in psr.flags["pta"] or "CHIME" in psr.flags["f"]
     ) and not is_wideband:
         s2 = s + white_noise_block(
-            vary=white_vary, inc_ecorr=True, tnequad=tnequad, select=select
+            vary=white_vary, inc_ecorr=True, gp_ecorr=gp_ecorr, tnequad=tnequad, select=select
         )
         model = s2(psr)
         if psr_model:
@@ -437,6 +472,7 @@ def model_singlepsr_noise(
         s3 = s + white_noise_block(
             vary=white_vary,
             inc_ecorr=False,
+            gp_ecorr=gp_ecorr,
             tnequad=tnequad,
             select=select,
             ng_twg_setup=ng_twg_setup,

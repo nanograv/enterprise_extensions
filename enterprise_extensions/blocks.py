@@ -17,7 +17,6 @@ from . import gp_kernels as gpk
 from . import model_orfs
 from . import model_utils
 
-
 __all__ = [
     "white_noise_block",
     "red_noise_block",
@@ -28,11 +27,10 @@ __all__ = [
     "common_red_noise_block",
 ]
 
-
 def channelized_backends(backend_flags):
     """Selection function to split by channelized backend flags only. For ECORR"""
     flagvals = np.unique(backend_flags)
-    ch_b = ["ASP", "GASP", "GUPPI", "PUPPI", "YUPPI", "CHIME"]
+    ch_b = ["ASP", "GASP", "GUPPI", "PUPPI", "YUPPI", "CHIME", "VEGAS"]
     flagvals = filter(lambda x: any(map(lambda y: y in x, ch_b)), flagvals)
     return {flagval: backend_flags == flagval for flagval in flagvals}
 
@@ -168,10 +166,12 @@ def white_noise_block(
                 )
 
         else:
-            ec = white_signals.EcorrKernelNoise(
-                log10_ecorr=ecorr, selection=selection_ecorr, name=name
-            )
-
+            if name is None:
+                ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                    selection=selection_ecorr)
+            else:
+                ec = white_signals.EcorrKernelNoise(log10_ecorr=ecorr,
+                                                    selection=selection_ecorr, name=name)
     # combine signals
     if inc_ecorr:
         s = efeq + ec
@@ -575,6 +575,7 @@ def dm_noise_block(
     dropbin=False,
     dropbin_min=10,
     k_threshold=0.5,
+    vary=True,
     name="dm_gp",
 ):
     """
@@ -641,6 +642,8 @@ def dm_noise_block(
         Currently only supports power law option.
     :param dropbin_min: Set the minimal number of freq. bins for the dropbin.
     :param k_threshold: Threshold for dropout analysis.
+    :param vary:
+        Whether to vary the parameters or use constant values.
     :param name: Define the signal name.
     """
     if tnfreq and Tspan is not None:
@@ -657,20 +660,22 @@ def dm_noise_block(
             "tprocess_adapt",
         ]:
             # parameters shared by PSD functions
-            if logmin is not None and logmax is not None:
+            if logmin is not None and logmax is not None and vary:
                 if prior == "uniform":
                     log10_A_dm = parameter.LinearExp(logmin, logmax)
                 elif prior == "log-uniform":
                     log10_A_dm = parameter.Uniform(logmin, logmax)
                 elif prior == "gaussian":
                     log10_A_dm = parameter.Normal(logmin, logmax)
+            elif not vary:
+                log10_A_dm = parameter.Constant()
             else:
                 if prior == "uniform":
                     log10_A_dm = parameter.LinearExp(-20, -10)
                 elif prior == "log-uniform":
                     log10_A_dm = parameter.Uniform(-20, -10)
 
-            if gamma_val is not None:
+            if gamma_val is not None or not vary:
                 gamma_dm = parameter.Constant(gamma_val)
             else:
                 if gamma_prior == "uniform":
@@ -680,6 +685,8 @@ def dm_noise_block(
 
             if gamma_val is not None:
                 gamma_dm = parameter.Constant(gamma_val)
+            elif not vary:
+                gamma_dm = parameter.Constant()
             else:
                 if gamma_prior == "uniform":
                     gamma_dm = parameter.Uniform(gammamin, gammamax)
@@ -707,11 +714,17 @@ def dm_noise_block(
                 else:
                     dm_prior = utils.powerlaw(log10_A=log10_A_dm, gamma=gamma_dm)
             elif psd == "broken_powerlaw":
-                kappa_dm = parameter.Uniform(0.01, 0.5)
-                log10_fb_dm = parameter.Uniform(-10, -6)
+                if vary:
+                    kappa_dm = parameter.Uniform(0.01, 0.5)
+                    log10_fb_dm = parameter.Uniform(-10, -6)
+                else:
+                    kappa_dm = parameter.Constant()
+                    log10_fb_dm = parameter.Constant()
 
                 if delta_val is not None:
                     delta_dm = parameter.Constant(delta_val)
+                    if not vary:
+                        delta_dm = parameter.Constant()
                 else:
                     delta_dm = parameter.Uniform(0, 7)
                 dm_prior = gpp.broken_powerlaw(
@@ -722,13 +735,20 @@ def dm_noise_block(
                     kappa=kappa_dm,
                 )
             elif psd == "turnover":
-                kappa_dm = parameter.Uniform(0, 7)
-                lf0_dm = parameter.Uniform(-9, -7)
+                if vary:
+                    kappa_dm = parameter.Uniform(0, 7)
+                    lf0_dm = parameter.Uniform(-9, -7)
+                else:
+                    kappa_dm = parameter.Constant()
+                    lf0_dm = parameter.Constant()
                 dm_prior = utils.turnover(
                     log10_A=log10_A_dm, gamma=gamma_dm, lf0=lf0_dm, kappa=kappa_dm
                 )
             elif psd == "flat_powerlaw":
-                log10_B_dm = parameter.Uniform(-10, -4)
+                if vary:
+                    log10_B_dm = parameter.Uniform(-10, -4)
+                else:
+                    log10_B_dm = parameter.Constant()
                 dm_prior = gpp.flat_powerlaw(
                     log10_A=log10_A_dm, gamma=gamma_dm, log10_B=log10_B_dm
                 )
@@ -749,7 +769,7 @@ def dm_noise_block(
                     nfreq=nfreq_dm,
                 )
         if psd == "spectrum":
-            if logmin is not None and logmax is not None:
+            if logmin is not None and logmax is not None and vary:
                 if prior == "uniform":
                     log10_rho_dm = parameter.LinearExp(logmin, logmax, size=components)
                 elif prior == "log-uniform":
@@ -761,6 +781,8 @@ def dm_noise_block(
                     log10_rho_dm = parameter.Uniform(-10, -4, size=components)
                 else:
                     log10_rho_dm = parameter.Uniform(-9, -4, size=components)
+                if not vary:  # here just overwrite the prior to constant if not varying it
+                    log10_rho_dm = parameter.Constant()
 
             dm_prior = gpp.free_spectrum(log10_rho=log10_rho_dm)
 
@@ -786,10 +808,16 @@ def dm_noise_block(
     elif gp_kernel == "nondiag":
         if nondiag_kernel == "periodic":
             # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_p = parameter.Uniform(-2, 3)
+                log10_gam_p = parameter.Uniform(-4, 4)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
+                log10_p = parameter.Constant()
+                log10_gam_p = parameter.Constant()
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
             dm_prior = gpk.periodic_kernel(
@@ -800,12 +828,20 @@ def dm_noise_block(
             )
         elif nondiag_kernel == "periodic_rfband":
             # Periodic GP kernel for DM with RQ radio-frequency dependence
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_ell2 = parameter.Uniform(2, 7)
-            log10_alpha_wgt = parameter.Uniform(-4, 1)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
+                log10_p = parameter.Uniform(-2, 3)
+                log10_gam_p = parameter.Uniform(-4, 4)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
+                log10_ell2 = parameter.Constant()
+                log10_alpha_wgt = parameter.Constant()
+                log10_p = parameter.Constant()
+                log10_gam_p = parameter.Constant()
 
             dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt * const.day, dm=True)
             dm_prior = gpk.tf_kernel(
@@ -818,17 +854,27 @@ def dm_noise_block(
             )
         elif nondiag_kernel == "sq_exp":
             # squared-exponential GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 5)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
             dm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
         elif nondiag_kernel == "sq_exp_rfband":
             # Sq-Exp GP kernel for DM with RQ radio-frequency dependence
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_ell2 = parameter.Uniform(2, 7)
-            log10_alpha_wgt = parameter.Uniform(-4, 1)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 5)
+                log10_ell2 = parameter.Uniform(0, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 3)
+            else:
+                log10_sigma = parameter.Consant()
+                log10_ell = parameter.Consant()
+                log10_ell2 = parameter.Consant()
+                log10_alpha_wgt = parameter.Consant()
 
             dm_basis = gpk.get_tf_quantization_matrix(df=df, dt=dt * const.day, dm=True)
             dm_prior = gpk.sf_kernel(
@@ -839,10 +885,13 @@ def dm_noise_block(
             )
         elif nondiag_kernel == "dmx_like":
             # DMX-like signal
-            log10_sigma = parameter.Uniform(-10, -4)
+            if vary:
+                log10_sigma_ridge = parameter.Uniform(-10, -4)
+            else:
+                log10_sigma_ridge = parameter.Constant()
 
             dm_basis = gpk.linear_interp_basis_dm(dt=dt * const.day)
-            dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma)
+            dm_prior = gpk.dmx_ridge_prior(log10_sigma=log10_sigma_ridge)
 
     if select is None:
         dmgp = gp_signals.BasisGP(
@@ -871,6 +920,7 @@ def chromatic_noise_block(
     dt=15,
     df=200,
     idx=4,
+    fref=1400,
     idxmin=0,
     idxmax=7,
     include_quadratic=False,
@@ -892,13 +942,13 @@ def chromatic_noise_block(
     dropbin=False,
     dropbin_min=10,
     k_threshold=0.5,
+    vary=True,
     name="chrom_gp",
 ):
     """
     Returns GP chromatic noise signal object
-
     :param gp_kernel:
-        Type of Gaussian Process kernel [diag (default) or nondiag]
+        Type of Gaussian Process kernel ["diag" (default) or "nondiag"]
     :param psd:
         PSD function for the GP kernel if gp_kernel="diag" [e.g. powerlaw (default), turnover, spectrum, tprocess, tprocess_adapt]
     :param nondiag_kernel:
@@ -919,7 +969,7 @@ def chromatic_noise_block(
     :param df:
         Frequency-scale for linear interpolation basis (MHz)
     :param idx:
-        If not Nonw, fix the chromatic index to this value. Default is 4 for scattering delay variations.
+        If not None, fix the chromatic index to this value. Default is 4 for scattering delay variations.
         Achromatic if 0, DM noise if 2.
     :param idxmin:
         If idx is None, it is used to set the prior lower edge for idx that will be included as a parameter to fit for. Default is 0
@@ -967,6 +1017,8 @@ def chromatic_noise_block(
         Currently only supports power law option.
     :param dropbin_min: Set the minimal number of freq. bins for the dropbin.
     :param k_threshold: Threshold for dropout analysis.
+    :param vary:
+        Whether to vary the parameters or use constant values.
     :param name: Define the signal name.
     """
     if tnfreq and Tspan is not None:
@@ -974,10 +1026,12 @@ def chromatic_noise_block(
 
     if idx is None:
         idx = parameter.Uniform(idxmin, idxmax)
+    elif isinstance(idx, float) or isinstance(idx, int):
+        idx = parameter.Constant(idx)
 
     if gp_kernel == "diag":
         if psd in ["powerlaw", "turnover", "broken_powerlaw", "flat_powerlaw"]:
-            if logmin is not None and logmax is not None:
+            if logmin is not None and logmax is not None and vary:
                 if prior == "uniform":
                     log10_A = parameter.LinearExp(logmin, logmax)
                 elif prior == "log-uniform":
@@ -989,9 +1043,13 @@ def chromatic_noise_block(
                     log10_A = parameter.LinearExp(-20, -10)
                 elif prior == "log-uniform":
                     log10_A = parameter.Uniform(-20, -10)
+                if not vary:
+                    log10_A = parameter.Constant()
 
             if gamma_val is not None:
                 gamma = parameter.Constant(gamma_val)
+            elif not vary:
+                gamma = parameter.Constant()
             else:
                 if gamma_prior == "uniform":
                     gamma = parameter.Uniform(gammamin, gammamax)
@@ -1019,11 +1077,17 @@ def chromatic_noise_block(
                 else:
                     chm_prior = utils.powerlaw(log10_A=log10_A, gamma=gamma)
             elif psd == "broken_powerlaw":
-                kappa = parameter.Uniform(0.01, 0.5)
-                log10_fb = parameter.Uniform(-10, -6)
+                if vary:
+                    kappa = parameter.Uniform(0.01, 0.5)
+                    log10_fb = parameter.Uniform(-10, -6)
+                else:
+                    kappa = parameter.Constant()
+                    log10_fb = parameter.Constant()
 
                 if delta_val is not None:
                     delta = parameter.Constant(delta_val)
+                elif not vary:
+                    delta = parameter.Constant()
                 else:
                     delta = parameter.Uniform(0, 7)
                 chm_prior = gpp.broken_powerlaw(
@@ -1034,13 +1098,20 @@ def chromatic_noise_block(
                     kappa=kappa,
                 )
             elif psd == "turnover":
-                kappa = parameter.Uniform(0, 7)
-                lf0 = parameter.Uniform(-9, -7)
+                if vary:
+                    kappa = parameter.Uniform(0, 7)
+                    lf0 = parameter.Uniform(-9, -7)
+                else:
+                    kappa = parameter.Constant()
+                    lf0 = parameter.Constant()
                 chm_prior = utils.turnover(
                     log10_A=log10_A, gamma=gamma, lf0=lf0, kappa=kappa
                 )
             elif psd == "flat_powerlaw":
-                log10_B = parameter.Uniform(-10, -4)
+                if vary:
+                    log10_B = parameter.Uniform(-10, -4)
+                else:
+                    log10_B = parameter.Constant()
                 chm_prior = gpp.flat_powerlaw(
                     log10_A=log10_A, gamma=gamma, log10_B=log10_B
                 )
@@ -1058,6 +1129,8 @@ def chromatic_noise_block(
                     log10_rho = parameter.Uniform(-10, -4, size=components)
                 else:
                     log10_rho = parameter.Uniform(-9, -4, size=components)
+            if not vary:
+                log10_rho = parameter.Constant()
 
             chm_prior = gpp.free_spectrum(log10_rho=log10_rho)
 
@@ -1072,10 +1145,12 @@ def chromatic_noise_block(
                 modes=modes,
             )
         else:
+            print(f'Creating the Fourier design matrix with fref = {fref} MHz')
             chm_basis = gpb.createfourierdesignmatrix_chromatic(
                 nmodes=components,
                 Tspan=Tspan,
                 logf=logf,
+                fref=fref,
                 fmin=fmin,
                 fmax=fmax,
                 idx=idx,
@@ -1083,29 +1158,52 @@ def chromatic_noise_block(
             )
 
     elif gp_kernel == "nondiag":
-        if nondiag_kernel == "periodic":
-            # Periodic GP kernel for DM
+        # these are shared between a few of the kernels below
+        if vary:
             log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+            log10_ell = parameter.Uniform(0, 5)
+            log10_p = parameter.Uniform(-2, 3)
+            log10_gam_p = parameter.Uniform(-4, 4)
+        else:
+            log10_sigma = parameter.Constant()
+            log10_ell = parameter.Constant()
+            log10_p = parameter.Constant()
+            log10_gam_p = parameter.Constant()
 
-            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day)
+        if nondiag_kernel == "periodic":
+            # Periodic GP kernel for Chrom
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt*const.day, idx=idx)
             chm_prior = gpk.periodic_kernel(
                 log10_sigma=log10_sigma,
                 log10_ell=log10_ell,
                 log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
+                log10_p=log10_p
+            )
+
+        elif nondiag_kernel == "sq_exp":
+            # Squared-exponential GP kernel for Chrom
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day)
+            chm_prior = gpk.se_dm_kernel(
+                log10_sigma=log10_sigma,
+                log10_ell=log10_ell,
             )
 
         elif nondiag_kernel == "periodic_rfband":
-            # Periodic GP kernel for DM with RQ radio-frequency dependence
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_ell2 = parameter.Uniform(2, 7)
-            log10_alpha_wgt = parameter.Uniform(-4, 1)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+            # Periodic GP kernel for Chrom with RQ radio-frequency dependence
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(1, 4)
+                log10_ell2 = parameter.Uniform(2, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 1)
+                log10_p = parameter.Uniform(-4, 1)
+                log10_gam_p = parameter.Uniform(-3, 2)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
+                log10_ell2 = parameter.Constant()
+                log10_alpha_wgt = parameter.Constant()
+                log10_p = parameter.Constant()
+                log10_gam_p = parameter.Constant()
 
             chm_basis = gpk.get_tf_quantization_matrix(
                 df=df, dt=dt * const.day, dm=True, dm_idx=idx
@@ -1121,17 +1219,38 @@ def chromatic_noise_block(
 
         elif nondiag_kernel == "sq_exp":
             # squared-exponential kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(0, 5)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
 
             chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day, idx=idx)
             chm_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
+
+        elif nondiag_kernel == 'dmx_like':
+            # DMX-like signal
+            if vary:
+                log10_sigma_ridge = parameter.Uniform(-10, -4)
+            else:
+                log10_sigma_ridge = parameter.Constant()
+
+            chm_basis = gpk.linear_interp_basis_chromatic(dt=dt * const.day, idx=idx)
+            chm_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
+
         elif nondiag_kernel == "sq_exp_rfband":
             # Sq-Exp GP kernel for Chrom with RQ radio-frequency dependence
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_ell2 = parameter.Uniform(2, 7)
-            log10_alpha_wgt = parameter.Uniform(-4, 1)
+            if vary:
+                log10_sigma = parameter.Uniform(-10, -4)
+                log10_ell = parameter.Uniform(1, 4)
+                log10_ell2 = parameter.Uniform(2, 7)
+                log10_alpha_wgt = parameter.Uniform(-4, 1)
+            else:
+                log10_sigma = parameter.Constant()
+                log10_ell = parameter.Constant()
+                log10_ell2 = parameter.Constant()
+                log10_alpha_wgt = parameter.Constant()
 
             chm_basis = gpk.get_tf_quantization_matrix(
                 df=df, dt=dt * const.day, dm=True, dm_idx=idx

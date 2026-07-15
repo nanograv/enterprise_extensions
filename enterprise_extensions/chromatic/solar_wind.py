@@ -5,10 +5,12 @@ import os
 import numpy as np
 import scipy.stats as sps
 import scipy.special as spsf
+import astropy.units as u
 
 from enterprise import constants as const
 from enterprise.signals import (
     deterministic_signals,
+    gp_priors,
     gp_signals,
     parameter,
     signal_base,
@@ -21,7 +23,6 @@ defpath = os.path.dirname(__file__)
 
 yr_in_sec = 365.25 * 24 * 3600
 
-
 @signal_base.function
 def solar_wind(
     toas,
@@ -33,6 +34,9 @@ def solar_wind(
     n_earth_bins=None,
     t_init=None,
     t_final=None,
+    nesw1 = None, 
+    nesw2 = None, 
+    swepoch=None, 
 ):
     """
     Construct DM-Solar Model fourier design matrix.
@@ -51,13 +55,17 @@ def solar_wind(
                 all pulsars.
     :param t_final: Final time of last TOA in entire dataset, including all
                 pulsars.
+    :param nesw1 : First order time-derivative of solar-wind electron density [cm**-3*yr**-1]
+    :param nesw2 : Second order time-derivative of solar-wind electron density [cm**-3*yr**-2]
+    :swepoch : Reference epoch for SW Taylor series [MJD]
 
     :return dt_DM: Chromatic time delay due to solar wind
     """
 
     if n_earth_bins is None:
         theta, R_earth, _, _ = theta_impact(planetssb, sunssb, pos_t)
-        dm_sol_wind = dm_solar(n_earth, theta, R_earth)
+        dm_sol_wind = dm_solar(n_earth, theta, R_earth, toas, 
+                               nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
         dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
 
     else:
@@ -97,7 +105,8 @@ def solar_wind(
 
 @signal_base.function
 def solar_wind_r_to_p(
-    toas, freqs, planetssb, sunssb, pos_t, n_earth=5, power=4.39, log10_ne=False
+    toas, freqs, planetssb, sunssb, pos_t, toas, n_earth=5, power=4.39, log10_ne=False, 
+    nesw1=nesw1, nesw2=nesw2, swepoch=swepoch,
 ):
     """
     Construct DM-Solar Model fourier design matrix.
@@ -118,7 +127,8 @@ def solar_wind_r_to_p(
         n_earth = 10**n_earth
 
     theta, _, b, z_earth = theta_impact(planetssb, sunssb, pos_t)
-    dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power)
+    dm_sol_wind = dm_solar_r_to_p(n_earth, theta, b, z_earth, power, toas, 
+                               nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
     dt_DM = (dm_sol_wind) * 4.148808e3 / freqs**2
     dt_DM = np.array(dt_DM)
 
@@ -158,6 +168,7 @@ def createfourierdesignmatrix_solar_dm(
 ):
     """
     Construct DM-Solar Model fourier design matrix.
+    Note that the units of the output are in pc/cm^3.
 
     :param toas: vector of time series in seconds
     :param planetssb: solar system bayrcenter positions
@@ -185,86 +196,194 @@ def createfourierdesignmatrix_solar_dm(
 
 
 def solar_wind_block(
+    include_deterministic=True,
     n_earth=None,
     ACE_prior=False,
+    det_name='n_earth',
+    n_earth_bins=None,
+    t_init=None,
+    t_final=None,
     include_swgp=True,
-    swgp_prior=None,
-    swgp_basis=None,
+    swgp_prior='powerlaw',
+    swgp_basis='fourier',
+    gp_name="sw_gp",
     Tspan=None,
+    modes=None,
+    nmodes=15,
+    dt=3,
+    vary_swgp=True, 
+    nesw1 = None, 
+    nesw2 = None, 
+    swepoch = None, 
 ):
     """
-    Returns Solar Wind DM noise model. Best model from Hazboun, et al (in prep)
-        Contains a single mean electron density with an auxiliary perturbation
-        modeled using a gaussian process. The GP has common prior parameters
-        between all pulsars, but the realizations are different for all pulsars.
+    Returns Solar Wind DM noise model. Recommended is a time-independent, deterministic model with
+    Gaussian Process perturbations. Can choose from a variety of GP bases, basis sizes, and priors.
 
-    Solar Wind DM noise modeled as a power-law with 30 sampling frequencies
+    Alternatively, could construct a time-dependent, binned model which fits a deterministic n_earth value for each bin.
 
+    The GP has common prior parameters between all pulsars,
+    but the realizations are different for all pulsars.
+
+    :param include_deterministic:
+        Whether or not to include a deterministic solar wind model.
     :param n_earth:
         Solar electron density at 1 AU.
+        if 'include_deterministic' is True:
+            None -- samples in those parameter(s).
+            List -- sets the n_earth parameter(s) fixed to those values.
     :param ACE_prior:
         Whether to use the ACE SWEPAM data as an astrophysical prior.
+        Only for deterministic models.
+    :param det_name:
+        Name of the deterministic signal included.
+    :param n_earth_bins:
+        Piecewise fit for a deterministic n_earth. Only used if 'include_deterministic' is True.
+        List - list of bin edges ( MJDs ) which should be 1+number of bins in length.
+        None - use 1 n_earth parameter for the entire dataset.
     :param swgp_prior:
         Prior function for solar wind Gaussian process. Default is a power law.
+        Options for 'Fourier' swgp basis: ['powerlaw','spectrum']
+        Options for 'triangular' swgp basis: ['ridge']
+        Options for 'linear_interp' swgp basis: ['periodic','sq_exp', 'ridge']
     :param swgp_basis:
         Basis to be used for solar wind Gaussian process.
-        Options includes ['powerlaw'.'periodic','sq_exp']
+        Options includes ['fourier','linear_interp','triangular']
+    :param gp_name:
+        Name for the GP signal included.
     :param Tspan:
         Sets frequency sampling f_i = i / Tspan. Default will
         use overall time span for individual pulsar. Default is to use 15
         frequencies (1/Tspan,15/Tspan).
-
+    :param modes:
+        Explicitly gives the Fourier modes to use for the fourier basis SWGP.
+    :param nmodes:
+        Number of nyquist spaced Fourier modes to use for the SW Fourier design matrix.
+    :param dt:
+        Time interval for linear interpolation basis in days.
+        Only needed if swgp_basis is 'linear_interp'.
+    :param vary_swgp:
+        Whether to vary the SW GP hyperparameters or set them constant.
+    :param nesw1 : 
+        First order time-derivative of solar-wind electron density [cm**-3*yr**-1]
+    :param nesw2 : 
+        Second order time-derivative of solar-wind electron density [cm**-3*yr**-2]
+    :swepoch : 
+        Reference epoch for SW Taylor series [MJD]
     """
+    if include_deterministic:
+        if n_earth is None and n_earth_bins is None and not ACE_prior:
+            n_earth = parameter.Uniform(0, 30)("n_earth")
+        elif n_earth is None and n_earth_bins is None and ACE_prior:
+            n_earth = ACE_SWEPAM_Parameter()("n_earth")
+        elif n_earth is None and (isinstance(n_earth_bins, list) or
+                                  isinstance(n_earth_bins, np.ndarray)) and ACE_prior:
+            n_earth = ACE_SWEPAM_Parameter(size=n_earth_bins.size-1)("n_earth")
+        elif n_earth is None and (isinstance(n_earth_bins, list) or
+                                  isinstance(n_earth_bins, np.ndarray)) and not ACE_prior:
+            n_earth = parameter.Uniform(0, 30, size=n_earth_bins.size-1)("n_earth")
+        else:
+            pass  # set n_earth to the provided value(s) below
 
-    if n_earth is None and not ACE_prior:
-        n_earth = parameter.Uniform(0, 30)("n_earth")
-    elif n_earth is None and ACE_prior:
-        n_earth = ACE_SWEPAM_Parameter()("n_earth")
-    else:
-        pass
-
-    deter_sw = solar_wind(n_earth=n_earth)
-    mean_sw = deterministic_signals.Deterministic(deter_sw, name="n_earth")
-    sw_model = mean_sw
+        deter_sw = solar_wind(n_earth=n_earth, n_earth_bins=n_earth_bins, 
+                              t_init=t_init, t_final=t_final, 
+                              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
+        mean_sw = deterministic_signals.Deterministic(deter_sw, name=det_name)
+        sw_model = mean_sw
 
     if include_swgp:
-        if swgp_basis == "powerlaw":
-            # dm noise parameters that are common
-            log10_A_sw = parameter.Uniform(-10, 1)
-            gamma_sw = parameter.Uniform(-2, 1)
-            sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
-
-            if Tspan is not None:
-                freqs = np.linspace(1 / Tspan, 30 / Tspan, 30)
-                freqs = freqs[1 / freqs > 1.5 * yr_in_sec]
-                sw_basis = createfourierdesignmatrix_solar_dm(modes=freqs)
+        if swgp_basis == "fourier":
+            if modes is not None:
+                sw_basis = createfourierdesignmatrix_solar_dm(modes=modes)
+                nmodes = len(modes)
+            elif Tspan is not None:
+                sw_basis = createfourierdesignmatrix_solar_dm(nmodes=nmodes,
+                                                              Tspan=Tspan)
             else:
-                sw_basis = createfourierdesignmatrix_solar_dm(nmodes=15, Tspan=Tspan)
+                raise ValueError("Must specificy either the Tspan & nmodes or modes in solar wind block")
+            if swgp_prior == "powerlaw":
+                if vary_swgp:
+                    # sometimes amplitudes larger than 1 break the likelihood
+                    log10_A_sw = parameter.Uniform(-12, 0)  # sometimes positive amplitudes break this
+                    gamma_sw = parameter.Uniform(-6, 5)  # priors from susurla et al. 2024
+                else:
+                    log10_A_sw = parameter.Constant()
+                    gamma_sw = parameter.Constant()
+                sw_prior = utils.powerlaw(log10_A=log10_A_sw, gamma=gamma_sw)
 
-        elif swgp_basis == "periodic":
-            # Periodic GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
-            log10_p = parameter.Uniform(-4, 1)
-            log10_gam_p = parameter.Uniform(-3, 2)
+            elif swgp_prior == "spectrum":
+                # free spectrum GP for SW DM
+                if vary_swgp:
+                    log10_rho_sw = parameter.Uniform(-10, 1, size=nmodes)
+                else:
+                    log10_rho_sw = parameter.Constant(size=nmodes)
+                sw_prior = gp_priors.free_spectrum(log10_rho=log10_rho_sw)
+            else:
+                raise ValueError("Invalid Fourier SWGP prior specified.")
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=6 * 86400)
-            sw_prior = gpk.periodic_kernel(
-                log10_sigma=log10_sigma,
-                log10_ell=log10_ell,
-                log10_gam_p=log10_gam_p,
-                log10_p=log10_p,
-            )
-        elif swgp_basis == "sq_exp":
-            # squared-exponential GP kernel for DM
-            log10_sigma = parameter.Uniform(-10, -4)
-            log10_ell = parameter.Uniform(1, 4)
+        elif swgp_basis == "linear_interp":
+            # linear interpolation basis in time with nu^-2 * geometric factor scaling
+            # units of dt are days. Probably choose something between ~1 and 30 days.
+            sw_basis = linear_interp_basis_sw_dm(dt=dt*86400)
 
-            sw_basis = gpk.linear_interp_basis_dm(dt=6 * 86400)
-            sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma, log10_ell=log10_ell)
+            if swgp_prior == "periodic":
+                # Periodic GP kernel for DM
+                if vary_swgp:
+                    log10_sigma = parameter.Uniform(-10, -4)  # units are log10(seconds)
+                    log10_ell = parameter.Uniform(1, 4)  # units are log10(days)
+                    log10_p = parameter.Uniform(-4, 1.5)  # units are log10(years)
+                    log10_gam_p = parameter.Uniform(-3, 2)
+                else:
+                    log10_sigma = parameter.Constant()
+                    log10_ell = parameter.Constant()
+                    log10_p = parameter.Constant()
+                    log10_gam_p = parameter.Constant()
 
-        gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name="gp_sw")
-        sw_model += gp_sw
+                sw_prior = gpk.periodic_kernel(log10_sigma=log10_sigma,
+                                               log10_ell=log10_ell,
+                                               log10_gam_p=log10_gam_p,
+                                               log10_p=log10_p)
+            elif swgp_prior == "sq_exp":
+                # squared-exponential GP kernel for DM
+                if vary_swgp:
+                    log10_sigma = parameter.Uniform(-10, -4)
+                    log10_ell = parameter.Uniform(0, 4)
+                else:
+                    log10_sigma = parameter.Constant()
+                    log10_ell = parameter.Constant()
+
+                sw_prior = gpk.se_dm_kernel(log10_sigma=log10_sigma,
+                                            log10_ell=log10_ell)
+            elif swgp_prior == "ridge":
+                # white noise kernel for SW DM, using delta n_earth as coefficients
+                if vary_swgp:
+                    log10_sigma_ridge = parameter.Uniform(-4, 3)
+                else:
+                    log10_sigma_ridge = parameter.Constant()
+                sw_prior = gpk.dmx_ridge_prior(log10_sigma_ridge=log10_sigma_ridge)
+            else:
+                raise ValueError("Invalid linear_interp SWGP prior specified.")
+
+        elif swgp_basis == "triangular":
+            if swgp_prior == "ridge":
+                # white noise kernel for SW DM, using delta n_earth as coefficients
+                if vary_swgp:
+                    log10_sigma_ne = parameter.Uniform(-4, 2)
+                else:
+                    log10_sigma_ne = parameter.Constant()
+                sw_basis = gpk.sw_dm_triangular_basis()
+                sw_prior = gpk.sw_dm_wn_prior(log10_sigma_ne=log10_sigma_ne)
+            else:
+                raise ValueError("Invalid triangular-basis SWGP prior specified.")
+
+        else:
+            raise ValueError("Invalid SWGP basis specified.")
+
+        gp_sw = gp_signals.BasisGP(sw_prior, sw_basis, name=gp_name)
+        if include_deterministic:
+            sw_model += gp_sw
+        else:
+            sw_model = gp_sw
 
     return sw_model
 
@@ -276,17 +395,34 @@ AU_light_sec = const.AU / const.c  # 1 AU in light seconds
 AU_pc = const.AU / const.pc  # 1 AU in parsecs (for DM normalization)
 
 
-def _dm_solar_close(n_earth, r_earth):
+def _dm_solar_close(n_earth, r_earth, toas, 
+                    nesw1=nesw1, nesw2=nesw2, swepoch=swepoch):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n_earth += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n_earth += 0.5 * nesw2 * (dt/yr_in_sec)**2
     return n_earth * AU_light_sec * AU_pc / r_earth
 
+def _dm_solar(n_earth, theta, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch):    
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n_earth += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n_earth += 0.5 * nesw2 * (dt/yr_in_sec)**2    
+    return (np.pi - theta) * (n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta)))
 
-def _dm_solar(n_earth, theta, r_earth):
-    return (np.pi - theta) * (
-        n_earth * AU_light_sec * AU_pc / (r_earth * np.sin(theta))
-    )
-
-
-def dm_solar(n_earth, theta, r_earth):
+def dm_solar(n_earth, theta, r_earth, toas, 
+             nesw1=None, nesw2=None, swepoch=None):
     """
     Calculates Dispersion measure due to 1/r^2 solar wind density model.
     ::param :n_earth Solar wind proto/electron density at Earth (1/cm^3)
@@ -296,12 +432,15 @@ def dm_solar(n_earth, theta, r_earth):
     """
     return np.where(
         np.pi - theta >= 1e-5,
-        _dm_solar(n_earth, theta, r_earth),
-        _dm_solar_close(n_earth, r_earth),
+        _dm_solar(n_earth, theta, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch),
+        _dm_solar_close(n_earth, r_earth, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch),
     )
 
 
-def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
+def dm_solar_r_to_p(n_earth, theta, b, z_earth, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
     """
     Calculates Dispersion measure due to 1/r^p solar wind density model.
     ::param :n_earth Solar wind proton/electron density at Earth (1/cm^3)
@@ -309,14 +448,36 @@ def dm_solar_r_to_p(n_earth, theta, b, z_earth, p):
     ::param :r_earth :distance from Earth to Sun in (light seconds).
     See You et al. 20007 for more details.
     """
-    return _dm_solar_r_to_p(n_earth, b, z_earth, p)
+    return _dm_solar_r_to_p(n_earth, b, z_earth, p, toas, 
+              nesw1=nesw1, nesw2=nesw2, swepoch=swepoch)
 
 
-def _dm_solar_close_r_to_p(n, z, p):
+def _dm_solar_close_r_to_p(n, z, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n += 0.5 * nesw2 * (dt/yr_in_sec)**2
+
     return n * (AU_light_sec / z) ** (p - 1) * (AU_pc / p)
 
 
-def _dm_solar_r_to_p(n, b, z, p):
+def _dm_solar_r_to_p(n, b, z, p, toas, 
+              nesw1=None, nesw2=None, swepoch=None):
+    if not swepoch:
+        swepoch = (np.max(toas) + np.min(toas))/2
+    else:
+        swepoch *= u.d.to(u.s)
+    dt = toas - swepoch
+    if nesw1:
+        n += nesw1*(dt/yr_in_sec)
+    if nesw2:
+        n += 0.5 * nesw2 * (dt/yr_in_sec)**2
     return (
         n
         * (AU_light_sec / b) ** p
@@ -325,7 +486,6 @@ def _dm_solar_r_to_p(n, b, z, p):
         * const.c
         * (_dm_p_int(b, 1e14, p) - _dm_p_int(b, -z, p))
     )
-
 
 def _dm_p_int(b, z, p):
     return z / b * spsf.hyp2f1(0.5, p / 2.0, 1.5, -(z**2) / b**2)
