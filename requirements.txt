@@ -3,8 +3,9 @@ scipy>=1.2.0
 ephem>=3.7.6.0
 healpy>=1.14.0
 scikit-sparse>=0.4.5
-# 3.5.0+ uses importlib.resources; older releases need pkg_resources (broken on setuptools 82+)
-enterprise-pulsar>=3.5.0
+# 3.5.0+ needs Python>=3.10; CI still tests 3.9 so stay on 3.4.x there.
+# setuptools is pinned <81 in CI so pkg_resources still works with 3.4.x.
+enterprise-pulsar>=3.4.4
 pyarrow>=16.1.0
 matplotlib>=3.1.0
 six
