@@ -233,7 +233,14 @@ class OptimalStatistic(object):
 
             FNTSigmaTNr = np.dot(FNT, SigmaTNr)
             X.append(FNr - FNTSigmaTNr)
-            Z.append(FNF - np.dot(FNT, SigmaTNF))
+            # Make sure Z is symmetric and positive semi-definite
+            Zi = FNF - np.dot(FNT, SigmaTNF)
+            Zi = 0.5 * (Zi + Zi.T)
+            if np.linalg.eigvalsh(Zi)[0] < 0.0:
+                # Set negative eigenvalues to zero and reconstruct Zi
+                w, V = np.linalg.eigh(Zi)
+                Zi = (V * np.clip(w, 0.0, None)) @ V.T
+            Z.append(Zi)
 
         npsr = len(self.pta._signalcollections)
         rho, sig, ORF, xi = [], [], [], []
@@ -259,8 +266,12 @@ class OptimalStatistic(object):
                 bot = np.trace(np.dot(Z[ii] * phiIJ[None, :], Z[jj] * phiIJ[None, :]))
 
                 # cross correlation and uncertainty
-                rho.append(top / bot)
-                sig.append(1 / np.sqrt(bot))
+                if bot > 0:
+                    rho.append(top / bot)
+                    sig.append(1 / np.sqrt(bot))
+                else:
+                    rho.append(0.0)
+                    sig.append(np.inf)
 
                 # Overlap reduction function for PSRs ii, jj
                 ORF.append(self.orf(self.psrlocs[ii], self.psrlocs[jj]))
