@@ -34,11 +34,11 @@ class FiStat(object):
 
             efac = parameter.Constant()
             equad = parameter.Constant()
-            ecorr = parameter.Constant()
+            # ecorr = parameter.Constant()
 
             selection = selections.Selection(selections.by_backend)
             ef = white_signals.MeasurementNoise(efac=efac, log10_t2equad=equad, selection=selection)
-            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=selection, name='')
+            # ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=selection, name='')
             rn = ee_blocks.red_noise_block(psd='powerlaw', prior='log-uniform', components=30, Tspan=full_tspan, logmin=-20, logmax=-11)
             tm = gp_signals.TimingModel(use_svd=True)
 
@@ -48,9 +48,9 @@ class FiStat(object):
                 else:
                     gamma = gamma_val
                 curn = ee_blocks.common_red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=full_tspan, components=15, logmin=-20, logmax=-11, gamma_val=gamma, name='gw')
-                s = tm + ef + ec + curn + rn
+                s = tm + ef + curn + rn # + ec
             else:
-                s = tm + ef + ec + rn
+                s = tm + ef + rn # + ec
 
             print('noise generated')
 
@@ -111,9 +111,9 @@ class FiStat(object):
             for toa_idx, toa in enumerate(psr.toas):
                 if toa > t0_sec:
                     psr_bwm_template[toa_idx] = toa - t0_sec
-            A = np.zeros((2, ntoa))
-            A[0, :] = psr_bwm_template
-            A[1, :] = psr_bwm_template
+            # A = np.zeros((2, ntoa))
+            # A[0, :] = psr_bwm_template
+            # A[1, :] = psr_bwm_template
 
             N = self.innerProduct_rr(psr_bwm_template, psr.residuals, Nmat, T, Sigma, brave=False)
 
@@ -155,9 +155,9 @@ class FiStat(object):
                 for toa_idx, toa in enumerate(psr.toas):
                     if toa > t0_sec:
                         psr_bwm_template[toa_idx] = toa - t0_sec
-                A = np.zeros((2, ntoa))
-                A[0, :] = psr_bwm_template
-                A[1, :] = psr_bwm_template
+                # A = np.zeros((2, ntoa))
+                # A[0, :] = psr_bwm_template
+                # A[1, :] = psr_bwm_template
 
                 N = self.innerProduct_rr(psr_bwm_template, psr.residuals, Nmat, T, Sigma, brave=False)
 
@@ -241,6 +241,42 @@ class FiStat(object):
         if TNx is None and TNy is None:
             TNx = np.dot(Tmat.T, Nx)
             TNy = np.dot(Tmat.T, Ny)
+
+        if brave:
+            cf = sl.cho_factor(Sigma, check_finite=False)
+            SigmaTNy = sl.cho_solve(cf, TNy, check_finite=False)
+        else:
+            cf = sl.cho_factor(Sigma)
+            SigmaTNy = sl.cho_solve(cf, TNy)
+
+        ret = xNy - np.dot(TNx, SigmaTNy)
+
+        return ret
+
+    def innerProduct_rr_NoInv(x, y, Nvec, Tmat, Sigma, TNx=None, TNy=None, brave=False): #chol_Sigma
+        """
+        Compute inner product using rank-reduced
+        approximations for red noise/jitter
+        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
+
+        :param x: vector timeseries 1
+        :param y: vector timeseries 2
+        :param Nvec: white noise matrix
+        :param Tmat: Modified design matrix including red noise/jitter
+        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
+        :param TNx: T^T N^{-1} x precomputed
+        :param TNy: T^T N^{-1} y precomputed
+
+        :return: inner product (x|y)
+        """
+
+        # white noise term
+        xNy = Nvec.solve(y, left_array=x)
+        Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
+
+        if TNx is None and TNy is None:
+            TNx = Nvec.solve(x, left_array=Tmat)
+            TNy = Nvec.solve(y, left_array=Tmat)
 
         if brave:
             cf = sl.cho_factor(Sigma, check_finite=False)
