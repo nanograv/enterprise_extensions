@@ -253,42 +253,6 @@ class FiStat(object):
 
         return ret
 
-    def innerProduct_rr_NoInv(x, y, Nvec, Tmat, Sigma, TNx=None, TNy=None, brave=False): #chol_Sigma
-        """
-        Compute inner product using rank-reduced
-        approximations for red noise/jitter
-        Compute: x^T N^{-1} y - x^T N^{-1} T \Sigma^{-1} T^T N^{-1} y
-
-        :param x: vector timeseries 1
-        :param y: vector timeseries 2
-        :param Nvec: white noise matrix
-        :param Tmat: Modified design matrix including red noise/jitter
-        :param Sigma: Sigma matrix (\varphi^{-1} + T^T N^{-1} T)
-        :param TNx: T^T N^{-1} x precomputed
-        :param TNy: T^T N^{-1} y precomputed
-
-        :return: inner product (x|y)
-        """
-
-        # white noise term
-        xNy = Nvec.solve(y, left_array=x)
-        Nx, Ny = np.dot(Ni, x), np.dot(Ni, y)
-
-        if TNx is None and TNy is None:
-            TNx = Nvec.solve(x, left_array=Tmat)
-            TNy = Nvec.solve(y, left_array=Tmat)
-
-        if brave:
-            cf = sl.cho_factor(Sigma, check_finite=False)
-            SigmaTNy = sl.cho_solve(cf, TNy, check_finite=False)
-        else:
-            cf = sl.cho_factor(Sigma)
-            SigmaTNy = sl.cho_solve(cf, TNy)
-
-        ret = xNy - np.dot(TNx, SigmaTNy)
-
-        return ret
-
     def make_Nmat(self, phiinv, TNT, Nvec, T):
         """
         Generate the N noise matrix for a specific pulsar using a Cholesky factorization of the matrix
