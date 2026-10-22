@@ -34,11 +34,11 @@ class FiStat(object):
 
             efac = parameter.Constant()
             equad = parameter.Constant()
-            # ecorr = parameter.Constant()
+            ecorr = parameter.Constant()
 
             selection = selections.Selection(selections.by_backend)
             ef = white_signals.MeasurementNoise(efac=efac, log10_t2equad=equad, selection=selection)
-            # ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=selection, name='')
+            ec = gp_signals.EcorrBasisModel(log10_ecorr=ecorr, selection=selection, name='')
             rn = ee_blocks.red_noise_block(psd='powerlaw', prior='log-uniform', components=30, Tspan=full_tspan, logmin=-20, logmax=-11)
             tm = gp_signals.TimingModel(use_svd=True)
 
@@ -48,9 +48,9 @@ class FiStat(object):
                 else:
                     gamma = gamma_val
                 curn = ee_blocks.common_red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=full_tspan, components=15, logmin=-20, logmax=-11, gamma_val=gamma, name='gw')
-                s = tm + ef + curn + rn  # + ec
+                s = tm + ef + curn + rn + ec
             else:
-                s = tm + ef + rn  # + ec
+                s = tm + ef + rn + ec
 
             print('noise generated')
 
@@ -259,22 +259,29 @@ class FiStat(object):
 
         :param phiinv: inverse of the phi matrix
         :param TNT: white noise inner product of T matrix
-        :param Nvec: pulsar auto errors
+        :param Nvec: pulsar auto errors (either a plain ndarray or a ShermanMorrison object)
         :param T: design matrix and fourier basis
 
-
         :return: Nmatrix
-
         """
         Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
         cf = sl.cho_factor(Sigma)
 
-        TtN = np.multiply((1/Nvec)[:, None], T).T
+        # Nvec may be a plain numpy array (diagonal noise) OR a ShermanMorrison
+        # matrix object (when ecorr is present). Handle both cases.
+        if hasattr(Nvec, 'solve'):
+            ntoa = T.shape[0]
+            NiT = np.array([Nvec.solve(T[:, i]) for i in range(T.shape[1])]).T  # (ntoa, ncol)
+            Ndiag_dense = np.array([Nvec.solve(np.eye(ntoa)[:, i]) for i in range(ntoa)]).T
+            TtN = NiT.T  # (ncol, ntoa)
+            expval2 = sl.cho_solve(cf, TtN)
+            return Ndiag_dense - np.dot(TtN.T, expval2)
+        else:
 
-        # Put pulsar's autoerrors in a diagonal matrix
-        Ndiag = np.diag(1/Nvec)
+            TtN = np.multiply((1/Nvec)[:, None], T).T
 
-        expval2 = sl.cho_solve(cf, TtN)
+            Ndiag = np.diag(1/Nvec)
 
-        # An Ntoa by Ntoa noise matrix to be used in expand dense matrix calculations earlier
-        return Ndiag - np.dot(TtN.T, expval2)
+            expval2 = sl.cho_solve(cf, TtN)
+
+            return Ndiag - np.dot(TtN.T, expval2)
