@@ -48,9 +48,9 @@ class FiStat(object):
                 else:
                     gamma = gamma_val
                 curn = ee_blocks.common_red_noise_block(psd='powerlaw', prior='log-uniform', Tspan=full_tspan, components=15, logmin=-20, logmax=-11, gamma_val=gamma, name='gw')
-                s = tm + ef + curn + rn # + ec
+                s = tm + ef + curn + rn  # + ec
             else:
-                s = tm + ef + rn # + ec
+                s = tm + ef + rn  # + ec
 
             print('noise generated')
 
@@ -102,7 +102,7 @@ class FiStat(object):
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
             Nmat = self.make_Nmat(phiinv, TNT, Nvec, T)
 
-            ntoa = len(psr.toas)
+            # ntoa = len(psr.toas)
 
             # populate these with the right signal templates
             # Since we multiply by the Fp and Fc antenna patterns later, we just populate these with
@@ -146,7 +146,7 @@ class FiStat(object):
             Sigma = TNT + (np.diag(phiinv) if phiinv.ndim == 1 else phiinv)
 
             Nmat = self.make_Nmat(phiinv, TNT, Nvec, T)
-            ntoa = len(psr.toas)
+            # ntoa = len(psr.toas)
             for index, t0_sec in enumerate(t0_range_sec):
                 # populate these with the right signal templates
                 # Since we multiply by the Fp and Fc antenna patterns later, we just populate these with
