@@ -94,6 +94,14 @@ def pta_pshift(dmx_psrs, caplog):
     return pta_pshift
 
 
+# enterprise 3.5.0 returns a zero prior when only pseed changes, so phiinv is
+# infinite and cho_factor raises. Fixed by nanograv/enterprise#461; remove this
+# marker once a release that includes it is the minimum supported version.
+@pytest.mark.xfail(
+    raises=ValueError,
+    strict=False,
+    reason="enterprise 3.5.0 returns a zero prior after a pseed change (nanograv/enterprise#461)",
+)
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_os_pseed(dmx_psrs, pta_pshift):
     OS = optstat.OptimalStatistic(psrs=dmx_psrs, pta=pta_pshift)

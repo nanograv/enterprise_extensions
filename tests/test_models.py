@@ -3,6 +3,7 @@
 
 """Tests for `enterprise_extensions` package."""
 
+import inspect
 import json
 import logging
 import os
@@ -13,6 +14,7 @@ from enterprise import constants as const
 
 from enterprise_extensions import model_utils, models
 from enterprise.pulsar import FeatherPulsar
+from enterprise.signals import gp_bases
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 datadir = os.path.join(testdir, 'data')
@@ -22,6 +24,14 @@ psr_names = ['J0613-0200', 'J1713+0747', 'J1909-3744']
 
 with open(datadir+'/ng11yr_noise.json', 'r') as fin:
     noise_dict = json.load(fin)
+
+
+# The chromatic GP models pass ``fref`` to enterprise's
+# createfourierdesignmatrix_chromatic, which older enterprise releases lack.
+needs_fref = pytest.mark.skipif(
+    "fref" not in inspect.signature(gp_bases.createfourierdesignmatrix_chromatic).parameters,
+    reason="installed enterprise has no fref in createfourierdesignmatrix_chromatic",
+)
 
 
 @pytest.fixture
@@ -130,7 +140,7 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs, caplog):
                   'num_dmdips': 2,
                   'dm_expdip_tmin': [54700, 57450],
                   'dm_expdip_tmax': [54850, 57560],
-                  'dmdip_seqname': ['1st_ism', '2nd_ism'],
+                  'dm_expdip_name': ['1st_ism', '2nd_ism'],
                   'dm_cusp': False,
                   'dm_cusp_sign': 'negative',
                   'dm_cusp_idx': [2, 4],
@@ -243,6 +253,7 @@ def test_model_singlepsr_noise_dm_diag(nodmx_psrs, caplog):
     m.get_lnlikelihood(x0)
 
 
+@needs_fref
 def test_model_singlepsr_noise_chrom_diag(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True, vary_chrom=True,
@@ -265,6 +276,7 @@ def test_model_singlepsr_noise_chrom_diag(nodmx_psrs, caplog):
     m.get_lnlikelihood(x0)
 
 
+@needs_fref
 def test_model_singlepsr_noise_chrom_vary_idx(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     m=models.model_singlepsr_noise(nodmx_psrs[1], chrom_gp=True, vary_chrom=True,
@@ -275,6 +287,7 @@ def test_model_singlepsr_noise_chrom_vary_idx(nodmx_psrs, caplog):
     m.get_lnlikelihood(x0)
 
 
+@needs_fref
 def test_model_singlepsr_fact_like(nodmx_psrs, caplog):
     # caplog.set_level(logging.CRITICAL)
     psr = nodmx_psrs[1]

@@ -12,10 +12,18 @@ entry at a time.
 """
 
 import numpy as np
+import pytest
 
 from enterprise.signals import parameter
 from enterprise.signals.parameter import Function
 from enterprise_extensions.sampler import _draw_parameter_from_prior
+
+
+# Parameter.prior_draw_mode is missing from older enterprise releases.
+needs_prior_draw_mode = pytest.mark.skipif(
+    not hasattr(parameter.Parameter, "prior_draw_mode"),
+    reason="installed enterprise has no Parameter.prior_draw_mode",
+)
 
 
 def _joint_gaussian_parameter(mean, cov, *, fixed_sample=None):
@@ -39,6 +47,7 @@ def _joint_gaussian_parameter(mean, cov, *, fixed_sample=None):
     )("timing_x")
 
 
+@needs_prior_draw_mode
 def test_joint_vector_replaces_every_component():
     mean = np.zeros(2)
     cov = np.array([[1.0, 0.5], [0.5, 1.0]])
@@ -53,6 +62,7 @@ def test_joint_vector_replaces_every_component():
     np.testing.assert_allclose(q, proposed)
 
 
+@needs_prior_draw_mode
 def test_joint_vector_hastings_correction_is_logp_old_minus_logp_new():
     mean = np.zeros(2)
     cov = np.array([[1.0, 0.5], [0.5, 1.0]])
@@ -70,6 +80,7 @@ def test_joint_vector_hastings_correction_is_logp_old_minus_logp_new():
     assert np.isclose(lqxy, expected)
 
 
+@needs_prior_draw_mode
 def test_joint_vector_independence_proposal_recovers_target_moments():
     """An independence MH sampler using the joint prior draw as its sole
     proposal should recover the target mean/covariance, since proposing
@@ -112,6 +123,7 @@ def test_joint_vector_independence_proposal_recovers_target_moments():
     np.testing.assert_allclose(np.cov(draws.T), cov, atol=0.6)
 
 
+@needs_prior_draw_mode
 def test_component_vector_replaces_exactly_one_entry():
     proposed = np.array([9.0, 9.0, 9.0])
     param = parameter.UserParameter(
@@ -147,6 +159,7 @@ def test_scalar_parameter_replaces_directly():
     assert 0.0 <= q[0] <= 1.0
 
 
+@needs_prior_draw_mode
 def test_size_one_vector_joint_draw_and_map_params():
     from enterprise.signals import signal_base
 

@@ -19,7 +19,7 @@ def get_chi2(pta, xs):
     TNTs = pta.get_TNT(params)
     phiinvs = pta.get_phiinv(params, logdet=True, method="cliques")
 
-    chi2 = np.sum(ell[0] for ell in pta.get_rNr_logdet(params))
+    chi2 = sum(ell[0] for ell in pta.get_rNr_logdet(params))
 
     if pta._commonsignals:
         raise NotImplementedError("get_chi2 does not support correlated signals")
