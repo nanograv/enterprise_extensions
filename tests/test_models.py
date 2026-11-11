@@ -130,7 +130,7 @@ def test_model_singlepsr_noise_dip_cusp(nodmx_psrs, caplog):
                   'num_dmdips': 2,
                   'dm_expdip_tmin': [54700, 57450],
                   'dm_expdip_tmax': [54850, 57560],
-                  'dmdip_seqname': ['1st_ism', '2nd_ism'],
+                  'dm_expdip_name': ['1st_ism', '2nd_ism'],
                   'dm_cusp': False,
                   'dm_cusp_sign': 'negative',
                   'dm_cusp_idx': [2, 4],
