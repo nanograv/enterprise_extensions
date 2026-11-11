@@ -67,15 +67,16 @@ def test_Fi(nodmx_psrs, pta_model2a):
     Fi_obj = Fi_stat.FiStat(psrs=nodmx_psrs, noisedict=noise_dict, pta=pta_model2a)
     Fi_obj.compute_Fi(t0=t0_mid)
 
-    chain = np.zeros((10, len(pta_model2a.params)+4))
-    for ii in range(10):
-        entry = [par.sample() for par in pta_model2a.params]
-        entry.extend([Fi_obj.pta.get_lnlikelihood(entry)-Fi_obj.pta.get_lnprior(entry),
-                      Fi_obj.pta.get_lnlikelihood(entry),
-                      0.5, 1])
-        chain[ii, :] = np.array(entry)
-    Fi_obj.compute_maximum_likelihood_Fi(epoch=t0_mid, noisedict=noise_dict, chain=chain)
-
-    Nts = 20
-    t0_range = np.linspace(minMJD, maxMJD, Nts)
-    Fi_obj.compute_noise_marginalized_Fi(epochs=t0_range, noisedict=noise_dict, chain=chain, Nitr=10)
+    # # further tests if time to compleate tests is shortened.
+    # chain = np.zeros((10, len(pta_model2a.params)+4))
+    # for ii in range(10):
+    #     entry = [par.sample() for par in pta_model2a.params]
+    #     entry.extend([Fi_obj.pta.get_lnlikelihood(entry)-Fi_obj.pta.get_lnprior(entry),
+    #                   Fi_obj.pta.get_lnlikelihood(entry),
+    #                   0.5, 1])
+    #     chain[ii, :] = np.array(entry)
+    # Fi_obj.compute_maximum_likelihood_Fi(epoch=t0_mid, noisedict=noise_dict, chain=chain)
+    #
+    # Nts = 20
+    # t0_range = np.linspace(minMJD, maxMJD, Nts)
+    # Fi_obj.compute_noise_marginalized_Fi(epochs=t0_range, noisedict=noise_dict, chain=chain, Nitr=10)

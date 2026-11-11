@@ -90,7 +90,7 @@ class FiStat(object):
         """
         phiinvs = self.pta.get_phiinv(self.params, logdet=False, method='partition')
         TNTs = self.pta.get_TNT(self.params)
-        Ts = self.pta.get_basis()
+        Ts = self.pta.get_basis(self.params)
         Nvecs = self.pta.get_ndiag(self.params)
 
         t0_sec = t0*24*3600
