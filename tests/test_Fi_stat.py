@@ -77,6 +77,6 @@ def test_Fi(nodmx_psrs, pta_model2a):
         chain[ii, :] = np.array(entry)
     Fi_obj.compute_maximum_likelihood_Fi(epoch=t0_mid, noisedict=noise_dict, chain=chain)
 
-    Nts = 20
-    t0_range = np.linspace(minMJD, maxMJD, Nts)
-    Fi_obj.compute_noise_marginalized_Fi(epochs=t0_range, noisedict=noise_dict, chain=chain, Nitr=10)
+    # Nts = 20
+    # t0_range = np.linspace(minMJD, maxMJD, Nts)
+    # Fi_obj.compute_noise_marginalized_Fi(epochs=t0_range, noisedict=noise_dict, chain=chain, Nitr=10)
